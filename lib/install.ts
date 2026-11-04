@@ -28,12 +28,16 @@ export type Release = {
   deviceAssets: DeviceAsset[];
 };
 
-export type InstallCommand = { command: string; method: string; os: OS[]; script: boolean };
+// scaffold: starts a new project from it (npm create astro@latest).
+// app: puts the program on your computer. docker: runs a self-hosted app in a container. library: adds it to your own code.
+export type InstallKind = "app" | "docker" | "library" | "scaffold";
+export type InstallCommand = { command: string; method: string; os: OS[]; script: boolean; kind: InstallKind };
 
 export type InstallOptions = {
   release: Release | null;
   commands: InstallCommand[];
-  platforms: OS[]; // OSes with at least one install option
+  declared?: { unsupported: OS[]; quote: string } | null; // what the README says about unsupported systems
+  platforms: OS[]; // OSes with a ready-made download or an app install command
 };
 
 const SKIP = /(\.(sha\d+|sha\d+sum|md5|sig|asc|pem|crt|sbom|spdx|cdx|intoto\.jsonl|blockmap|ya?ml|json|txt|sum|minisig|bundle|aab|ipa|nupkg|whl|vsix|jar|pom)$)|checksums?|sha256sums|^source/i;
@@ -206,10 +210,12 @@ const METHODS: [RegExp, string, OS[], boolean?][] = [
   [/^(sudo )?(emerge|xbps-install|eopkg it)\b/, "distro package", ["linux"]],
   [/^nix(-env -i| profile install| run)\b/, "Nix", ["mac", "linux"]],
   [/^cargo (install|binstall)\b/, "Cargo", ["mac", "windows", "linux"]],
-  [/^(npm (i|install) (-g|--global)|pnpm (add|i|install) -g|yarn global add|bun (add|install|i) -g|npx [\w@])/, "npm", ["mac", "windows", "linux"]],
+  [/^(npm (i|install) (-g|--global)|pnpm (add|i|install) -g|yarn global add|bun (add|install|i) -g)\b/, "npm", ["mac", "windows", "linux"]],
   [/^(pipx install|uv tool install|uvx )/, "pipx / uv", ["mac", "windows", "linux"]],
   [/^pip3? install (?!-r|-e|--editable|\.)["']?[\w\[]/, "pip", ["mac", "windows", "linux"]],
   [/^go install\b/, "Go", ["mac", "windows", "linux"]],
+  // Frameworks: you start a new project with them rather than install them.
+  [/^(npm create|npm init|pnpm create|yarn create|bun create|npx (--yes )?create-|pnpm dlx create-|bunx create-|npx nuxi@?\S* init|npx sv create|composer create-project)\b/, "Start a new project", ["mac", "windows", "linux"]],
   // Libraries: "installing" means adding them to your own project.
   [/^(uv add|poetry add|pdm add|pipenv install) ["']?[\w\[]/, "Add to your Python project", ["mac", "windows", "linux"]],
   [/^(npm (i|install)|yarn add|pnpm (add|i)|bun add) (?!-)["']?[@\w]/, "Add to your JS project", ["mac", "windows", "linux"]],
@@ -218,15 +224,18 @@ const METHODS: [RegExp, string, OS[], boolean?][] = [
   [/^dotnet tool install\b/, ".NET tool", ["mac", "windows", "linux"]],
   [/^(conda|mamba) install\b/, "conda", ["mac", "windows", "linux"]],
   [/^docker (run|pull)\b/, "Docker", ["mac", "windows", "linux"]],
+  // The whole stack from the repo's compose file; "up -d postgres" style partial starts are dev helpers, not the app.
+  [/^docker[- ]compose (-f \S+ )?up( -d| --detach| --build)*\s*$/, "Docker", ["mac", "windows", "linux"]],
   [/^(curl|wget)\b.*\|\s*(sudo\s+)?(ba|z)?sh\b/, "install script", ["mac", "linux"], true],
   [/^(iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b.*\|\s*iex\b/i, "install script", ["windows"], true],
   [/^powershell .*\birm\b.*\biex\b/i, "install script", ["windows"], true],
 ];
 
-export function readmeInstallCommands(readme: string | undefined): InstallCommand[] {
+export function readmeInstallCommands(readme: string | undefined, repo: { owner: string; name: string }): InstallCommand[] {
   if (!readme) return [];
   const candidates: string[] = [];
-  for (const m of readme.matchAll(/```[^\n]*\n([\s\S]*?)```/g)) candidates.push(...m[1].split("\n"));
+  // Join "\"-continued lines so multi-line commands (docker run -d \ ...) stay whole.
+  for (const m of readme.matchAll(/```[^\n]*\n([\s\S]*?)```/g)) candidates.push(...m[1].replace(/\\\n\s*/g, " ").split("\n"));
   for (const m of readme.matchAll(/`([^`\n]{6,200})`/g)) candidates.push(m[1]);
   for (const m of readme.matchAll(/<code>([^<\n]{6,200})<\/code>/g)) candidates.push(m[1]);
 
@@ -244,8 +253,41 @@ export function readmeInstallCommands(readme: string | undefined): InstallComman
     const hit = METHODS.find(([re]) => re.test(command));
     if (!hit) continue;
     seen.add(command);
-    out.push({ command, method: hit[1], os: hit[2], script: Boolean(hit[3]) });
-    if (out.length >= 40) break;
+    const kind: InstallKind =
+      hit[1] === "Docker" ? "docker" : hit[1].startsWith("Add to your") ? "library" : hit[1] === "Start a new project" ? "scaffold" : "app";
+    // READMEs also install dependencies (brew install ffmpeg, apt install xdotool); only keep commands for this project.
+    if (!installsThisProject(command, kind, Boolean(hit[3]), repo)) continue;
+    if (kind === "docker" && out.filter((c) => c.kind === "docker").length >= 2) continue;
+    // Casks are macOS apps; installers piped into sudo are Linux server scripts.
+    const os: OS[] = /^brew install --cask\b/.test(command) ? ["mac"] : hit[3] && /\|\s*sudo\b/.test(command) ? ["linux"] : hit[2];
+    out.push({ command, method: hit[1], os, script: Boolean(hit[3]), kind });
+    if (out.length >= 12) break;
   }
   return out;
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function installsThisProject(command: string, kind: InstallKind, script: boolean, repo: { owner: string; name: string }): boolean {
+  const name = norm(repo.name);
+  const owner = norm(repo.owner);
+  const matches = (token: string) => {
+    const t = norm(token);
+    return t.length >= 3 && (t.includes(name) || (t.length >= 4 && name.includes(t)));
+  };
+  const words = command.replace(/\s+#.*$/, "").split(/\s+/);
+  if (script) return words.some((w) => /^https?:/.test(w) && (norm(w).includes(name) || norm(w).includes(owner)));
+  if (kind === "docker" && /compose/.test(command)) return true;
+  // create-next-app, create-vite: a create command in a framework's own README is for that framework.
+  if (kind === "scaffold") return true;
+  if (kind === "docker") {
+    // Only published images (ghcr.io/owner/app, owner/app); a bare local tag needs a docker build first.
+    return words.some((w) => /^[\w.-]+(\/[\w.-]+)+(:[\w.-]+)?$/.test(w) && !/^\.{0,2}\//.test(w) && (matches(w) || norm(w).includes(owner)) && !/:\d+$/.test(w));
+  }
+  // The package names: arguments after the install verb, without flags, versions or extras.
+  const pkgs = words
+    .slice(1)
+    .filter((w) => !w.startsWith("-"))
+    .map((w) => w.replace(/^["']|["']$/g, "").replace(/[\[@=<>~^].*$/, ""));
+  return pkgs.some((p) => matches(p.split("/").pop()!) || (p.startsWith("./") && matches(p)) || matches(p));
 }

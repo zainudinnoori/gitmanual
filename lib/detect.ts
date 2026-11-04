@@ -97,10 +97,18 @@ const ROOT_FILES = new Set([
   ".devcontainer/devcontainer.json",
   ".devcontainer.json",
   "prisma/schema.prisma",
+  "global.json",
+  "Directory.Build.props",
+  "pubspec.yaml",
+  "CMakeLists.txt",
+  "meson.build",
+  "SConstruct",
+  ".gitmodules",
+  "Package.swift",
 ]);
 
 const ENV_EXAMPLE = /(^|\/)\.env(\.[\w-]+)*\.(example|sample|template|dist|defaults)$|(^|\/)(example|sample)\.env$/;
-const MANIFEST = /(^|\/)(package\.json|pyproject\.toml|requirements\.txt|go\.mod|Cargo\.toml|Gemfile|composer\.json|pom\.xml)$/;
+const MANIFEST = /(^|\/)(package\.json|pyproject\.toml|requirements\.txt|go\.mod|Cargo\.toml|Gemfile|composer\.json|pom\.xml|pubspec\.yaml|[^/]+\.csproj|CMakeLists\.txt)$/;
 
 export function selectFiles(entries: TreeEntry[]): TreeEntry[] {
   const picked: TreeEntry[] = [];
@@ -235,6 +243,8 @@ export function analyze(
   files: Record<string, string>,
   present: Set<string>,
   allPaths: string[],
+  language: string | null = null, // GitHub's main language, to tell a project's own stack from its helper tooling
+  description: string | null = null,
 ): Analysis {
   const has = (p: string) => p in files || present.has(p);
   const stacks: string[] = [];
@@ -273,7 +283,8 @@ export function analyze(
 
     let pm = "npm";
     let pmSource = "default";
-    const declared = typeof pkg.packageManager === "string" ? pkg.packageManager : undefined;
+    // "pnpm@9.1.0+sha512.abc…": the hash is for corepack, not for people.
+    const declared = typeof pkg.packageManager === "string" ? pkg.packageManager.replace(/\+sha\d+\..*$/, "") : undefined;
     if (declared) {
       pm = declared.split("@")[0];
       pmSource = "package.json (packageManager)";
@@ -292,7 +303,20 @@ export function analyze(
     const run = (s: string) => (pm === "npm" ? `npm run ${s}` : pm === "bun" ? `bun run ${s}` : `${pm} ${s}`);
     for (const [name, command] of Object.entries<string>(pkg.scripts ?? {})) scripts.push({ name, command });
     const runScript = ["dev", "develop", "start:dev", "serve", "start"].find((s) => pkg.scripts?.[s]);
-    if (runScript && !allPaths.includes("bin/dev")) runCmds.push(run(runScript));
+    // Tauri desktop apps: the JS dev script only serves the web view; `tauri dev` builds and opens the real app.
+    const tauri = allPaths.includes("src-tauri/tauri.conf.json") || allPaths.includes("src-tauri/Cargo.toml");
+    if (tauri) {
+      stacks.push("Tauri");
+      if (!files["Cargo.toml"]) {
+        const tc = files["rust-toolchain.toml"] ?? files["rust-toolchain"];
+        runtimes.push({ name: "Rust", detail: firstMatch(tc, /channel\s*=\s*["']([^"']+)/) ?? tv.rust ?? "stable", source: "src-tauri/Cargo.toml" });
+      }
+      hints.push(
+        "Tauri desktop app: it also needs Tauri's system prerequisites (Xcode Command Line Tools on macOS, WebView2 and the C++ build tools on Windows, webkit2gtk on Linux). See https://tauri.app/start/prerequisites/",
+      );
+    }
+    if (tauri && pkg.scripts?.tauri) runCmds.push(run("tauri dev"));
+    else if (runScript && !allPaths.includes("bin/dev")) runCmds.push(run(runScript));
     if (pkg.scripts?.test && !/no test specified/.test(pkg.scripts.test)) testCmds.push(pm === "npm" ? "npm test" : run("test"));
 
     const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
@@ -322,7 +346,8 @@ export function analyze(
   }
 
   // ---------- Python ----------
-  const py = files["pyproject.toml"];
+  // A pyproject.toml that only configures tools (ruff, mypy) isn't a Python project to install.
+  const py = /^\[(project|tool\.poetry|build-system)\]/m.test(files["pyproject.toml"] ?? "") ? files["pyproject.toml"] : undefined;
   if (py || files["requirements.txt"] || files["Pipfile"] || files["setup.py"] || files["environment.yml"]) {
     stacks.push("Python");
     const v =
@@ -394,9 +419,12 @@ export function analyze(
     runtimes.push({ name: "Go", detail: v, source: tv.golang ? ".tool-versions" : "go.mod" });
     installCmds.push("go mod download");
     testCmds.push("go test ./...");
-    const cmd = allPaths.find((p) => /^cmd\/[^/]+\/main\.go$/.test(p));
+    // With several cmd/ programs, only the one named after the repo is clearly "the app".
+    const cmds = allPaths.filter((p) => /^cmd\/[^/]+\/main\.go$/.test(p)).map((p) => p.split("/")[1]);
+    const main = cmds.length === 1 ? cmds[0] : cmds.find((c) => c.toLowerCase() === repo.repo.toLowerCase());
     if (has("main.go")) runCmds.push("go run .");
-    else if (cmd) runCmds.push(`go run ./${cmd.replace(/\/main\.go$/, "")}`);
+    else if (main) runCmds.push(`go run ./cmd/${main}`);
+    else if (cmds.length) hints.push(`Several programs live in cmd/ (${cmds.slice(0, 6).join(", ")}). Run one with \`go run ./cmd/<name>\`; the README says which is the app.`);
   }
 
   // ---------- Rust ----------
@@ -480,11 +508,93 @@ export function analyze(
     }
   }
 
+  // ---------- .NET ----------
+  const sln = allPaths.find((p) => /^[^/]+\.(sln|slnx)$/.test(p)) ?? allPaths.find((p) => /^src\/[^/]+\.(sln|slnx)$/.test(p));
+  const rootProj = allPaths.find((p) => /^[^/]+\.(csproj|fsproj)$/.test(p));
+  if (sln || rootProj) {
+    stacks.push(".NET");
+    const sdk =
+      firstMatch(files["global.json"], /"version"\s*:\s*"([\d.]+)/) ??
+      firstMatch(files["Directory.Build.props"], /<TargetFramework>net(\d+\.\d+)/);
+    runtimes.push({ name: ".NET SDK", detail: sdk, source: files["global.json"] && sdk ? "global.json" : sln ?? rootProj! });
+    const target = sln ?? rootProj!;
+    installCmds.push(`dotnet restore ${target}`, `dotnet build ${target}`);
+    if (rootProj) runCmds.push("dotnet run");
+    else hints.push("A .NET solution with several projects: start the app project with `dotnet run --project <path/to/App.csproj>` (the README usually names it).");
+    testCmds.push(`dotnet test ${target}`);
+  }
+
+  // ---------- Flutter / Dart ----------
+  const pubspec = files["pubspec.yaml"];
+  if (pubspec) {
+    const flutter = /^\s*flutter:\s*$|sdk:\s*flutter/m.test(pubspec);
+    stacks.push(flutter ? "Flutter" : "Dart");
+    runtimes.push({ name: flutter ? "Flutter" : "Dart", detail: firstMatch(pubspec, /^\s*(?:flutter|sdk):\s*["']?([^"'\n]+)/m), source: "pubspec.yaml" });
+    installCmds.push(flutter ? "flutter pub get" : "dart pub get");
+    if (flutter) {
+      runCmds.push("flutter run");
+      testCmds.push("flutter test");
+      hints.push("Run `flutter doctor` first: it lists what's missing for each target (Xcode for iOS/macOS, Android Studio for Android, Visual Studio for Windows).");
+    } else testCmds.push("dart test");
+  }
+
+  // ---------- Swift ----------
+  if (allPaths.includes("Package.swift")) {
+    stacks.push("Swift");
+    runtimes.push({ name: "Swift", source: "Package.swift" });
+    installCmds.push("swift build");
+    testCmds.push("swift test");
+  }
+
+  // ---------- Clojure ----------
+  const lein = allPaths.includes("project.clj");
+  if (allPaths.includes("deps.edn") || lein) {
+    stacks.push("Clojure");
+    if (!runtimes.some((r) => r.name === "JDK")) runtimes.push({ name: "JDK", detail: tv.java, source: lein ? "project.clj" : "deps.edn" });
+    runtimes.push({ name: lein ? "Leiningen" : "Clojure CLI", source: lein ? "project.clj" : "deps.edn" });
+    if (lein) installCmds.push("lein deps");
+  }
+
+  // ---------- C / C++ ----------
+  const nativeBuild = files["CMakeLists.txt"] ? "CMake" : files["meson.build"] ? "Meson" : files["SConstruct"] ? "SCons" : null;
+  // Python can sit next to a native build (helper scripts); a JS/Rust/Go/JVM/.NET project with CMake is that stack's build.
+  // When GitHub says the code is mostly C/C++, the native build is the project even if a JVM/JS part sits next to it (scrcpy's server).
+  const nativeLang = /^(C|C\+\+|Objective-C)$/.test(language ?? "");
+  if (nativeBuild && nativeLang) {
+    for (const x of ["Java", "Kotlin/JVM"]) {
+      const i = stacks.indexOf(x);
+      if (i === -1) continue;
+      stacks.splice(i, 1);
+      const r = runtimes.findIndex((rt) => rt.name === "JDK");
+      if (r !== -1) runtimes.splice(r, 1);
+      for (const list of [installCmds, runCmds]) for (let k = list.length - 1; k >= 0; k--) if (/^\.?\/?(gradlew|gradle|mvnw|mvn)\b/.test(list[k])) list.splice(k, 1);
+      for (let k = packageManagers.length - 1; k >= 0; k--) if (["Maven", "Gradle"].includes(packageManagers[k].name)) packageManagers.splice(k, 1);
+    }
+  }
+  if (nativeBuild && (nativeLang || !stacks.some((x) => ["Node.js", "Rust", "Go", "Java", "Kotlin/JVM", ".NET", "Flutter", "Dart", "Swift"].includes(x)))) {
+    stacks.push(`C/C++ (${nativeBuild})`);
+    runtimes.push({ name: "C/C++ compiler", source: nativeBuild === "CMake" ? "CMakeLists.txt" : nativeBuild === "Meson" ? "meson.build" : "SConstruct" });
+    runtimes.push({ name: nativeBuild, detail: firstMatch(files["CMakeLists.txt"], /cmake_minimum_required\s*\(\s*VERSION\s+([\d.]+)/i), source: "build files" });
+    if (nativeBuild === "CMake") installCmds.push("cmake -S . -B build -DCMAKE_BUILD_TYPE=Release", "cmake --build build");
+    if (nativeBuild === "Meson") installCmds.push("meson setup build", "meson compile -C build");
+    if (nativeBuild === "SCons") installCmds.push("scons");
+    hints.push("Native projects often need extra system libraries. If the build stops with a missing package, check the maintainers' build guide (see Start here).");
+  }
+
+  // ---------- Hardware ----------
+  const readmeAll = `${description ?? ""}\n${Object.entries(files).find(([p]) => /^readme(\.\w+)?$/i.test(p))?.[1] ?? ""}`;
+  if (/\bApple['’]s MLX\b|\bmlx-lm\b|^import mlx\b/m.test(readmeAll)) {
+    hints.push("Built on Apple's MLX, which is made for Apple Silicon Macs. On Windows or Linux, check the README before installing.");
+  }
+  if (/\bCUDA\b/.test(readmeAll)) {
+    hints.push("The README mentions NVIDIA CUDA. Check its hardware section: some features (or all of them) may need an NVIDIA GPU.");
+  }
+
   // ---------- Containers & services ----------
   const composePath = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"].find((p) => files[p]);
   if (composePath) services.push(...servicesFromCompose(files[composePath], composePath));
   if (files["Dockerfile"]) {
-    const base = firstMatch(files["Dockerfile"], /^FROM\s+(\S+)/im);
+    const base = firstMatch(files["Dockerfile"], /^FROM\s+(?:--\S+\s+)*(\S+)/im);
     hints.push(`Dockerfile available${base ? ` (base image: ${base})` : ""}.`);
     if (stacks.length === 0) {
       stacks.push("Docker");
@@ -552,6 +662,8 @@ export function analyze(
   const pythonPm = packageManagers.find((p) => ["uv", "poetry", "pipenv", "pdm", "pip", "conda"].includes(p.name))?.name;
   const unixHeavy = stacks.some((s) => s === "Rails" || s === "Phoenix") || has("bin/setup") || has("setup.sh") || runsShellScripts;
 
+  const submodules = has(".gitmodules") || allPaths.includes(".gitmodules");
+
   const buildSteps = (os: OS): Step[] => {
     const adapt = (cmds: string[]) => dedupe(cmds, (c) => c).map((c) => adaptCommand(c, os));
     const steps: Step[] = [];
@@ -565,8 +677,10 @@ export function analyze(
     steps.push(
       {
         title: "Clone the repository",
-        commands: [`git clone https://github.com/${repo.owner}/${repo.repo}.git`, `cd ${repo.repo}`],
-        note: os === "windows" ? "Needs Git: winget install Git.Git" : os === "mac" ? "Needs Git: xcode-select --install" : undefined,
+        commands: [`git clone ${submodules ? "--recurse-submodules " : ""}https://github.com/${repo.owner}/${repo.repo}.git`, `cd ${repo.repo}`],
+        note:
+          (os === "windows" ? "Needs Git: winget install Git.Git" : os === "mac" ? "Needs Git: xcode-select --install" : "") +
+          (submodules ? `${os === "linux" ? "" : ". "}The repo uses git submodules, so the clone fetches them too.` : "") || undefined,
       },
     );
     if (runtimes.length || tools.length) {

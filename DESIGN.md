@@ -1,4 +1,4 @@
-# gitsetup design
+# gitmanual design
 
 **Idea:** every repo gets a flat-pack *assembly manual*. Playful, but every element carries real information: a verdict sticker, a parts list, numbered steps.
 
@@ -17,9 +17,18 @@
 
 ## Type
 
-- **Display:** Bricolage Grotesque 800, tight tracking. Used for headlines, step numbers and card titles. Orange display text gets a 1.5px ink stroke.
-- **Body:** Geist.
-- **Utility:** Geist Mono for eyebrows (uppercase, letter-spaced), paths, commands and repo names.
+Four roles. Pick a role, never a one-off font or size.
+
+| Role | Font | Used for |
+|---|---|---|
+| Display | Bricolage Grotesque 800 (700 for small titles) | Page, section and card titles; big numbers (step numbers, stars); stickers. Orange display text gets a 1.5px ink stroke |
+| Interface | Geist 600: `font: var(--ui)` | Every control: menu, buttons, tabs, toggles, pickers, pagers, text links, expandable rows |
+| Body | Geist 400 | Text and descriptions |
+| Mono | Geist Mono | Only data: commands, paths, URLs, repo owners, counts, uppercase labels (eyebrows, field labels) |
+
+Size scale (`--fs-*` in `app/globals.css`): label 11 · meta 12.5 · small 14 · body 15 · title 17 · lead 18 · h3 20 · h2 24, plus the `clamp()` display sizes for page titles.
+
+The menu: every item is the same Interface style; the current page gets an ink outline (`aria-current="page"`).
 
 ## Rules
 

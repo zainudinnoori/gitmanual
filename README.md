@@ -1,91 +1,142 @@
-<h1 align="center">gitsetup</h1>
+<h1 align="center">
+  <img src="docs/logo.svg" width="44" height="44" alt="" align="center" /> gitmanual
+</h1>
 
 <p align="center">
   <b>Open source. Some assembly required.</b><br />
-  Turn any GitHub repo into a setup manual: will it work on my device, what do I need, and the exact steps for macOS, Windows or Linux.
+  Paste any GitHub repo and get its setup manual: will it work on your device, what you need, and the exact steps for macOS, Windows or Linux.
 </p>
 
 <p align="center">
-  <a href="https://vercel.com/new/clone?repository-url=https://github.com/__OWNER__/gitsetup&env=GITHUB_TOKEN,TURSO_DATABASE_URL,TURSO_AUTH_TOKEN&envDescription=See%20.env.example&project-name=gitsetup"><img src="https://vercel.com/button" alt="Deploy with Vercel" /></a>
+  <a href="https://gitmanual.com">Website</a> ·
+  <a href="docs/self-hosting.md">Self-hosting</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="https://gitmanual.com/how-it-works">How it works</a>
 </p>
 
-![gitsetup landing page](docs/landing.png)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ff6b2c" alt="MIT license" /></a>
+  <img src="https://img.shields.io/badge/Next.js-16-15161a" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178c6" alt="TypeScript" />
+  <a href="https://vercel.com/new/clone?repository-url=https://github.com/zainudinnoori/gitmanual&env=GITHUB_TOKEN,TURSO_DATABASE_URL,TURSO_AUTH_TOKEN,NEXT_PUBLIC_SITE_URL&envDescription=See%20docs%2Fself-hosting.md&project-name=gitmanual"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="20" /></a>
+</p>
+
+![gitmanual home page](docs/landing.png)
+
+## The trick
+
+Swap **hub** for **manual** in any GitHub link:
+
+```
+github.com/ollama/ollama   →   gitmanual.com/ollama/ollama
+```
+
+That's it. You get a manual for the repo, written from its own files.
 
 ## Why
 
-Plenty of people find a project on GitHub and don't know how to run it. The README assumes you already know which runtime, package manager and database it needs. gitsetup reads the repo for you and writes the manual.
+Plenty of people find a great project on GitHub and don't know how to run it. READMEs assume you already know which runtime, package manager, database and system it needs. gitmanual reads the repo for you and turns it into a manual a newcomer can follow.
 
-**Shortcut:** replace `hub` with `setup` in any GitHub URL. `github.com/ollama/ollama` becomes `gitsetup.com/ollama/ollama` <!-- update the domain once it's live -->.
+## What's in every manual
 
-## What you get for every repo
+![The manual for ollama/ollama](docs/manual.png)
 
-![gitsetup report for ollama/ollama](docs/report.png)
-
-- **Start here**: the best way in, picked for your OS. The options are the ready-made download, the maintainers' own setup guide (shown inline), the project's website and docs, a setup script in the repo, or "Open in Codespaces" when the repo ships a dev container.
-- **Will it work on my device?**: a yes, maybe or no for your OS and chip. It's based on the release files, Windows/WSL needs, separate devices (phones, TVs) and the README's supported-devices list.
-- **Parts list**: runtimes with versions, tools, package managers, databases and `.env` settings.
+- **Start here**: the best way in for your system. The options are a ready-made download, the maintainers' own setup guide (shown inline), the project's website and docs, a setup script, or GitHub Codespaces when the repo ships a dev container.
+- **Will it work on my device?**: a yes, maybe or no for your system and chip, with reasons. It's based on the release files, install commands, Windows/WSL needs, separate devices (phones, TVs), Docker and library setups, and what the README itself says about supported systems.
+- **Parts list**: runtimes and versions, tools, package managers, databases and `.env` settings.
 - **Assembly steps**: copy-paste commands for macOS (zsh), Windows (PowerShell) or Linux (bash), with fixes for the errors people hit most.
-- **Install the app**: the right download for your OS and CPU, plus brew / winget / apt / scoop… commands found in the README.
-- **Did you get it running?**: per-OS votes, so the next person knows what to expect.
-- **AI guide** (optional): Claude reads the key files and writes a guide. It's generated once per repo and OS, then cached.
+- **Install it**: the right download for your system and CPU, plus Homebrew, winget, apt, Docker and other commands taken from the README.
+- **Did you get it running?**: per-system votes, so the next person knows what to expect.
+- **AI guide** (optional): Claude reads the key files and writes a guide. It's generated once per repo and system, then cached.
+
+Plus **the shelf** (`/shelf`): every repo people have looked up, with search and filters for stars, language and difficulty. Every repo also gets a share image and a 1080×1080 poster.
+
+<p align="center"><img src="docs/shelf.png" width="49%" alt="The shelf" /> <img src="docs/how.png" width="49%" alt="How it works" /></p>
 
 ## How it works
 
-No cloning and no code execution. gitsetup makes 3 GitHub API calls per repo: metadata, file tree and releases. It then downloads only the files that matter (manifests, version pins, lockfile names, Docker/compose, CI workflows, `.env` examples, README, setup guides) from `raw.githubusercontent.com`.
+gitmanual never clones a repo or runs its code.
 
-| Module | Does |
-|---|---|
-| `lib/github.ts` | GitHub API + raw file downloads |
-| `lib/detect.ts` | Rule-based detection: Node/Deno/Bun, Python, Go, Rust, Ruby, PHP, Java/Kotlin, Elixir; version pins; package managers; services; env vars; frameworks; per-OS steps |
-| `lib/os.ts` | Per-OS runtime installs (nvm, uv, brew, winget, apt…) and PowerShell rewrites |
-| `lib/install.ts` | Classifies release files by OS/arch and picks the best download; extracts install commands from the README |
-| `lib/readme.ts` | Finds the README's quick start, compatibility and undo sections; tool detection; troubleshooting tips |
-| `lib/guides.ts` | The "Start here" options: website, docs link, setup guides, setup scripts, dev container |
-| `lib/fit.ts` | The "Will it work on my device?" verdict |
-| `lib/db.ts` | Turso / SQLite: 12-hour analysis cache, history, votes, cached AI guides |
-| `lib/pipeline.ts` | Ties it together: cache → GitHub → analysis → save |
+1. **Read.** Three GitHub API calls (repo details, file list, latest release), then only the setup files from `raw.githubusercontent.com`: the README and setup guides, package manifests, version pins, Docker and CI files, and `.env` examples.
+2. **Work out.** Rules detect the stack (Node, Python, Go, Rust, Ruby, PHP, Java/Kotlin, .NET, Swift, Elixir, Clojure, Flutter, C/C++), versions, package managers, services and settings. README commands are kept only when they install *this* project.
+3. **Check.** Your browser works out your system and chip on your side, and the page compares them with what the repo supports.
+4. **Write.** The maintainers' own ways in come first, then steps for your system.
 
-Pages: `/` (landing + recently set up), `/[owner]/[repo]` (the manual; `?ref=branch&os=windows&mode=source` are kept in the URL).
+Analyses are cached for 12 hours, and every manual is server-rendered, so search engines can read the steps. [How it works](https://gitmanual.com/how-it-works) explains the verdicts and the limits in plain words.
 
-## Run it locally
+## Quick start
 
-Requires Node.js 20 or newer.
+Requires **Node.js 20.9+**.
 
 ```bash
-git clone https://github.com/__OWNER__/gitsetup.git
-cd gitsetup
+git clone https://github.com/zainudinnoori/gitmanual.git
+cd gitmanual
 npm install
-cp .env.example .env.local   # optional: add GITHUB_TOKEN and ANTHROPIC_API_KEY
+cp .env.example .env.local   # optional: add a GITHUB_TOKEN (recommended)
 npm run dev
 ```
 
-Open http://localhost:3000. Without Turso settings, history is stored in `data/gitsetup.db`, a local SQLite file.
+Open <http://localhost:3000> and paste a repo. Without any settings it works out of the box: history is kept in a local SQLite file (`data/gitmanual.db`), and GitHub allows about 20 new repos an hour. A [GitHub token](docs/self-hosting.md#2-a-github-token) raises that to thousands.
 
-## Deploy to Vercel with Turso
+| Command | Does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run typecheck` | Type check |
 
-1. **Create the database** ([Turso](https://turso.tech), free tier is plenty):
-   ```bash
-   brew install tursodatabase/tap/turso   # or: curl -sSfL https://get.tur.so/install.sh | bash
-   turso auth signup
-   turso db create gitsetup
-   turso db show gitsetup --url           # → TURSO_DATABASE_URL
-   turso db tokens create gitsetup        # → TURSO_AUTH_TOKEN
-   ```
-   The tables are created automatically on the first request.
-2. **Create a GitHub token** at <https://github.com/settings/personal-access-tokens>: fine-grained, public repositories, no extra permissions. Without one you get 60 requests/hour, which is about 20 repos.
-3. **Deploy**: click the button above, or import the repo at <https://vercel.com/new>. Add `GITHUB_TOKEN`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` and, optionally, `ANTHROPIC_API_KEY`.
+## Configuration
 
-| Variable | Needed | What for |
-|---|---|---|
-| `GITHUB_TOKEN` | in production | GitHub API limit 60 → 5,000 requests/hour |
-| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | in production | History, 12-hour cache, votes, cached guides. Without them a Vercel deploy still works, just with no history or cache |
-| `ANTHROPIC_API_KEY` | optional | "Write my guide" |
-| `GITSETUP_DB` | optional | Path of the local SQLite file (default `data/gitsetup.db`) |
+All settings are environment variables, and every one is optional for local use. See [`.env.example`](.env.example) and the [self-hosting guide](docs/self-hosting.md).
+
+| Variable | What for |
+|---|---|
+| `GITHUB_TOKEN` | GitHub API limit 60 → 5,000 requests/hour. **Needed in production** |
+| `NEXT_PUBLIC_SITE_URL` | The site's address, for canonical links, the sitemap and share images. **Needed in production** |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Hosted database for history, cache and votes. **Needed in production** (falls back to a local file in development) |
+| `ANTHROPIC_API_KEY` | Turns on "Write my guide" (Claude) |
+| `NEXT_PUBLIC_REPO_URL` | Your fork's GitHub URL: a GitHub link with stars in the menu, and "Report a wrong setup" |
+| `FINDS_*`, `FB_PAGE_*`, `CRON_SECRET` | Optional [Finds](docs/self-hosting.md#6-optional-finds-from-a-facebook-page) page: posts from a Facebook Page, each linked to its manual |
+
+## Deploy
+
+The quickest route is **Vercel + Turso** (both have free tiers): create a Turso database, add the variables above, and deploy. The step-by-step version is in [docs/self-hosting.md](docs/self-hosting.md).
+
+## Project structure
+
+```
+app/                    Pages and API routes (Next.js App Router)
+  [owner]/[repo]/       The manual, its share image and poster
+  shelf/  finds/  how-it-works/
+  api/                  analyze, guide (Claude), vote, finds, cron/facebook
+lib/
+  pipeline.ts           cache → GitHub → analysis → save
+  github.ts             GitHub API and raw file downloads
+  detect.ts             Stack, versions, services and per-OS steps
+  install.ts            Release downloads and README install commands
+  readme.ts  guides.ts  README sections, setup guides, scripts, docs links
+  fit.ts  platforms.ts  "Will it work on my device?"
+  os.ts                 Per-OS installers and PowerShell rewrites
+  db.ts                 Turso / SQLite
+  og.tsx                Share images and posters
+  facebook.ts  picks.ts Optional Finds (Facebook Page sync)
+```
+
+The visual language (an assembly manual: ink outlines, a wrench-orange box, sticker verdicts) is described in [DESIGN.md](DESIGN.md).
+
+## Roadmap
+
+These are the known gaps. Help is welcome:
+
+- Apps inside subfolders of big repos (monorepos) are listed but not fully set up.
+- System support that a README doesn't mention can't be detected (vLLM on Windows, for example).
+- Install guides that live only on a project's website are linked, not turned into steps.
+- Rate limiting for public deployments (votes and AI guides).
+- A browser extension: "Open in gitmanual" on any GitHub page.
 
 ## Contributing
 
-Detection rules are the easiest place to help. If a repo gets the wrong steps, open an issue with the link, or add a rule in `lib/detect.ts`, `lib/install.ts` or `lib/readme.ts`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Wrong steps for a repo? That's the most useful bug report there is. [Open an issue](../../issues/new/choose) with the repo link, or improve a rule yourself. See [CONTRIBUTING.md](CONTRIBUTING.md). Please follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report security issues privately ([SECURITY.md](SECURITY.md)).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The repos gitmanual describes keep their own licenses; it only reads their public files.

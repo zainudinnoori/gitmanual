@@ -43,7 +43,7 @@ export function parseRepoUrl(input: string): RepoRef | null {
 function headers(): HeadersInit {
   const h: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "gitsetup",
+    "User-Agent": "gitmanual",
   };
   if (process.env.GITHUB_TOKEN) h.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   return h;

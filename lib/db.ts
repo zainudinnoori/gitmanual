@@ -38,6 +38,17 @@ const SCHEMA = `
     created_at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS votes_key ON votes (key);
+  CREATE TABLE IF NOT EXISTS fb_posts (
+    id TEXT PRIMARY KEY,            -- the Facebook post id
+    repo TEXT NOT NULL,             -- owner/repo found in the caption
+    kind TEXT NOT NULL,             -- poster | reel
+    caption TEXT,
+    permalink TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    image BLOB,                     -- a copy: Facebook's image links expire
+    image_type TEXT,
+    synced_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS guides (
     key TEXT NOT NULL,
     os TEXT NOT NULL,
@@ -47,13 +58,15 @@ const SCHEMA = `
   );
 `;
 
-let ready: Promise<Client | null> | null = null;
+// One connection per server process. Kept on globalThis because dev hot reloads re-run this module,
+// and a fresh connection per reload leaves stale handles on the SQLite file (they end in SQLITE_IOERR).
+const store = globalThis as typeof globalThis & { gitmanualDb?: Promise<Client | null> | null };
 
 function db(): Promise<Client | null> {
-  ready ??= (async () => {
-    const url = process.env.TURSO_DATABASE_URL ?? (process.env.VERCEL ? null : `file:${process.env.GITSETUP_DB ?? "data/gitsetup.db"}`);
+  store.gitmanualDb ??= (async () => {
+    const url = process.env.TURSO_DATABASE_URL ?? (process.env.VERCEL ? null : `file:${process.env.GITMANUAL_DB ?? "data/gitmanual.db"}`);
     if (!url) {
-      console.warn("gitsetup: TURSO_DATABASE_URL is not set, so history and caching are off.");
+      console.warn("gitmanual: TURSO_DATABASE_URL is not set, so history and caching are off.");
       return null;
     }
     if (url.startsWith("file:")) {
@@ -62,14 +75,21 @@ function db(): Promise<Client | null> {
       mkdirSync(dirname(url.slice(5)), { recursive: true });
     }
     const client = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
-    await client.executeMultiple(SCHEMA);
+    try {
+      await client.executeMultiple(SCHEMA);
+      // Columns added after a table first shipped; "duplicate column" just means it's already there.
+      for (const sql of ["ALTER TABLE fb_posts ADD COLUMN video_id TEXT"]) await client.execute(sql).catch(() => {});
+    } catch (e) {
+      client.close();
+      throw e;
+    }
     return client;
   })().catch((e) => {
-    console.error("gitsetup db:", e);
-    ready = null; // try again on the next request
+    console.error("gitmanual db:", e);
+    store.gitmanualDb = null; // try again on the next request
     return null;
   });
-  return ready;
+  return store.gitmanualDb;
 }
 
 // The database is a cache and a counter: if it fails, the request should still succeed.
@@ -79,7 +99,7 @@ async function safely<T>(fallback: T, fn: (c: Client) => Promise<T>): Promise<T>
   try {
     return await fn(c);
   } catch (e) {
-    console.error("gitsetup db:", e);
+    console.error("gitmanual db:", e);
     return fallback;
   }
 }
@@ -157,7 +177,7 @@ export function saveGuide(key: string, os: string, text: string): Promise<unknow
   );
 }
 
-export function listRepos(order: "recent" | "popular", limit = 8): Promise<RepoCard[]> {
+export function listRepos(order: "recent" | "popular", limit = 6): Promise<RepoCard[]> {
   return safely([], async (c) => {
     const { rows } = await c.execute({
       sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at,
@@ -180,5 +200,158 @@ export function listRepos(order: "recent" | "popular", limit = 8): Promise<RepoC
       stuck: Number(r.stuck),
       analyzedAt: Number(r.analyzed_at),
     }));
+  });
+}
+
+export type ShelfQuery = {
+  q?: string;
+  language?: string;
+  difficulty?: string;
+  minStars?: number;
+  sort?: "stars" | "recent" | "popular" | "worked";
+  page?: number;
+};
+
+export const SHELF_PAGE = 24;
+
+const SHELF_ORDER: Record<NonNullable<ShelfQuery["sort"]>, string> = {
+  stars: "r.stars DESC",
+  recent: "r.last_viewed DESC",
+  popular: "r.views DESC, r.stars DESC",
+  worked: "worked DESC, r.stars DESC",
+};
+
+// Every repo people have looked up, filtered and sorted for the /shelf page.
+export function browseRepos(query: ShelfQuery): Promise<{ repos: RepoCard[]; total: number; languages: { name: string; count: number }[] }> {
+  return safely({ repos: [], total: 0, languages: [] }, async (c) => {
+    const where = ["r.key NOT LIKE '%@%'"];
+    const args: (string | number)[] = [];
+    if (query.q) {
+      where.push("(r.full_name LIKE ? OR r.description LIKE ?)");
+      args.push(`%${query.q}%`, `%${query.q}%`);
+    }
+    if (query.language) {
+      where.push("r.language = ?");
+      args.push(query.language);
+    }
+    if (query.difficulty) {
+      where.push("r.difficulty = ?");
+      args.push(query.difficulty);
+    }
+    if (query.minStars) {
+      where.push("r.stars >= ?");
+      args.push(query.minStars);
+    }
+    const filter = where.join(" AND ");
+    const page = Math.max(1, query.page ?? 1);
+    const [rows, count, langs] = await Promise.all([
+      c.execute({
+        sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at,
+                     COALESCE(SUM(v.worked), 0) AS worked, COUNT(v.key) - COALESCE(SUM(v.worked), 0) AS stuck
+              FROM repos r LEFT JOIN votes v ON v.key = r.key
+              WHERE ${filter}
+              GROUP BY r.key
+              ORDER BY ${SHELF_ORDER[query.sort ?? "stars"]}
+              LIMIT ? OFFSET ?`,
+        args: [...args, SHELF_PAGE, (page - 1) * SHELF_PAGE],
+      }),
+      c.execute({ sql: `SELECT COUNT(*) AS n FROM repos r WHERE ${filter}`, args }),
+      c.execute(
+        "SELECT language, COUNT(*) AS n FROM repos WHERE key NOT LIKE '%@%' AND language IS NOT NULL GROUP BY language ORDER BY n DESC, language",
+      ),
+    ]);
+    return {
+      repos: rows.rows.map((r) => ({
+        fullName: String(r.full_name),
+        description: r.description == null ? null : String(r.description),
+        stars: Number(r.stars),
+        language: r.language == null ? null : String(r.language),
+        difficulty: String(r.difficulty),
+        views: Number(r.views),
+        worked: Number(r.worked),
+        stuck: Number(r.stuck),
+        analyzedAt: Number(r.analyzed_at),
+      })),
+      total: Number(count.rows[0]?.n ?? 0),
+      languages: langs.rows.map((r) => ({ name: String(r.language), count: Number(r.n) })),
+    };
+  });
+}
+
+// Every repo page for the sitemap, most looked-up first (search engines read the top of big sitemaps first).
+export function sitemapRepos(limit = 45000): Promise<{ fullName: string; analyzedAt: number }[]> {
+  return safely([], async (c) => {
+    const { rows } = await c.execute({
+      sql: "SELECT full_name, analyzed_at FROM repos WHERE key NOT LIKE '%@%' ORDER BY views DESC, stars DESC LIMIT ?",
+      args: [limit],
+    });
+    return rows.map((r) => ({ fullName: String(r.full_name), analyzedAt: Number(r.analyzed_at) }));
+  });
+}
+
+// ---------- Facebook page posts (see lib/facebook.ts) ----------
+
+export type FbPost = {
+  id: string;
+  repo: string;
+  kind: "poster" | "reel";
+  caption: string | null;
+  permalink: string;
+  createdAt: number;
+  videoId?: string | null; // Reels: the video, for playing it on the page
+  syncedAt?: number;
+};
+
+export function fbKnownIds(): Promise<Set<string>> {
+  return safely(new Set<string>(), async (c) => new Set((await c.execute("SELECT id FROM fb_posts")).rows.map((r) => String(r.id))));
+}
+
+export function saveFbPost(p: FbPost, image: { bytes: Uint8Array; type: string } | null): Promise<unknown> {
+  return safely(null, (c) =>
+    c.execute({
+      sql: `INSERT INTO fb_posts (id, repo, kind, caption, permalink, created_at, image, image_type, synced_at, video_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET repo = excluded.repo, kind = excluded.kind, caption = excluded.caption, video_id = excluded.video_id,
+              permalink = excluded.permalink, image = COALESCE(excluded.image, fb_posts.image),
+              image_type = COALESCE(excluded.image_type, fb_posts.image_type), synced_at = excluded.synced_at`,
+      args: [p.id, p.repo, p.kind, p.caption, p.permalink, p.createdAt, image?.bytes ?? null, image?.type ?? null, Date.now(), p.videoId ?? null],
+    }),
+  );
+}
+
+export function listFbPosts(): Promise<FbPost[]> {
+  return safely([], async (c) =>
+    (await c.execute("SELECT id, repo, kind, caption, permalink, created_at, synced_at, video_id FROM fb_posts ORDER BY created_at DESC LIMIT 500")).rows.map((r) => ({
+      id: String(r.id),
+      repo: String(r.repo),
+      kind: r.kind === "reel" ? ("reel" as const) : ("poster" as const),
+      caption: r.caption == null ? null : String(r.caption),
+      permalink: String(r.permalink),
+      createdAt: Number(r.created_at),
+      syncedAt: Number(r.synced_at),
+      videoId: r.video_id == null ? null : String(r.video_id),
+    })),
+  );
+}
+
+export function fbImage(id: string): Promise<{ bytes: ArrayBuffer; type: string } | null> {
+  return safely(null, async (c) => {
+    const row = (await c.execute({ sql: "SELECT image, image_type FROM fb_posts WHERE id = ?", args: [id] })).rows[0];
+    return row?.image ? { bytes: row.image as ArrayBuffer, type: String(row.image_type ?? "image/jpeg") } : null;
+  });
+}
+
+// Repo names on the shelf, for matching a post that names a project without linking it ("Peekaboo lets agents…").
+// Only names that belong to exactly one repo.
+export function shelfNames(): Promise<Map<string, string>> {
+  return safely(new Map<string, string>(), async (c) => {
+    const rows = (await c.execute("SELECT full_name FROM repos WHERE key NOT LIKE '%@%'")).rows.map((r) => String(r.full_name));
+    const byName = new Map<string, string[]>();
+    for (const full of rows) {
+      // "lossless-cut", "LosslessCut" and "losslesscut" are the same name.
+      const name = full.split("/")[1].toLowerCase().replace(/[-_.]/g, "");
+      byName.set(name, [...(byName.get(name) ?? []), full]);
+    }
+    return new Map([...byName].filter(([, list]) => list.length === 1).map(([name, [full]]) => [name, full]));
   });
 }

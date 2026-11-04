@@ -4,8 +4,13 @@ import { getFiles, getLatestRelease, getRepoMeta, getTree, type RepoMeta, type R
 import { findDocsLink, findSetupDocs, findSetupScripts, type Guides, type SetupDoc } from "./guides";
 import { parseRelease, readmeInstallCommands, type InstallOptions } from "./install";
 import { OS_LIST } from "./os";
+import { declaredPlatforms, mentions } from "./platforms";
+
+// Bump when the analysis output changes shape or rules, so saved copies are re-analyzed instead of shown.
+const VERSION = 7;
 
 export type RepoData = {
+  version: number;
   meta: RepoMeta & { branch: string; fileCount: number; treeTruncated: boolean };
   analysis: Analysis;
   install: InstallOptions;
@@ -18,7 +23,8 @@ export type Loaded = { key: string; data: RepoData; analyzedAt: number; cached: 
 // Repos analyzed in the last 12 hours come straight from the database: instant, and no GitHub calls.
 export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boolean } = {}): Promise<Loaded> {
   const lookup = repoKey(ref.owner, ref.repo, ref.ref);
-  const cached = await getCached(lookup);
+  const saved = await getCached(lookup);
+  const cached = saved && (saved.data as RepoData).version === VERSION ? saved : null;
   if (cached && !opts.fresh && Date.now() - cached.analyzedAt < CACHE_MS) {
     if (opts.view) await countView(lookup);
     return { key: lookup, data: cached.data as RepoData, analyzedAt: cached.analyzedAt, cached: true };
@@ -52,17 +58,35 @@ async function analyzeRepo(ref: RepoRef): Promise<RepoData> {
   const docEntry = docs[0] && entries.find((e) => e.path === docs[0].path);
   const files = await getFiles(ref, branch, [...selectFiles(entries), ...(docEntry ? [docEntry] : [])]);
   const [owner, name] = meta.fullName.split("/");
-  const analysis = analyze({ owner, repo: name }, files, presentPaths(entries), entries.map((e) => e.path));
+  const analysis = analyze({ owner, repo: name }, files, presentPaths(entries), entries.map((e) => e.path), meta.language, meta.description);
 
   const readme = Object.entries(files).find(([p]) => /^readme(\.\w+)?$/i.test(p))?.[1];
   const release = parseRelease(rawRelease);
-  const commands = readmeInstallCommands(readme);
+  const text = `${meta.description ?? ""}\n${readme ?? ""}`;
+  const declared = declaredPlatforms(meta.description, readme);
+  // A ready-made download for a system beats a sentence saying it's unsupported (the README may be out of date).
+  if (declared) declared.unsupported = declared.unsupported.filter((os) => !release?.assets.some((a) => a.os === os));
+  const commands = readmeInstallCommands(readme, { owner, name })
+    .filter((c) => !/compose/.test(c.command) || composeRunsApp(files, readme, name))
+    .map((c) => ({
+      ...c,
+      // Homebrew, Nix and install scripts also run on Linux, but only count there when the project mentions Linux.
+      os: c.os.filter(
+        (os) =>
+          !declared?.unsupported.includes(os) &&
+          (os !== "linux" || !/^(Homebrew|Nix|install script)$/.test(c.method) || mentions(text, "linux") || Boolean(release?.assets.some((a) => a.os === "linux"))),
+      ),
+    }))
+    .filter((c) => c.os.length);
   const install: InstallOptions = {
     release,
     commands,
-    platforms: OS_LIST.filter((os) => release?.assets.some((a) => a.os === os) || commands.some((c) => c.os.includes(os))),
+    declared: declared?.unsupported.length ? declared : null,
+    platforms: OS_LIST.filter(
+      (os) => release?.assets.some((a) => a.os === os) || commands.some((c) => c.kind === "app" && c.os.includes(os)),
+    ),
   };
-  const docsLink = findDocsLink(readme);
+  const docsLink = findDocsLink(readme, { name, website: meta.homepage });
   const guides: Guides = {
     website: meta.homepage,
     docs: docsLink && docsLink !== meta.homepage ? docsLink : null,
@@ -72,7 +96,7 @@ async function analyzeRepo(ref: RepoRef): Promise<RepoData> {
     devcontainer: entries.some((e) => e.path === ".devcontainer/devcontainer.json" || e.path === ".devcontainer.json"),
   };
 
-  return { meta: { ...meta, branch, fileCount: entries.length, treeTruncated: truncated }, analysis, install, guides, files };
+  return { version: VERSION, meta: { ...meta, branch, fileCount: entries.length, treeTruncated: truncated }, analysis, install, guides, files };
 }
 
 // A CONTRIBUTING file only counts as a setup guide when it actually has a setup section.
@@ -84,4 +108,12 @@ function usableDoc(doc: SetupDoc | undefined, files: Record<string, string>): Gu
     return { ...doc, label: "Development setup", markdown: text.slice(0, 20000) };
   }
   return { ...doc, markdown: text.slice(0, 20000) };
+}
+
+// "docker compose up" starts the app itself only if a compose file builds or pulls this project, not just its databases.
+function composeRunsApp(files: Record<string, string>, readme: string | undefined, name: string): boolean {
+  const own = (text: string | undefined) =>
+    Boolean(text) && (/^\s*build:/m.test(text!) || new RegExp(`^\\s*image:.*${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "im").test(text!));
+  const compose = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"].map((p) => files[p]).find(Boolean);
+  return own(compose) || own(readme);
 }

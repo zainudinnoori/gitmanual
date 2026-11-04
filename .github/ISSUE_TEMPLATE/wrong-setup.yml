@@ -1,0 +1,31 @@
+name: Wrong setup for a repo
+description: gitmanual gave a step, command or verdict that didn't work.
+labels: ["wrong setup"]
+body:
+  - type: input
+    id: repo
+    attributes:
+      label: Repo
+      description: The GitHub repo (or its gitmanual link).
+      placeholder: owner/repo
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Your system
+      options: [macOS (Apple Silicon), macOS (Intel), Windows, Linux, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: said
+    attributes:
+      label: What gitmanual said
+      description: The step, command or "Will it work?" verdict that was wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: worked
+    attributes:
+      label: What actually worked
+      description: The command or steps that got it running, if you found them. A link to the place in the repo's README or docs that says so helps a lot.

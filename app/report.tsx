@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Analysis } from "@/lib/detect";
 import type { Guides } from "@/lib/guides";
+import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
-import type { Arch, Asset, InstallOptions } from "@/lib/install";
+import type { Arch, Asset, InstallKind, InstallOptions } from "@/lib/install";
 import { OS_LABEL, OS_LIST, type OS } from "@/lib/os";
 import { CodeBlock, CopyButton, RepoForm, Wrenches, detectArch, detectOS } from "./ui";
 
@@ -38,7 +39,7 @@ type Result = {
 
 type Votes = { worked: number; stuck: number; byOs: Record<string, { worked: number; stuck: number }> };
 
-type Mode = "install" | "source";
+export type Mode = "install" | "source";
 
 function archLabel(arch: Arch | null, os: OS): string | null {
   if (!arch) return null;
@@ -65,16 +66,45 @@ const inline = { p: ({ children }: { children?: React.ReactNode }) => <>{childre
 
 const LOADING_LINES = ["Opening the box…", "Reading the README…", "Counting the parts…", "Checking your device…", "Writing the steps…"];
 
-export function ReportView({ owner, repo, gitRef }: { owner: string; repo: string; gitRef?: string }) {
-  const [result, setResult] = useState<Result | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export type { Result as ReportData };
+
+export function defaultMode(r: Result): Mode {
+  // Device-only downloads (.apk) are usually extras; the computer-side setup is the main path then.
+  return r.install.platforms.length || r.install.commands.length ? "install" : "source";
+}
+
+// The page server-renders the manual (initial / initialError) so search engines and first paint get the real steps;
+// the browser then switches to the visitor's own system. Fetching here only happens on "Re-read the repo".
+export function ReportView({
+  owner,
+  repo,
+  gitRef,
+  initial = null,
+  initialError = null,
+  initialOs = "mac",
+  initialMode,
+  picks = [],
+  curator = "",
+}: {
+  picks?: Pick[];
+  curator?: string;
+  owner: string;
+  repo: string;
+  gitRef?: string;
+  initial?: Result | null;
+  initialError?: string | null;
+  initialOs?: OS;
+  initialMode?: Mode;
+}) {
+  const [result, setResult] = useState<Result | null>(initial);
+  const [error, setError] = useState<string | null>(initialError);
   const [line, setLine] = useState(0);
   const [guide, setGuide] = useState("");
   const [guideLoading, setGuideLoading] = useState(false);
-  const [os, setOs] = useState<OS>("mac");
+  const [os, setOs] = useState<OS>(initialOs);
   const [detectedOs, setDetectedOs] = useState<OS | null>(null);
   const [arch, setArch] = useState<Arch | null>(null);
-  const [mode, setMode] = useState<Mode>("source");
+  const [mode, setMode] = useState<Mode>(initialMode ?? (initial ? defaultMode(initial) : "source"));
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
@@ -85,6 +115,7 @@ export function ReportView({ owner, repo, gitRef }: { owner: string; repo: strin
     const qOs = q.get("os") as OS | null;
     setOs(qOs && OS_LIST.includes(qOs) ? qOs : d);
     const qMode = q.get("mode");
+    if (refresh === 0 && (initial || initialError)) return;
 
     let cancelled = false;
     setResult(null);
@@ -100,8 +131,7 @@ export function ReportView({ owner, repo, gitRef }: { owner: string; repo: strin
         if (!res.ok) throw new Error(data.error ?? "Request failed");
         if (cancelled) return;
         setResult(data);
-        // Device-only downloads (.apk) are usually extras; the computer-side setup is the main path then.
-        setMode(qMode === "install" || qMode === "source" ? qMode : data.install.platforms.length ? "install" : "source");
+        setMode(qMode === "install" || qMode === "source" ? qMode : defaultMode(data));
       })
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)))
       .finally(() => clearInterval(tick));
@@ -109,6 +139,8 @@ export function ReportView({ owner, repo, gitRef }: { owner: string; repo: strin
       cancelled = true;
       clearInterval(tick);
     };
+    // initial/initialError only matter for the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [owner, repo, gitRef, refresh]);
 
   // Guides are written per OS.
@@ -189,6 +221,8 @@ export function ReportView({ owner, repo, gitRef }: { owner: string; repo: strin
       guide={guide}
       guideLoading={guideLoading}
       onGuide={generateGuide}
+      picks={picks}
+      curator={curator}
       onRefresh={() => setRefresh((n) => n + 1)}
       onVotes={(votes) => setResult((r) => r && { ...r, votes })}
     />
@@ -208,7 +242,11 @@ function Report({
   onGuide,
   onRefresh,
   onVotes,
+  picks,
+  curator,
 }: {
+  picks: Pick[];
+  curator: string;
   result: Result;
   os: OS;
   detectedOs: OS | null;
@@ -290,7 +328,7 @@ function Report({
           </div>
           <div>
             <dt>License</dt>
-            <dd>{meta.license && meta.license !== "NOASSERTION" ? meta.license : "None listed"}</dd>
+            <dd>{meta.license && meta.license !== "NOASSERTION" ? meta.license : "Not detected"}</dd>
           </div>
           <div>
             <dt>Open issues</dt>
@@ -323,7 +361,7 @@ function Report({
         meta={meta}
         guides={guides}
         os={os}
-        canInstall={install.platforms.includes(os) || (install.release?.deviceAssets.length ?? 0) > 0}
+        way={installWay(install, os)}
         steps={steps.length}
         onGo={(m, id) => {
           onMode(m);
@@ -370,7 +408,7 @@ function Report({
         <div className="sheet-main">
           <div className="tabs" role="tablist" aria-label="How to set it up" id="main-tabs">
             <button role="tab" aria-selected={mode === "install"} className={mode === "install" ? "on" : ""} onClick={() => onMode("install")}>
-              Install the app
+              Install it
               {install.platforms.length > 0 && <span className="count">{install.platforms.length}</span>}
             </button>
             <button role="tab" aria-selected={mode === "source"} className={mode === "source" ? "on" : ""} onClick={() => onMode("source")}>
@@ -509,6 +547,32 @@ function Report({
                 </ul>
               </details>
             )}
+          </div>
+
+          {picks.length > 0 && (
+            <div className="side-card">
+              <h3>Featured in {curator}</h3>
+              {picks.slice(0, 2).map((p) => (
+                <a className="featured" key={p.url} href={p.url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- small thumbnail of an already-sized poster */}
+                  <img src={p.image} alt="" width={76} height={76} loading="lazy" />
+                  <span>
+                    <b>{p.kind === "reel" ? "▶ Watch the Reel" : "See the poster"} ↗</b>
+                    {p.caption ? p.caption.split(/\r?\n/)[0].slice(0, 90) : "On Facebook"}
+                  </span>
+                </a>
+              ))}
+            </div>
+          )}
+
+          <div className="side-card">
+            <h3>Share this manual</h3>
+            <div className="share-btns">
+              <CopyButton text={typeof window === "undefined" ? `/${meta.fullName}` : `${window.location.origin}/${meta.fullName}`} className="btn btn-sm" label="Copy the link" />
+              <a className="btn btn-sm" href={`/${meta.fullName}/poster?download=1`} download>
+                Download a 1080×1080 poster
+              </a>
+            </div>
           </div>
 
           {(a.hints.length > 0 || a.otherManifests.length > 0) && (
@@ -655,21 +719,52 @@ function InstallPanel({ install, os, onSource }: { install: InstallOptions; os: 
         </div>
       )}
 
-      {commands.length > 0 && (
-        <div className="panel">
-          <h3>Install with a package manager</h3>
-          {commands.map((c) => (
-            <div className="pm-cmd" key={c.command}>
-              <span className="method">{c.method}</span>
-              <CodeBlock text={c.command} />
-              {c.script && <div className="warn">Pipes a remote script into your shell. Read it before running.</div>}
-            </div>
-          ))}
-          <p className="note">Found in the README, shown exactly as the maintainers wrote them.</p>
-        </div>
-      )}
+      {COMMAND_GROUPS.map((g) => {
+        const list = commands.filter((c) => c.kind === g.kind);
+        if (!list.length) return null;
+        return (
+          <div className="panel" key={g.kind}>
+            <h3>{g.title}</h3>
+            {g.note && <p className="note">{g.note}</p>}
+            {list.map((c) => (
+              <div className="pm-cmd" key={c.command}>
+                <span className="method">{c.method}</span>
+                <CodeBlock text={c.command} />
+                {c.script && <div className="warn">Pipes a remote script into your shell. Read it before running.</div>}
+              </div>
+            ))}
+            <p className="note">From the README, exactly as the maintainers wrote it.</p>
+          </div>
+        );
+      })}
     </>
   );
+}
+
+const COMMAND_GROUPS: { kind: InstallKind; title: string; note?: string }[] = [
+  { kind: "app", title: "Install with a package manager" },
+  { kind: "docker", title: "Run it with Docker", note: "A self-hosted app: Docker runs it on your computer and you open it in the browser. Needs Docker Desktop (or Docker Engine on Linux). Run docker compose commands inside the cloned repo folder." },
+  { kind: "scaffold", title: "Start a new project with it", note: "Creates a fresh project folder set up with this framework. Run it where you keep your code, not inside this repo." },
+  { kind: "library", title: "Use it in your own project", note: "This is a library: you add it to your code rather than opening an app." },
+];
+
+type InstallWay = { tag: string; title: string; sub: string };
+
+// The easiest way to get it, for the "Start here" door. Null when the only way is from source.
+function installWay(install: InstallOptions, os: OS): InstallWay | null {
+  const label = OS_LABEL[os];
+  const cmds = install.commands.filter((c) => c.os.includes(os));
+  const app = cmds.find((c) => c.kind === "app");
+  if (install.release?.assets.some((a) => a.os === os)) return { tag: "Download", title: "Get the ready-made app", sub: `Built for ${label}. No code needed.` };
+  if (app) return { tag: "Install", title: `Install it with ${app.method}`, sub: `One command on ${label}.` };
+  if (install.release?.deviceAssets.length)
+    return { tag: "Device app", title: "Install it on your device", sub: "An Android / TV app (.apk), installed from this computer." };
+  if (cmds.some((c) => c.kind === "docker")) return { tag: "Docker", title: "Run it with Docker", sub: "Self-hosted: it opens in your browser." };
+  const scaffold = cmds.find((c) => c.kind === "scaffold");
+  if (scaffold) return { tag: "New project", title: "Start a project with it", sub: scaffold.command };
+  const lib = cmds.find((c) => c.kind === "library");
+  if (lib) return { tag: "Library", title: "Add it to your project", sub: lib.command };
+  return null;
 }
 
 function AssetRow({ asset, os, primary }: { asset: Asset; os: OS; primary?: boolean }) {
@@ -717,18 +812,20 @@ function StartHere({
   meta,
   guides,
   os,
-  canInstall,
+  way,
   steps,
   onGo,
 }: {
   meta: Result["meta"];
   guides: Guides;
   os: OS;
-  canInstall: boolean;
+  way: InstallWay | null;
   steps: number;
   onGo: (mode: Mode, id: string) => void;
 }) {
-  const best = canInstall ? "install" : guides.doc ? "guide" : "steps";
+  // Our steps are thin when we found little more than "clone it"; the project's own site is the better start then.
+  // The maintainers' own guide or docs site beats our generated steps when there's no one-step install.
+  const best = way ? "install" : guides.doc ? "guide" : guides.docs ? "docs" : guides.website && (steps <= 2 || /^https?:\/\/docs\./.test(guides.website)) ? "website" : "steps";
   const scripts = guides.scripts.filter((s) => s.windows === (os === "windows")).concat(guides.scripts.filter((s) => s.windows !== (os === "windows")));
   return (
     <section className="start" aria-labelledby="start-h">
@@ -736,11 +833,11 @@ function StartHere({
         Start here
       </h2>
       <div className="start-grid">
-        {canInstall && (
+        {way && (
           <button className={`door${best === "install" ? " best" : ""}`} onClick={() => onGo("install", "main-tabs")}>
-            <span className="door-tag">Download</span>
-            <b>Get the ready-made app</b>
-            <span className="door-sub">Built for {OS_LABEL[os]}. No code needed.</span>
+            <span className="door-tag">{way.tag}</span>
+            <b>{way.title}</b>
+            <span className="door-sub">{way.sub}</span>
           </button>
         )}
         {guides.doc && (
@@ -759,14 +856,14 @@ function StartHere({
           <span className="door-sub">Copy-paste commands for {OS_LABEL[os]}.</span>
         </button>
         {guides.website && (
-          <a className="door" href={guides.website} target="_blank" rel="noreferrer">
+          <a className={`door${best === "website" ? " best" : ""}`} href={guides.website} target="_blank" rel="noreferrer">
             <span className="door-tag">Website ↗</span>
             <b translate="no">{host(guides.website)}</b>
             <span className="door-sub">The project&apos;s own site.</span>
           </a>
         )}
         {guides.docs && (
-          <a className="door" href={guides.docs} target="_blank" rel="noreferrer">
+          <a className={`door${best === "docs" ? " best" : ""}`} href={guides.docs} target="_blank" rel="noreferrer">
             <span className="door-tag">Docs ↗</span>
             <b translate="no">{host(guides.docs)}</b>
             <span className="door-sub">Linked from the README.</span>
@@ -782,15 +879,16 @@ function StartHere({
       </div>
       {scripts.length > 0 && (
         <div className="start-script">
-          <span className="door-tag">Setup script in the repo</span>
+          <span className="door-tag">{/^(start|run|launch|webui)/i.test(scripts[0].path.split("/").pop()!) ? "Launch script in the repo" : "Setup script in the repo"}</span>
           <p className="note">
-            The maintainers included <code>{scripts[0].path}</code>. Run it from the cloned folder after{" "}
+            The maintainers included <code>{scripts[0].path}</code>.{" "}
+            {scripts[0].run ? "Run it from the cloned folder after " : "Open it to see how it's meant to be run: "}
             <a href={`${meta.htmlUrl}/blob/${meta.branch}/${scripts[0].path}`} target="_blank" rel="noreferrer">
-              reading it
+              {scripts[0].run ? "reading it" : `${scripts[0].path} on GitHub`}
             </a>
             .
           </p>
-          <CodeBlock text={scripts[0].run} />
+          {scripts[0].run && <CodeBlock text={scripts[0].run} />}
           {scripts.length > 1 && <p className="note">Also: {scripts.slice(1).map((s) => s.path).join(", ")}</p>}
         </div>
       )}
@@ -799,7 +897,7 @@ function StartHere({
 }
 
 function DidItWork({ repo, os, votes, onVotes }: { repo: string; os: OS; votes: Votes; onVotes: (v: Votes) => void }) {
-  const storeKey = `gitsetup-vote:${repo.toLowerCase()}`;
+  const storeKey = `gitmanual-vote:${repo.toLowerCase()}`;
   const [voted, setVoted] = useState<string | null>(null);
   useEffect(() => setVoted(localStorage.getItem(storeKey)), [storeKey]);
   const here = votes.byOs[os];

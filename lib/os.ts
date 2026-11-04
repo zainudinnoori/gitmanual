@@ -82,6 +82,44 @@ export function runtimeInstall(name: string, os: OS, ctx: RuntimeCtx): string[] 
       return os === "windows" ? ['powershell -c "irm bun.sh/install.ps1 | iex"'] : ["curl -fsSL https://bun.sh/install | bash"];
     case "Elixir":
       return os === "mac" ? ["brew install elixir"] : os === "windows" ? ["# https://elixir-lang.org/install.html#windows"] : ["sudo apt install elixir  # Debian/Ubuntu"];
+    case ".NET SDK": {
+      const m = major(v) ?? "8";
+      return os === "mac"
+        ? ["brew install --cask dotnet-sdk"]
+        : os === "windows"
+          ? [`winget install Microsoft.DotNet.SDK.${m}`]
+          : [`sudo apt install dotnet-sdk-${m}.0  # Ubuntu 22.04+; other distros: https://learn.microsoft.com/dotnet/core/install/linux`];
+    }
+    case "Flutter":
+      return os === "mac"
+        ? ["brew install --cask flutter"]
+        : os === "windows"
+          ? ["# Install Flutter: https://docs.flutter.dev/get-started/install/windows"]
+          : ["sudo snap install flutter --classic"];
+    case "Dart":
+      return os === "mac" ? ["brew tap dart-lang/dart", "brew install dart"] : os === "windows" ? ["choco install dart-sdk"] : ["# Install Dart: https://dart.dev/get-dart"];
+    case "C/C++ compiler":
+      return os === "mac"
+        ? ["xcode-select --install"]
+        : os === "windows"
+          ? ["winget install Microsoft.VisualStudio.2022.BuildTools  # then add the \"Desktop development with C++\" workload"]
+          : ["sudo apt install build-essential  # Debian/Ubuntu"];
+    case "CMake":
+      return os === "mac" ? ["brew install cmake"] : os === "windows" ? ["winget install Kitware.CMake"] : ["sudo apt install cmake"];
+    case "Meson":
+      return os === "mac" ? ["brew install meson ninja"] : os === "windows" ? ["pip install meson ninja"] : ["sudo apt install meson ninja-build"];
+    case "Swift":
+      return os === "mac"
+        ? ["xcode-select --install"]
+        : os === "windows"
+          ? ["winget install Swift.Toolchain"]
+          : ["# Install Swift: https://www.swift.org/install/linux/"];
+    case "Clojure CLI":
+      return os === "mac" ? ["brew install clojure/tools/clojure"] : ["# Install the Clojure CLI: https://clojure.org/guides/install_clojure"];
+    case "Leiningen":
+      return os === "mac" ? ["brew install leiningen"] : os === "windows" ? ["choco install lein"] : ["# Install Leiningen: https://leiningen.org/#install"];
+    case "SCons":
+      return ["pip install scons"];
     default:
       return [];
   }

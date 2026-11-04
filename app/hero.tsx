@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RepoCard } from "@/lib/db";
 import { OS_LABEL, type OS } from "@/lib/os";
+import { ShelfCard } from "./cards";
 import { RepoForm, Wrenches, detectOS } from "./ui";
 
 type Demo = {
@@ -16,7 +17,7 @@ type Demo = {
   fitNote?: string;
 };
 
-// Condensed from gitsetup's analysis of these repos, for the landing demo.
+// Condensed from gitmanual's analysis of these repos, for the landing demo.
 const DEMOS: Demo[] = [
   {
     repo: "BurntSushi/ripgrep",
@@ -129,7 +130,7 @@ export function Landing({ recent, popular }: { recent: RepoCard[]; popular: Repo
             </p>
             <RepoForm />
             <p className="trick">
-              Shortcut: in any GitHub URL, change <s>hub</s> to <b>setup</b>.
+              Shortcut: in any GitHub URL, change <s>hub</s> to <b>manual</b>.
             </p>
           </div>
 
@@ -220,18 +221,40 @@ export function Landing({ recent, popular }: { recent: RepoCard[]; popular: Repo
   );
 }
 
+// An open flat-pack box in isometric view: rim corners L(40,70) B(160,30) R(280,70) F(160,110), 80px deep.
 function Box() {
+  const stroke = { stroke: "var(--ink)", strokeWidth: 2.5, strokeLinejoin: "round" as const };
   return (
-    <svg className="box" viewBox="0 0 320 210" aria-hidden="true">
-      <ellipse cx="160" cy="194" rx="128" ry="12" fill="var(--ink)" opacity=".08" />
-      <path className="flap flap-l" d="M40 70 L160 110 L120 60 L0 22 Z" />
-      <path className="flap flap-r" d="M280 70 L160 110 L200 60 L320 22 Z" />
-      <path d="M40 70 L160 30 L280 70 L160 110 Z" fill="var(--ink)" />
-      <path d="M40 70 L160 110 L160 190 L40 150 Z" fill="var(--wrench)" stroke="var(--ink)" strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M280 70 L160 110 L160 190 L280 150 Z" fill="var(--wrench-2)" stroke="var(--ink)" strokeWidth="2.5" strokeLinejoin="round" />
+    <svg className="box" viewBox="-10 -40 340 250" aria-hidden="true">
+      <defs>
+        <clipPath id="box-opening">
+          <path d="M40 70 L160 30 L280 70 L160 110 Z" />
+        </clipPath>
+      </defs>
+      <ellipse cx="160" cy="194" rx="132" ry="12" fill="var(--ink)" opacity=".08" />
+
+      {/* back flaps stand up, leaning outward */}
+      <path className="flap flap-back" d="M40 70 L160 30 L142 -22 L22 18 Z" fill="var(--wrench-2)" {...stroke} />
+      <path className="flap flap-back" d="M160 30 L280 70 L298 18 L178 -22 Z" fill="var(--wrench)" {...stroke} />
+
+      {/* inside: two back walls and the floor, seen through the opening */}
+      <g clipPath="url(#box-opening)">
+        <path d="M40 70 L160 30 L160 110 L40 150 Z" fill="#b8461a" />
+        <path d="M160 30 L280 70 L280 150 L160 110 Z" fill="#cf5320" />
+        <path d="M40 150 L160 110 L280 150 L160 190 Z" fill="#8f3512" />
+      </g>
+      <path d="M40 70 L160 30 L280 70 L160 110 Z" fill="none" {...stroke} />
+
+      {/* front walls */}
+      <path d="M40 70 L160 110 L160 190 L40 150 Z" fill="var(--wrench)" {...stroke} />
+      <path d="M280 70 L160 110 L160 190 L280 150 Z" fill="var(--wrench-2)" {...stroke} />
       <path d="M62 112 l20 7 M62 124 l40 13 M62 136 l30 10" stroke="var(--ink)" strokeWidth="2.5" strokeLinecap="round" />
       <path d="M196 132 l14 -8 l-14 -8" fill="none" stroke="var(--ink)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M216 136 l24 -9" stroke="var(--ink)" strokeWidth="2.5" strokeLinecap="round" />
+
+      {/* front flaps fold open toward you */}
+      <path className="flap flap-front" d="M40 70 L160 110 L136 136 L14 94 Z" fill="#ff8a55" {...stroke} />
+      <path className="flap flap-front" d="M160 110 L280 70 L306 94 L184 136 Z" fill="#ff7a40" {...stroke} />
     </svg>
   );
 }
@@ -273,8 +296,6 @@ function StepsArt() {
   );
 }
 
-const LEVEL: Record<string, number> = { Easy: 1, Moderate: 2, Involved: 3 };
-
 function Shelf({ recent, popular }: { recent: RepoCard[]; popular: RepoCard[] }) {
   const [tab, setTab] = useState<"recent" | "popular">("recent");
   const list = tab === "recent" ? recent : popular;
@@ -288,6 +309,7 @@ function Shelf({ recent, popular }: { recent: RepoCard[]; popular: RepoCard[] })
               {tab === "recent" ? "Recently set up here" : "Most looked-up repos"}
             </h2>
           </div>
+          <div className="shelf-actions">
           <div className="picker" role="tablist" aria-label="Sort repos">
             <button role="tab" aria-selected={tab === "recent"} className={tab === "recent" ? "on" : ""} onClick={() => setTab("recent")}>
               recent
@@ -296,29 +318,17 @@ function Shelf({ recent, popular }: { recent: RepoCard[]; popular: RepoCard[] })
               popular
             </button>
           </div>
+          <Link className="open-link" href="/shelf">
+            Browse the whole shelf →
+          </Link>
+          </div>
         </div>
         <ul className="shelf-grid">
-          {list.map((r) => {
-            const [owner, name] = r.fullName.split("/");
-            return (
-              <li key={r.fullName}>
-                <Link className="shelf-card" href={`/${r.fullName}`}>
-                  <span className="shelf-name" translate="no">
-                    <span className="owner">{owner}/</span>
-                    {name}
-                  </span>
-                  {r.description && <span className="shelf-desc">{r.description}</span>}
-                  <span className="shelf-meta">
-                    <span>
-                      <Wrenches n={LEVEL[r.difficulty] ?? 2} /> {r.difficulty}
-                    </span>
-                    <span>★ {r.stars.toLocaleString()}</span>
-                    {r.worked > 0 && <span className="ok">✓ {r.worked} got it running</span>}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+          {list.map((r) => (
+            <li key={r.fullName}>
+              <ShelfCard repo={r} />
+            </li>
+          ))}
         </ul>
       </div>
     </section>

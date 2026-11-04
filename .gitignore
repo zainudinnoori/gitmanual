@@ -12,3 +12,6 @@ data/
 
 # repos cloned while testing
 dumbtv/
+
+# local Claude Code state
+.claude/
