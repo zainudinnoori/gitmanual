@@ -1,0 +1,14 @@
+node_modules
+.next
+.vercel
+.env
+.env.local
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
+
+# local SQLite history (production uses Turso)
+data/
+
+# repos cloned while testing
+dumbtv/
