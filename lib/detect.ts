@@ -108,6 +108,16 @@ const ROOT_FILES = new Set([
 ]);
 
 const ENV_EXAMPLE = /(^|\/)\.env(\.[\w-]+)*\.(example|sample|template|dist|defaults)$|(^|\/)(example|sample)\.env$/;
+// Gems used to test, lint or debug a project, never to run it.
+const TOOL_GEM = /^(minitest(-.+)?|rubocop(-.+)?|rspec(-.+)?|test-unit|rake|simplecov(-.+)?|standard|pry(-.+)?|byebug|debug|webmock|vcr|mocha|danger(-.+)?|yard|rdoc|overcommit|reek|benchmark-ips|ruby-prof|stackprof)$/;
+
+// The tool gems, when they're all a Gemfile has; null when it's a Ruby library (gemspec) or has app gems.
+function gemfileToolsOnly(gemfile: string): string[] | null {
+  if (/^\s*gemspec\b/m.test(gemfile)) return null;
+  const gems = [...gemfile.matchAll(/^\s*gem\s+['"]([\w.-]+)['"]/gm)].map((m) => m[1]);
+  return gems.length && gems.every((g) => TOOL_GEM.test(g)) ? gems : null;
+}
+
 const MANIFEST = /(^|\/)(package\.json|pyproject\.toml|requirements\.txt|go\.mod|Cargo\.toml|Gemfile|composer\.json|pom\.xml|pubspec\.yaml|[^/]+\.csproj|CMakeLists\.txt)$/;
 
 export function selectFiles(entries: TreeEntry[]): TreeEntry[] {
@@ -441,7 +451,13 @@ export function analyze(
   }
 
   // ---------- Ruby ----------
-  if (files["Gemfile"]) {
+  // A Gemfile of test and lint tools only (fzf's is minitest + rubocop) isn't the app's runtime: Ruby is then
+  // needed only to run the tests, so `bundle install` belongs with them.
+  const toolGems = files["Gemfile"] && !has("bin/rails") ? gemfileToolsOnly(files["Gemfile"]) : null;
+  if (toolGems) {
+    hints.push(`The Gemfile only holds test and lint tools (${toolGems.slice(0, 4).join(", ")}): Ruby is needed just to run those.`);
+    testCmds.unshift("bundle install"); // before the tests that need it
+  } else if (files["Gemfile"]) {
     stacks.push("Ruby");
     const v = files[".ruby-version"]?.trim() ?? tv.ruby ?? firstMatch(files["Gemfile"], /^ruby\s+["']([^"']+)/m);
     runtimes.push({ name: "Ruby", detail: v, source: files[".ruby-version"] ? ".ruby-version" : "Gemfile" });
