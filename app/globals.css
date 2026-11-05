@@ -83,22 +83,22 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
   border: 1.5px solid var(--line-strong); border-radius: 5px; padding: 0 6px; pointer-events: none;
 }
 .nav-search input:focus + kbd { display: none; }
-/* GitHub split button: [logo Star | ★ count], the same height and outline as the search box. */
+/* GitHub split button: [logo Star | ★ count]. Quiet like the menu items; it darkens on hover. */
 .nav-links a.nav-gh {
-  display: inline-flex; align-items: stretch; height: 38px; padding: 0; margin-left: 6px; overflow: hidden;
-  border: 2px solid var(--ink); border-radius: 10px; background: var(--sheet); color: var(--ink);
-  transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  display: inline-flex; align-items: stretch; height: 34px; padding: 0; margin-left: 6px; overflow: hidden;
+  border: 1.5px solid var(--line-strong); border-radius: 8px; background: transparent; color: var(--pencil);
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease), background 0.15s var(--ease);
 }
-.nav-links a.nav-gh:hover { transform: translate(-1px, -1px); box-shadow: var(--hard); }
-.nav-links a.nav-gh:focus-visible { outline: none; box-shadow: 3px 3px 0 var(--wrench); }
-.nav-gh-label { display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; font-weight: 600; }
+.nav-links a.nav-gh:hover { color: var(--ink); border-color: var(--ink); background: var(--sheet); }
+.nav-links a.nav-gh:focus-visible { outline: 2px solid var(--wrench); outline-offset: 2px; }
+.nav-gh-label { display: inline-flex; align-items: center; gap: 7px; padding: 0 10px; }
 .nav-stars {
-  display: inline-flex; align-items: center; gap: 6px; padding: 0 12px;
-  border-left: 2px solid var(--ink); background: var(--paper, #f6f7f9); font: 700 var(--fs-meta) var(--mono);
+  display: inline-flex; align-items: center; gap: 5px; padding: 0 10px;
+  border-left: 1.5px solid var(--line-strong); font: 600 var(--fs-meta) var(--mono); color: var(--ink);
+  transition: border-color 0.15s var(--ease);
 }
 .nav-stars svg { color: var(--wrench); }
-.nav-gh:hover .nav-stars { background: var(--wrench); }
-.nav-gh:hover .nav-stars svg { color: var(--ink); }
+.nav-gh:hover .nav-stars { border-color: var(--ink); }
 .nav-links a[aria-current="page"] { color: var(--ink); background: var(--sheet); box-shadow: inset 0 0 0 1.5px var(--ink); }
 .proto { font: 600 var(--fs-label) var(--mono); text-transform: uppercase; letter-spacing: 0.06em; border: 1.5px dashed var(--line-strong); color: var(--pencil); padding: 3px 8px; border-radius: 6px; margin-left: 8px; }
 
@@ -134,6 +134,14 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .addr-lg .btn-go { padding: 0 22px; min-height: 52px; font-size: var(--fs-body); border-radius: 12px; }
 .addr-sm { margin-top: 22px; }
 .addr-error { flex-basis: 100%; margin: 2px 0 0; color: #c0262c; font-size: var(--fs-small); }
+.try { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 14px 0 0; font-size: var(--fs-small); color: var(--pencil); }
+.try a {
+  font: 500 var(--fs-meta) var(--mono); color: var(--ink); text-decoration: none;
+  border: 1.5px solid var(--line-strong); border-radius: 999px; padding: 3px 10px; background: var(--sheet);
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.try a:hover { border-color: var(--ink); }
+.try a:focus-visible { outline: 2px solid var(--wrench); outline-offset: 2px; }
 .trick { margin: 18px 0 0; font-size: var(--fs-small); color: var(--pencil); }
 .trick s { text-decoration-color: var(--no); text-decoration-thickness: 2px; font-family: var(--mono); }
 .trick b { font-family: var(--mono); color: var(--wrench-2); }

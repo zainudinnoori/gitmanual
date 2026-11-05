@@ -17,6 +17,9 @@ type Demo = {
   fitNote?: string;
 };
 
+// One-click examples under the address bar: a desktop app, a CLI tool and a self-hosted server.
+const EXAMPLES = ["ollama/ollama", "BurntSushi/ripgrep", "immich-app/immich"];
+
 // Condensed from gitmanual's analysis of these repos, for the landing demo.
 const DEMOS: Demo[] = [
   {
@@ -120,15 +123,23 @@ export function Landing({ recent, popular }: { recent: RepoCard[]; popular: Repo
           <div className="hero-copy">
             <p className="eyebrow">Setup manuals for open source</p>
             <h1 className="display">
-              Open source.
+              Found it on GitHub?
               <br />
-              <span className="assembly">Some assembly required.</span>
+              <span className="assembly">Get it running.</span>
             </h1>
             <p className="lead">
               Paste any GitHub link. We&apos;ll check it works on your device, list the parts you need and write the steps for Mac, Windows or
               Linux.
             </p>
             <RepoForm />
+            <p className="try">
+              Try:
+              {EXAMPLES.map((r) => (
+                <Link key={r} href={`/${r}`} translate="no">
+                  {r}
+                </Link>
+              ))}
+            </p>
             <p className="trick">
               Shortcut: in any GitHub URL, change <s>hub</s> to <b>manual</b>.
             </p>

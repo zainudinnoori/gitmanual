@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-  <b>Open source. Some assembly required.</b><br />
+  <b>Found it on GitHub? Get it running.</b><br />
   Paste any GitHub repo and get its setup manual: will it work on your device, what you need, and the exact steps for macOS, Windows or Linux.
 </p>
 
