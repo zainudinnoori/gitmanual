@@ -289,6 +289,7 @@ function Report({
           <h1 className="display-md repo-title" translate="no">
             <a href={meta.htmlUrl} target="_blank" rel="noreferrer">
               <span className="owner">{meta.fullName.split("/")[0]}/</span>
+              <wbr />
               {meta.fullName.split("/")[1]}
             </a>
           </h1>

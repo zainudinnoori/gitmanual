@@ -66,7 +66,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
 .wordmark { display: flex; align-items: center; gap: 9px; font: 800 var(--fs-h3) var(--display); letter-spacing: -0.03em; text-decoration: none; }
 .nav-links { display: flex; align-items: center; gap: 2px; }
-.nav-links a { font: var(--ui); font-size: var(--fs-body); text-decoration: none; color: var(--pencil); padding: 8px 13px; border-radius: 10px; }
+.nav-links a { font: var(--ui); font-size: var(--fs-body); white-space: nowrap; text-decoration: none; color: var(--pencil); padding: 8px 13px; border-radius: 10px; }
 .nav-links a:hover { color: var(--ink); background: var(--sheet); }
 .nav-inner { gap: 20px; }
 .nav-search { position: relative; flex: 0 1 340px; margin-left: auto; }
@@ -204,7 +204,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 /* Three-part band */
 .band { background: var(--ink); color: var(--paper); padding: 84px 0 96px; }
 .band .display-md { color: var(--sheet); max-width: 16ch; }
-.pages { list-style: none; padding: 0; margin: 40px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.pages { list-style: none; padding: 0; margin: 40px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .page { position: relative; background: var(--sheet); color: var(--ink); border-radius: 16px; padding: 24px 24px 26px; transition: rotate 0.25s var(--ease); }
 .page:nth-child(1) { rotate: -1.2deg; }
 .page:nth-child(3) { rotate: 1deg; }
@@ -225,8 +225,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .unbox span:nth-child(3) { background: var(--yes); animation-delay: 0.3s; }
 @keyframes hop { 40% { transform: translateY(-16px) rotate(-12deg); } 80% { transform: none; } }
 
-.sheet-head { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: end; padding-bottom: 32px; border-bottom: 1.5px solid var(--ink); }
-.repo-title a { text-decoration: none; overflow-wrap: anywhere; }
+.sheet-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end; padding-bottom: 32px; border-bottom: 1.5px solid var(--ink); }
+/* Breaks after "owner/" first (a <wbr>), and only splits a name that's wider than the screen on its own. */
+.repo-title a { text-decoration: none; overflow-wrap: break-word; }
 .repo-title a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
 .repo-title .owner { color: var(--pencil); font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
@@ -247,7 +248,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 
 /* Will it fit? */
 .fit {
-  display: grid; grid-template-columns: auto 1fr auto; gap: 24px; align-items: start;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 24px; align-items: start;
   margin: 32px 0; padding: 26px 28px; border: 1.5px solid var(--ink); border-radius: 18px; box-shadow: 6px 6px 0 var(--ink);
 }
 .fit-yes { background: color-mix(in srgb, var(--yes) 22%, var(--sheet)); }
@@ -336,7 +337,7 @@ details[open].panel > summary h3::after { content: " −"; }
 .parts { background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 16px; padding: 18px 18px 14px; box-shadow: 4px 4px 0 var(--ink); }
 .parts-h { font: 800 var(--fs-h3) var(--display); letter-spacing: -0.02em; margin-bottom: 10px; }
 .parts ul { list-style: none; margin: 0; padding: 0; }
-.parts li { display: grid; grid-template-columns: 30px 1fr; gap: 6px; padding: 9px 0; border-top: 1px dashed var(--line-strong); }
+.parts li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 6px; padding: 9px 0; border-top: 1px dashed var(--line-strong); }
 .parts li b { font-weight: 650; }
 .kind { display: block; font: var(--fs-label) var(--mono); color: var(--pencil); }
 .env { border-top: 1px dashed var(--line-strong); padding-top: 9px; }
@@ -345,6 +346,10 @@ details[open].panel > summary h3::after { content: " −"; }
 .env li { display: flex; gap: 8px; align-items: center; padding: 4px 0; border: 0; grid-template-columns: none; }
 .secret { font: 600 var(--fs-label) var(--mono); text-transform: uppercase; background: var(--no); border: 1px solid var(--ink); border-radius: 4px; padding: 0 5px; }
 
+/* Long names, paths and URLs (no spaces) wrap instead of widening the page; code blocks scroll on their own. */
+.sheet > *, .step-body, .side-card, .fit > * { min-width: 0; }
+.side-card, .step-body, .note, .hints, .fit, .start-grid, .sheet-head .lead, .chips { overflow-wrap: anywhere; }
+:where(p, li, dd, td, h1, h2, h3, summary) code { overflow-wrap: anywhere; }
 .side-card { background: var(--sheet); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px; }
 .side-card h3 { font: 700 var(--fs-body) var(--display); display: inline; }
 .side-card > h3 { display: block; margin-bottom: 6px; }
@@ -592,7 +597,7 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 }
 
 /* "Featured in" and "Share" on a repo page */
-.featured { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center; text-decoration: none; }
+.featured { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: center; text-decoration: none; }
 .featured img { width: 76px; height: 76px; object-fit: cover; border: 2px solid var(--ink); border-radius: 10px; }
 .featured b { font: 700 var(--fs-small) var(--display); display: block; color: var(--ink); }
 .featured span { font-size: var(--fs-meta); color: var(--pencil); }
@@ -600,7 +605,7 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 .share-btns { display: grid; gap: 8px; margin-top: 10px; }
 .share-btns .btn { width: 100%; }
 .badge-note { margin: 6px 0 10px; font-size: var(--fs-small); color: var(--pencil); }
-.badge-preview { display: block; height: 20px; width: auto; margin-bottom: 10px; }
+.badge-preview { display: block; height: auto; max-width: 100%; margin-bottom: 10px; }
 .badge-code {
   display: block; margin-bottom: 8px; padding: 8px 10px; border: 1.5px solid var(--line-strong); border-radius: 8px;
   background: var(--paper); font: 500 var(--fs-label) var(--mono); color: var(--ink); overflow-wrap: anywhere;
@@ -612,40 +617,49 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .fb-side { position: static; }
   .fb-title { text-align: center; }
   .fb-title .lead { margin-inline: auto; }
-  .fb-tabs { grid-template-columns: repeat(3, 1fr); margin-bottom: 22px; }
+  .fb-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 22px; }
   .fb-tabs a { justify-content: center; }
   .nav-search { display: none; }
   .how-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .how-flow li:nth-child(2)::after { display: none; }
-  .how-verdicts { grid-template-columns: 1fr; }
-  .hero-grid, .sheet, .sheet-head { grid-template-columns: 1fr; }
+  .how-verdicts { grid-template-columns: minmax(0, 1fr); }
+  .hero-grid, .sheet, .sheet-head { grid-template-columns: minmax(0, 1fr); }
   .hero { padding-top: 44px; }
   .sheet-side { position: static; }
-  .pages { grid-template-columns: 1fr; }
-  .filters { grid-template-columns: 1fr 1fr; }
+  .pages { grid-template-columns: minmax(0, 1fr); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shelf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-q { grid-column: 1 / -1; }
   .page { rotate: 0deg !important; }
-  .fit { grid-template-columns: auto 1fr; }
+  .fit { grid-template-columns: auto minmax(0, 1fr); }
   .fit-device { grid-column: 1 / -1; justify-items: start; }
 }
 @media (max-width: 560px) {
-  .nav-gh, .proto { display: none; }
-  .how-flow { grid-template-columns: 1fr; gap: 14px; }
+  .nav-links a.nav-gh, .proto { display: none; }
+  /* Long commands wrap rather than scroll under the Copy button; Copy still copies them as written. */
+  .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .how-flow { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .how-flow li::after { display: none; }
   .nav-links a { padding: 7px 9px; font-size: var(--fs-small); }
-  .shelf-grid { grid-template-columns: 1fr; gap: 16px; }
+  .shelf-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .shelf-open { opacity: 1; transform: none; }
   .explode { height: 340px; }
   .parts-float li { padding: 5px 8px; }
   .parts-float small { display: none; }
   .addr-host { display: none; }
   .assembly { -webkit-text-stroke-width: 1px; }
-  .fit { grid-template-columns: 1fr; padding: 20px; }
+  .fit { grid-template-columns: minmax(0, 1fr); padding: 20px; }
   .fit-stamp { width: 52px; height: 52px; font-size: 26px; }
-  .step { grid-template-columns: 1fr; gap: 6px; }
+  .step { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .step-n { text-align: left; font-size: 34px; }
   .seg button { padding: 6px 9px; }
+}
+
+/* The narrowest phones: the menu gets its own row under the logo instead of running off the screen. */
+@media (max-width: 440px) {
+  .nav-inner { flex-wrap: wrap; height: auto; padding-block: 10px 6px; row-gap: 4px; }
+  .nav-links { justify-content: space-between; width: calc(100% + 18px); margin-inline: -9px; }
+  .fb-tabs a { padding-inline: 6px; gap: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
