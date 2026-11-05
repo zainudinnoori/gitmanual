@@ -17,3 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      # Builds the setup scripts for the test repos (analyzed fresh) and checks them, PowerShell included.
+      - run: npm run check:scripts -- --add
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

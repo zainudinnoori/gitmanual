@@ -45,9 +45,18 @@ Plenty of people find a great project on GitHub and don't know how to run it. RE
 - **Will it work on my device?**: a yes, maybe or no for your system and chip, with reasons. It's based on the release files, install commands, Windows/WSL needs, separate devices (phones, TVs), Docker and library setups, and what the README itself says about supported systems.
 - **Parts list**: runtimes and versions, tools, package managers, databases and `.env` settings.
 - **Assembly steps**: copy-paste commands for macOS (zsh), Windows (PowerShell) or Linux (bash), with fixes for the errors people hit most.
+- **Setup script**: the same steps as one `setup.sh` or `setup.ps1` (`/owner/repo/setup/mac.sh`, `linux.sh`, `windows.ps1`). It stops at the first error, skips what's already installed and is safe to run again. It never starts servers or runs commands that still need your own values; it lists those at the end.
 - **Install it**: the right download for your system and CPU, plus Homebrew, winget, apt, Docker and other commands taken from the README.
 - **Did you get it running?**: per-system votes, so the next person knows what to expect.
 - **AI guide** (optional): Claude reads the key files and writes a guide. It's generated once per repo and system, then cached.
+
+**Maintainers:** add a badge to your README so newcomers find the steps. Swap in your `owner/repo`:
+
+```markdown
+[![Setup manual](https://gitmanual.com/ollama/ollama/badge.svg)](https://gitmanual.com/ollama/ollama)
+```
+
+[![Setup manual](https://gitmanual.com/ollama/ollama/badge.svg)](https://gitmanual.com/ollama/ollama)
 
 Plus **the shelf** (`/shelf`): every repo people have looked up, with search and filters for stars, language and difficulty. Every repo also gets a share image and a 1080×1080 poster.
 
@@ -83,6 +92,7 @@ Open <http://localhost:3000> and paste a repo. Without any settings it works out
 | `npm run dev` | Development server |
 | `npm run build` / `npm start` | Production build and server |
 | `npm run typecheck` | Type check |
+| `npm run check:scripts` | Build and check the setup script of every repo in the local database (`-- --add` also analyzes the test list) |
 
 ## Configuration
 

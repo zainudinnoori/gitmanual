@@ -19,6 +19,7 @@ npm install
 npm run dev          # http://localhost:3000
 npm run typecheck
 npm run build
+npm run check:scripts   # setup scripts for every repo you've looked up
 ```
 
 Add a `GITHUB_TOKEN` to `.env.local` if you'll be looking up many repos ([how](docs/self-hosting.md#2-a-github-token)). After a rule change, open the repos it affects: saved analyses are re-made automatically when `VERSION` in `lib/pipeline.ts` is bumped, so bump it when a change alters results.
@@ -33,6 +34,7 @@ Add a `GITHUB_TOKEN` to `.env.local` if you'll be looking up many repos ([how](d
 | README sections, tools or troubleshooting tips | `lib/readme.ts` (`TOOLS`, `TIPS`) |
 | "Start here": setup guides, scripts, docs links | `lib/guides.ts` |
 | "Will it work on my device?" | `lib/fit.ts`, and `lib/platforms.ts` for what READMEs say about systems |
+| The setup script (`setup.sh` / `setup.ps1`) | `lib/script.ts`; repos it's tested on: `scripts/setup-test-repos.json` |
 | The UI | `app/`, following [DESIGN.md](DESIGN.md) |
 
 ### Rules of thumb
@@ -45,5 +47,5 @@ Add a `GITHUB_TOKEN` to `.env.local` if you'll be looking up many repos ([how](d
 ## Pull requests
 
 - One change per PR.
-- `npm run typecheck` and `npm run build` pass (CI checks both).
+- `npm run typecheck`, `npm run build` and `npm run check:scripts -- --add` pass (CI checks all three). The weekly **Setup scripts** workflow also runs the scripts on real macOS, Windows and Linux machines.
 - Be kind in reviews. See the [Code of Conduct](CODE_OF_CONDUCT.md).

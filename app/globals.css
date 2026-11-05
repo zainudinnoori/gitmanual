@@ -291,6 +291,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .count { font: 600 var(--fs-label) var(--mono); background: var(--paper); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 7px; }
 
 .steps-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.setup-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.setup-how { margin: -4px 0 16px; font-size: var(--fs-small); color: var(--pencil); }
+.setup-how code { font: 500 var(--fs-label) var(--mono); color: var(--ink); background: var(--sheet); border: 1.5px solid var(--line-strong); border-radius: 6px; padding: 1px 6px; }
 .steps-head h2 { font: 800 var(--fs-h2) var(--display); letter-spacing: -0.025em; }
 .steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
 .step { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; background: var(--sheet); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px 18px 16px; }
@@ -596,6 +599,13 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 .featured + .featured { margin-top: 10px; }
 .share-btns { display: grid; gap: 8px; margin-top: 10px; }
 .share-btns .btn { width: 100%; }
+.badge-note { margin: 6px 0 10px; font-size: var(--fs-small); color: var(--pencil); }
+.badge-preview { display: block; height: 20px; width: auto; margin-bottom: 10px; }
+.badge-code {
+  display: block; margin-bottom: 8px; padding: 8px 10px; border: 1.5px solid var(--line-strong); border-radius: 8px;
+  background: var(--paper); font: 500 var(--fs-label) var(--mono); color: var(--ink); overflow-wrap: anywhere;
+}
+.side-card > .btn { width: 100%; }
 
 @media (max-width: 960px) {
   .fb-body { grid-template-columns: minmax(0, 500px); gap: 0; }

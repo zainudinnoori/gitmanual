@@ -8,6 +8,7 @@ import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
 import type { Arch, Asset, InstallKind, InstallOptions } from "@/lib/install";
 import { OS_LABEL, OS_LIST, type OS } from "@/lib/os";
+import { buildScript } from "@/lib/script";
 import { CodeBlock, CopyButton, RepoForm, Wrenches, detectArch, detectOS } from "./ui";
 
 type Result = {
@@ -266,7 +267,8 @@ function Report({
   const fit = fitCheck(a, install, os, myArch, meta.archived);
   const fresh = freshness(meta.pushedAt);
   const level = { Easy: 1, Moderate: 2, Involved: 3 }[a.difficulty.label];
-  const script = steps.flatMap((s) => (s.commands.length ? [`# ${s.title}`, ...s.commands, ""] : [])).join("\n");
+  const setup = buildScript(steps, os, meta.fullName, process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
+  const setupFile = `/${meta.fullName}/setup/${os === "windows" ? "windows.ps1" : `${os}.sh`}`;
   const md = (text: string) => (
     <ReactMarkdown urlTransform={(url, key) => repoUrl(url, key, meta.htmlUrl, meta.branch)}>{text}</ReactMarkdown>
   );
@@ -445,8 +447,25 @@ function Report({
                 <h2>
                   {steps.length} steps on {OS_LABEL[os]}
                 </h2>
-                {script && <CopyButton text={script} className="btn btn-sm" label="Copy all as a script" />}
+                {setup.steps.length > 1 && (
+                  <div className="setup-btns">
+                    <CopyButton text={setup.text} className="btn btn-sm" label="Copy as one script" />
+                    <a className="btn btn-sm" href={`${setupFile}?download=1`} download>
+                      Download {setup.filename}
+                    </a>
+                  </div>
+                )}
               </div>
+              {setup.steps.length > 1 && (
+                <p className="setup-how">
+                  Then run <code>{os === "windows" ? "powershell -ExecutionPolicy Bypass -File .\\setup.ps1" : "bash setup.sh"}</code>. It stops at
+                  the first error and is safe to run again. Servers and tests aren&apos;t started; it lists them at the end.{" "}
+                  <a href={setupFile} target="_blank" rel="noreferrer">
+                    Read it first
+                  </a>
+                  .
+                </p>
+              )}
               <ol className="steps">
                 {steps.map((s, i) => (
                   <li key={s.title} className="step">
@@ -574,6 +593,8 @@ function Report({
               </a>
             </div>
           </div>
+
+          <BadgeCard fullName={meta.fullName} />
 
           {(a.hints.length > 0 || a.otherManifests.length > 0) && (
             <div className="side-card">
@@ -935,6 +956,23 @@ function DidItWork({ repo, os, votes, onVotes }: { repo: string; os: OS; votes: 
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// For maintainers: a README badge that links newcomers to this manual.
+function BadgeCard({ fullName }: { fullName: string }) {
+  // The same address on the server and in the browser, so the Markdown never differs between the two.
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const markdown = `[![Setup manual](${site}/${fullName}/badge.svg)](${site}/${fullName})`;
+  return (
+    <div className="side-card">
+      <h3>Is this your repo?</h3>
+      <p className="badge-note">Add a badge to your README so newcomers find these steps.</p>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a tiny SVG badge */}
+      <img className="badge-preview" src={`/${fullName}/badge.svg`} alt="Setup manual badge" height={20} />
+      <code className="badge-code">{markdown}</code>
+      <CopyButton text={markdown} className="btn btn-sm" label="Copy the badge Markdown" />
     </div>
   );
 }

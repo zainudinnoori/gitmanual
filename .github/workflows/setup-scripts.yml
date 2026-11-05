@@ -1,0 +1,62 @@
+# Really runs the generated setup scripts on fresh macOS, Windows and Linux machines, for the repos in
+# scripts/setup-test-repos.json that have a "run" list. Weekly and on demand; each repo/system is its own job,
+# so one failure doesn't hide the others. The scripts come from the live site (or the address you give).
+name: Setup scripts
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "Site to take the scripts from"
+        default: "https://gitmanual.com"
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: echo "matrix=$(jq -c '[.repos[] | select(.run) | .repo as $r | .kind as $k | .run[] | {repo: $r, kind: $k, os: .}]' scripts/setup-test-repos.json)" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: plan
+    name: ${{ matrix.repo }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os == 'mac' && 'macos-latest' || matrix.os == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    env:
+      SITE: ${{ inputs.site || 'https://gitmanual.com' }}
+      REPO: ${{ matrix.repo }}
+      OS: ${{ matrix.os }}
+    steps:
+      - name: Run setup.sh
+        if: matrix.os != 'windows'
+        run: |
+          mkdir work && cd work
+          curl -fsSL "$SITE/$REPO/setup/$OS.sh" -o setup.sh
+          cat setup.sh
+          bash setup.sh
+      - name: Run setup.ps1
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory work | Out-Null; Set-Location work
+          Invoke-WebRequest "$env:SITE/$env:REPO/setup/windows.ps1" -OutFile setup.ps1
+          Get-Content setup.ps1
+          # Windows PowerShell 5.1, what a fresh Windows opens by default.
+          powershell -NoProfile -ExecutionPolicy Bypass -File setup.ps1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Summary
+        if: always()
+        shell: bash
+        run: echo "| ${{ matrix.kind }} | \`$REPO\` | $OS | ${{ job.status == 'success' && '✅ set up' || '❌ failed' }} |" >> "$GITHUB_STEP_SUMMARY"
