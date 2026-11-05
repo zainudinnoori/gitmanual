@@ -3,7 +3,7 @@
 // no unfilled placeholders, no Unix-only commands on Windows, nothing an installer would stop to ask about.
 //
 //   npm run check:scripts              every repo in the local database, as last analyzed
-//   npm run check:scripts -- --add     also analyze test-list repos that aren't in the database yet (needs GITHUB_TOKEN)
+//   npm run check:scripts -- --add     also analyze the test-list repos, or re-analyze them after a rules change (needs GITHUB_TOKEN)
 //   npm run check:scripts -- --out dir also write every script to dir/ to read them
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -30,12 +30,13 @@ async function shelf(): Promise<Row[]> {
 async function addMissing(have: Set<string>) {
   const { loadRepo } = await import("../lib/pipeline");
   for (const { repo } of list) {
-    if (have.has(repo.toLowerCase())) continue;
     const [owner, name] = repo.split("/");
-    process.stdout.write(`analyzing ${repo}… `);
+    if (!have.has(repo.toLowerCase())) process.stdout.write(`analyzing ${repo}… `);
     try {
-      await loadRepo({ owner, repo: name });
-      console.log("ok");
+      // Also re-analyzes saved copies from an older VERSION of the rules.
+      const loaded = await loadRepo({ owner, repo: name });
+      if (!have.has(repo.toLowerCase())) console.log("ok");
+      else if (!loaded.cached) console.log(`re-analyzed ${repo}`);
     } catch (e) {
       console.log(`failed: ${(e as Error).message}`);
     }

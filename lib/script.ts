@@ -62,6 +62,31 @@ const PROVIDES: [RegExp, string][] = [
   [/^sudo apt(?:-get)? install (?:-y )?([\w.-]+)(?:\s|$)/, "$1"],
 ];
 
+// Runtime names in a step's note ("Go 1.23, Ruby 3.4") → the programs that show they're installed.
+const RUNTIME_BIN: [RegExp, string, string][] = [
+  [/^Node\.js\b/, "node", "node"],
+  [/^Python\b/, "python3", "python"],
+  [/^Go\b/, "go", "go"],
+  [/^Rust\b/, "cargo", "cargo"],
+  [/^Ruby\b/, "ruby", "ruby"],
+  [/^(?:JDK|Java)\b/, "java", "java"],
+  [/^Deno\b/, "deno", "deno"],
+  [/^Bun\b/, "bun", "bun"],
+  [/^Elixir\b/, "elixir", "elixir"],
+  [/^PHP\b/, "php", "php"],
+];
+
+function runtimeBins(note: string | undefined, os: OS): string[] | null {
+  if (!note) return null;
+  const bins: string[] = [];
+  for (const part of note.split(/,\s*/)) {
+    const hit = RUNTIME_BIN.find(([re]) => re.test(part));
+    if (!hit) return null; // something we can't check: let mise install it
+    bins.push(os === "windows" ? hit[2] : hit[1]);
+  }
+  return bins.length ? bins : null;
+}
+
 export function provides(command: string): string | null {
   const cmd = command.replace(/\s+#.*$/, "").trim();
   for (const [re, bin] of PROVIDES) {
@@ -113,7 +138,7 @@ function splitNote(command: string): [string, string | null] {
   return m && !m[1].includes("\n") ? [m[1], m[2]] : [command, null];
 }
 
-function bashLine(line: ScriptLine): string {
+function bashLine(line: ScriptLine, need: string[] | null = null): string {
   if (line.kind === "skip") return `# ${line.why === "note" ? "" : `(${line.why}) `}${line.command}`.replace(/\n/g, "\n# ");
   const [command, note] = splitNote(line.command);
   // apt asks "Do you want to continue?"; the script answers yes, as the reader already chose to install.
@@ -121,30 +146,41 @@ function bashLine(line: ScriptLine): string {
   const bin = provides(cmd);
   const copy = cmd.match(/^cp (\S+) (\S+)$/);
   if (cmd === "xcode-select --install") cmd = "xcode-select -p >/dev/null 2>&1 || xcode-select --install";
-  else if (bin === "nvm") cmd = `have_nvm || { ${cmd} && load_nvm; }`;
+  else if (bin === "nvm") cmd = `have_nvm || have node || { ${cmd} && load_nvm; }`;
+  else if (bin === "mise" && need) cmd = `have mise || ${need.map((b) => `have ${b}`).join(" && ")} || ${cmd}`;
   else if (bin) cmd = `have ${bin} || ${cmd}`;
   else if (copy) cmd = `[ -f ${copy[2]} ] || ${cmd}`;
   // mise won't read a repo's own config until it's trusted; running this setup is that choice.
-  else if (cmd === "mise install") cmd = "mise trust --yes >/dev/null 2>&1 || true\nmise install";
+  else if (cmd === "mise install") {
+    const install = "mise trust --yes >/dev/null 2>&1 || true\nmise install";
+    cmd = need ? `if ${need.map((b) => `have ${b}`).join(" && ")}; then echo "Using the installed ${need.join(", ")}"; else\n${install}\nfi` : install;
+  }
   // Without nvm, a Node that's already installed is used as it is.
   else if (/^nvm (install|use)\b/.test(cmd)) cmd = `if have_nvm; then ${cmd}; elif have node; then echo "nvm not found: using Node $(node -v)"; else echo "Needs Node.js: install nvm from https://github.com/nvm-sh/nvm" >&2; exit 1; fi`;
   return note ? `# ${note}\n${cmd}` : cmd;
 }
 
-function psLine(line: ScriptLine): string {
+function psLine(line: ScriptLine, need: string[] | null = null): string {
   if (line.kind === "skip") return `# ${line.why === "note" ? "" : `(${line.why}) `}${line.command}`.replace(/\n/g, "\n# ");
   const [command, note] = splitNote(line.command);
   let cmd = command;
   if (/^winget install /.test(cmd) && !/--accept/.test(cmd)) cmd = `${cmd} -e --accept-source-agreements --accept-package-agreements`;
   const bin = provides(cmd);
   const copy = cmd.match(/^Copy-Item (\S+) (\S+)$/);
-  if (cmd === "mise install") return `Invoke-Step { mise trust --yes }\nInvoke-Step { mise install }\n$env:Path = "$env:LOCALAPPDATA\\mise\\shims;$env:Path"`;
+  if (cmd === "mise install") {
+    const install = `Invoke-Step { mise trust --yes }\nInvoke-Step { mise install }\n$env:Path = "$env:LOCALAPPDATA\\mise\\shims;$env:Path"`;
+    return need ? `if (${need.map((b) => `(Have ${psQuote(b)})`).join(" -and ")}) { Write-Host ${psQuote(`Using the installed ${need.join(", ")}`)} } else {\n${install}\n}` : install;
+  }
+  // Like the bash script: without nvm, a Node that's already installed is used as it is.
+  if (/^nvm (install|use)\b/.test(cmd)) {
+    return `if (Have 'nvm') { Invoke-Step { ${cmd} } } elseif (Have 'node') { Write-Host "nvm not found: using Node $(node -v)" } else { throw 'Needs Node.js: install nvm-windows or Node.js' }`;
+  }
   // Windows PowerShell 5.1 has no &&: run each part as its own step, which also stops at the first failure.
   if (/ && /.test(cmd) && !/["']/.test(cmd)) return cmd.split(" && ").map((part) => psLine({ kind: "run", command: part })).join("\n");
   const out = copy
     ? `if (-not (Test-Path ${copy[2]})) { Copy-Item ${copy[1]} ${copy[2]} }`
     : bin
-      ? `if (-not (Have ${psQuote(bin)})) { Invoke-Step { ${cmd} }; Update-Path }`
+      ? `if (-not (Have ${psQuote(bin)})${bin === "nvm" ? " -and -not (Have 'node')" : ""}${bin === "mise" && need ? ` -and -not (${need.map((b) => `(Have ${psQuote(b)})`).join(" -and ")})` : ""}) { Invoke-Step { ${cmd} }; Update-Path }`
       : `Invoke-Step { ${cmd} }`;
   return note ? `# ${note}\n${out}` : out;
 }
@@ -188,7 +224,8 @@ export function buildScript(steps: Step[], os: OS, fullName: string, site: strin
     for (const line of s.lines) {
       const copy = secrets && line.kind === "run" ? line.command.match(/^(?:cp|Copy-Item) (\S+) (\S+)$/) : null;
       if (!copy) {
-        body.push(windows ? psLine(line) : bashLine(line));
+        const need = line.kind === "run" && (line.command === "mise install" || provides(line.command) === "mise") ? runtimeBins(s.note, os) : null;
+        body.push(windows ? psLine(line, need) : bashLine(line, need));
         continue;
       }
       const say = `Created ${copy[2]}. ${secrets} in ${copy[2]}, then run this script again.`;

@@ -21,7 +21,8 @@ export function runtimeInstall(name: string, os: OS, ctx: RuntimeCtx): string[] 
   const v = ctx.version;
   switch (name) {
     case "Node.js": {
-      const ver = major(v);
+      // ">=18" is a minimum, not a target: the current LTS satisfies it and is what dependencies expect.
+      const ver = v && /^\s*>=?/.test(v) ? undefined : major(v);
       if (os === "windows") {
         return ["winget install CoreyButler.NVMforWindows", `nvm install ${ver ?? "lts"}`, `nvm use ${ver ?? "lts"}`];
       }
