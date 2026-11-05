@@ -23,7 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: plan
-        run: echo "matrix=$(jq -c '[.repos[] | select(.run) | .repo as $r | .kind as $k | .run[] | {repo: $r, kind: $k, os: .}]' scripts/setup-test-repos.json)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "matrix=$(jq -c '[.repos[] | select(.run) | .repo as $r | .kind as $k | .run[] | {repo: $r, kind: $k, os: .}]' scripts/setup-test-repos.json)" >> "$GITHUB_OUTPUT"
 
   run:
     needs: plan
@@ -59,4 +60,5 @@ jobs:
       - name: Summary
         if: always()
         shell: bash
-        run: echo "| ${{ matrix.kind }} | \`$REPO\` | $OS | ${{ job.status == 'success' && '✅ set up' || '❌ failed' }} |" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "| ${{ matrix.kind }} | \`$REPO\` | $OS | ${{ job.status == 'success' && '✅ set up' || '❌ failed' }} |" >> "$GITHUB_STEP_SUMMARY"
