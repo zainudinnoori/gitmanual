@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { PICKS, sortedPicks } from "@/lib/picks";
 import { Logo, NavLinks } from "./ui";
@@ -65,6 +66,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <span>Reads public data from GitHub. Always read commands before you run them.</span>
           </div>
         </footer>
+        {/* Cookie-free page views, sent only from a Vercel deployment with Analytics turned on. */}
+        <Analytics />
       </body>
     </html>
   );
