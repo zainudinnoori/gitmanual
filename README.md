@@ -15,6 +15,7 @@
 </p>
 
 <p align="center">
+  <a href="https://gitmanual.com/zainudinnoori/gitmanual"><img src="https://gitmanual.com/zainudinnoori/gitmanual/badge.svg" alt="Setup manual" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ff6b2c" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/Next.js-16-15161a" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/TypeScript-strict-3178c6" alt="TypeScript" />
@@ -75,7 +76,7 @@ Analyses are cached for 12 hours, and every manual is server-rendered, so search
 
 ## Quick start
 
-Requires **Node.js 20.9+**.
+Requires **Node.js 20.9+**. Or follow [gitmanual's own manual](https://gitmanual.com/zainudinnoori/gitmanual), with steps and a setup script for your system.
 
 ```bash
 git clone https://github.com/zainudinnoori/gitmanual.git

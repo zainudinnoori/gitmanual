@@ -21,5 +21,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ owner: s
   const script = buildScript(analysis.steps[os], os, meta.fullName, process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
   const headers = new Headers({ "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600, s-maxage=43200" });
   if (new URL(req.url).searchParams.has("download")) headers.set("Content-Disposition", `attachment; filename="${script.filename}"`);
-  return new Response(script.text, { headers });
+  // Windows PowerShell 5.1 reads a .ps1 without a byte-order mark as ANSI, garbling "·" and "—"; the mark fixes that.
+  return new Response(os === "windows" ? `\uFEFF${script.text}` : script.text, { headers });
 }

@@ -187,7 +187,6 @@ export function NavLinks({ repo, stars, finds }: { repo: string | null; stars: n
             )}
           </a>
         )}
-        <span className="proto">Beta</span>
       </nav>
     </>
   );

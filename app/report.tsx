@@ -562,6 +562,7 @@ function Report({
                     <li key={e.name}>
                       <code>{e.name}</code>
                       {e.secret && <span className="secret">secret</span>}
+                      {e.optional && <span className="optional">optional</span>}
                     </li>
                   ))}
                 </ul>

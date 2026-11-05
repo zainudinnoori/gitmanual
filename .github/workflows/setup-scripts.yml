@@ -1,19 +1,27 @@
 # Really runs the generated setup scripts on fresh macOS, Windows and Linux machines, for the repos in
-# scripts/setup-test-repos.json that have a "run" list. Weekly and on demand; each repo/system is its own job,
-# so one failure doesn't hide the others. The scripts come from the live site (or the address you give).
+# scripts/setup-test-repos.json that have a "run" list. Each repo/system is its own job, so one failure doesn't
+# hide the others. The scripts are built from this branch's code, so a pull request is tested before it ships.
 name: Setup scripts
 
 on:
   schedule:
-    - cron: "0 6 * * 1" # Mondays
+    - cron: "0 6 * * 1" # Mondays: catches repos that changed their setup
   workflow_dispatch:
-    inputs:
-      site:
-        description: "Site to take the scripts from"
-        default: "https://gitmanual.com"
+  pull_request:
+    paths:
+      - "lib/**"
+      - "scripts/check-setup-scripts.ts"
+      - "scripts/print-setup-script.ts"
+      - "scripts/setup-test-repos.json"
+      - ".github/workflows/setup-scripts.yml"
 
 permissions:
   contents: read
+
+# A new push to the same pull request replaces the run that's still going.
+concurrency:
+  group: setup-scripts-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   plan:
@@ -36,23 +44,37 @@ jobs:
     runs-on: ${{ matrix.os == 'mac' && 'macos-latest' || matrix.os == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
-      SITE: ${{ inputs.site || 'https://gitmanual.com' }}
       REPO: ${{ matrix.repo }}
       OS: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          path: gitmanual
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gitmanual/package-lock.json
+      - name: Build the script from this branch
+        shell: bash
+        working-directory: gitmanual
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --ignore-scripts
+          mkdir -p ../work
+          npm run -s setup-script -- "$REPO" "$OS" > "../work/setup.$([ "$OS" = windows ] && echo ps1 || echo sh)"
       - name: Run setup.sh
         if: matrix.os != 'windows'
+        working-directory: work
         run: |
-          mkdir work && cd work
-          curl -fsSL "$SITE/$REPO/setup/$OS.sh" -o setup.sh
           cat setup.sh
           bash setup.sh
       - name: Run setup.ps1
         if: matrix.os == 'windows'
+        working-directory: work
         shell: pwsh
         run: |
-          New-Item -ItemType Directory work | Out-Null; Set-Location work
-          Invoke-WebRequest "$env:SITE/$env:REPO/setup/windows.ps1" -OutFile setup.ps1
           Get-Content setup.ps1
           # Windows PowerShell 5.1, what a fresh Windows opens by default.
           powershell -NoProfile -ExecutionPolicy Bypass -File setup.ps1

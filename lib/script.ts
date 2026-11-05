@@ -155,6 +155,11 @@ function bashLine(line: ScriptLine, need: string[] | null = null): string {
     const install = "mise trust --yes >/dev/null 2>&1 || true\nmise install";
     cmd = need ? `if ${need.map((b) => `have ${b}`).join(" && ")}; then echo "Using the installed ${need.join(", ")}"; else\n${install}\nfi` : install;
   }
+  // Without rbenv/pyenv, the Ruby or Python that's already installed is used as it is.
+  else if (/^(rbenv|pyenv) install\b/.test(cmd)) {
+    const [mgr, lang] = cmd.startsWith("rbenv") ? ["rbenv", "ruby"] : ["pyenv", "python3"];
+    cmd = `if have ${mgr}; then ${cmd}; elif have ${lang}; then echo "${mgr} not found: using $(${lang} --version)"; else echo "Needs ${lang === "ruby" ? "Ruby" : "Python"}: install ${mgr} from https://github.com/${mgr}/${mgr}" >&2; exit 1; fi`;
+  }
   // Without nvm, a Node that's already installed is used as it is.
   else if (/^nvm (install|use)\b/.test(cmd)) cmd = `if have_nvm; then ${cmd}; elif have node; then echo "nvm not found: using Node $(node -v)"; else echo "Needs Node.js: install nvm from https://github.com/nvm-sh/nvm" >&2; exit 1; fi`;
   return note ? `# ${note}\n${cmd}` : cmd;

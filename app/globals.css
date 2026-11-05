@@ -100,7 +100,6 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .nav-stars svg { color: var(--wrench); }
 .nav-gh:hover .nav-stars { border-color: var(--ink); }
 .nav-links a[aria-current="page"] { color: var(--ink); background: var(--sheet); box-shadow: inset 0 0 0 1.5px var(--ink); }
-.proto { font: 600 var(--fs-label) var(--mono); text-transform: uppercase; letter-spacing: 0.06em; border: 1.5px dashed var(--line-strong); color: var(--pencil); padding: 3px 8px; border-radius: 6px; margin-left: 8px; }
 
 /* Buttons */
 .btn {
@@ -344,6 +343,7 @@ details[open].panel > summary h3::after { content: " −"; }
 .env summary { cursor: pointer; font: var(--ui); }
 .env ul { margin-top: 8px; max-height: 260px; overflow: auto; }
 .env li { display: flex; gap: 8px; align-items: center; padding: 4px 0; border: 0; grid-template-columns: none; }
+.optional { font: 600 var(--fs-label) var(--mono); text-transform: uppercase; color: var(--pencil); border: 1px dashed var(--line-strong); border-radius: 4px; padding: 0 5px; }
 .secret { font: 600 var(--fs-label) var(--mono); text-transform: uppercase; background: var(--no); border: 1px solid var(--ink); border-radius: 4px; padding: 0 5px; }
 
 /* Long names, paths and URLs (no spaces) wrap instead of widening the page; code blocks scroll on their own. */
@@ -635,7 +635,7 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .fit-device { grid-column: 1 / -1; justify-items: start; }
 }
 @media (max-width: 560px) {
-  .nav-links a.nav-gh, .proto { display: none; }
+  .nav-links a.nav-gh { display: none; }
   /* Long commands wrap rather than scroll under the Copy button; Copy still copies them as written. */
   .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
   .how-flow { grid-template-columns: minmax(0, 1fr); gap: 14px; }

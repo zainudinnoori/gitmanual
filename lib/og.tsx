@@ -22,14 +22,34 @@ async function font(family: string, weight: number, text: string): Promise<Array
 const INK = "#15161a";
 const WRENCH = "#ff6b2c";
 
-function Box() {
+// The open flat-pack box from the home page, as plain SVG (no CSS variables or clip paths, which images can't use).
+function Box({ size = 260 }: { size?: number }) {
+  const line = { stroke: INK, strokeWidth: 6, strokeLinejoin: "round" as const };
   return (
-    <div style={{ display: "flex", position: "relative", width: 230, height: 230 }}>
-      <div style={{ position: "absolute", left: 30, top: 70, width: 170, height: 140, background: WRENCH, border: `5px solid ${INK}`, borderRadius: 18 }} />
-      <div style={{ position: "absolute", left: 10, top: 40, width: 105, height: 46, background: "#ff8a55", border: `5px solid ${INK}`, borderRadius: 12, transform: "rotate(-12deg)" }} />
-      <div style={{ position: "absolute", left: 118, top: 40, width: 105, height: 46, background: "#ff8a55", border: `5px solid ${INK}`, borderRadius: 12, transform: "rotate(12deg)" }} />
-      <div style={{ position: "absolute", left: 62, top: 116, fontFamily: "Display", fontSize: 48, color: INK, display: "flex" }}>{">_"}</div>
-    </div>
+    <svg width={size} height={(size * 250) / 340} viewBox="-10 -40 340 250">
+      <ellipse cx="160" cy="196" rx="120" ry="12" fill="#00000014" />
+      <path d="M40 70 L160 30 L142 -22 L22 18 Z" fill="#e0561c" {...line} />
+      <path d="M160 30 L280 70 L298 18 L178 -22 Z" fill={WRENCH} {...line} />
+      <path d="M40 70 L160 30 L280 70 L160 110 Z" fill="#8f3512" {...line} />
+      <path d="M40 70 L160 110 L160 190 L40 150 Z" fill={WRENCH} {...line} />
+      <path d="M280 70 L160 110 L160 190 L280 150 Z" fill="#e0561c" {...line} />
+      <path d="M62 112 l20 7 M62 124 l40 13 M62 136 l30 10" stroke={INK} strokeWidth="5" strokeLinecap="round" />
+      <path d="M196 132 l14 -8 l-14 -8" fill="none" stroke={INK} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M216 136 l24 -9" stroke={INK} strokeWidth="5" strokeLinecap="round" />
+      <path d="M40 70 L160 110 L136 136 L14 94 Z" fill="#ff8a55" {...line} />
+      <path d="M160 110 L280 70 L306 94 L184 136 Z" fill="#ff7a40" {...line} />
+    </svg>
+  );
+}
+
+// The site logo (app/ui.tsx), for the card's header.
+function Logo({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 26 26" fill="none">
+      <path d="M13 2l10 5v12l-10 5-10-5V7z" fill={WRENCH} stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M3 7l10 5 10-5M13 12v12" stroke={INK} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M6 13l2.4 1.8L6 17.6" stroke={INK} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -37,7 +57,7 @@ function Box() {
 export async function ogImage(o: { eyebrow: string; owner?: string; title: string; text?: string | null; chips?: string[] }) {
   const text = (o.text ?? "").length > 90 ? `${o.text!.slice(0, o.text!.lastIndexOf(" ", 88))}…` : (o.text ?? "");
   const [display, body] = await Promise.all([
-    font("Bricolage Grotesque", 800, `gitmanual${o.title}>_`),
+    font("Bricolage Grotesque", 800, `gitmanual${o.title}`),
     font("Geist", 500, `${o.eyebrow.toUpperCase()}${o.owner ?? ""}/${text}${(o.chips ?? []).join("")}`),
   ]);
   const fonts = [
@@ -62,7 +82,7 @@ export async function ogImage(o: { eyebrow: string; owner?: string; title: strin
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, paddingRight: 24 }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, fontFamily: "Display", fontSize: 34, color: INK }}>
-                <div style={{ width: 34, height: 34, background: WRENCH, border: `4px solid ${INK}`, borderRadius: 8 }} />
+                <Logo size={40} />
                 gitmanual
                 <span style={{ fontFamily: "Body", fontSize: 22, color: "#5f6470", marginLeft: 10, letterSpacing: 3, textTransform: "uppercase" }}>
                   {o.eyebrow}
@@ -134,7 +154,7 @@ export async function posterImage(o: {
 }) {
   const desc = (o.description ?? "").length > 120 ? `${o.description!.slice(0, o.description!.lastIndexOf(" ", 117))}…` : (o.description ?? "");
   const [display, body] = await Promise.all([
-    font("Bricolage Grotesque", 800, `gitmanual${o.name}${o.difficulty}${o.fit.map((f) => f.label).join("")}Will it run on yours?>_`),
+    font("Bricolage Grotesque", 800, `gitmanual${o.name}${o.difficulty}${o.fit.map((f) => f.label).join("")}Will it run on yours?`),
     font("Geist", 500, `SETUP MANUAL${o.owner}/${desc}${o.stars} stars${o.time}${o.url}Difficulty·${o.difficulty}`),
   ]);
   const fonts = [
@@ -158,7 +178,7 @@ export async function posterImage(o: {
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, fontFamily: "Display", fontSize: 40, color: INK }}>
-              <div style={{ width: 38, height: 38, background: WRENCH, border: `5px solid ${INK}`, borderRadius: 9 }} />
+              <Logo size={44} />
               gitmanual
             </div>
             <div style={{ display: "flex", fontFamily: "Body", fontSize: 24, color: "#5f6470", letterSpacing: 4 }}>SETUP MANUAL</div>
@@ -200,8 +220,8 @@ export async function posterImage(o: {
                 <div style={{ display: "flex", fontFamily: "Body", fontSize: 28, color: INK }}>{`${o.stars} stars · Difficulty ${o.difficulty} · ${o.time}`}</div>
                 <div style={{ display: "flex", fontFamily: "Body", fontSize: 30, color: "#e0561c" }}>{o.url}</div>
               </div>
-              <div style={{ display: "flex", transform: "scale(0.62)", transformOrigin: "bottom right", marginBottom: -40, marginRight: -40 }}>
-                <Box />
+              <div style={{ display: "flex" }}>
+                <Box size={170} />
               </div>
             </div>
           </div>

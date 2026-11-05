@@ -3,7 +3,7 @@ import { OS_LIST, adaptCommand, dockerInstall, miseInstall, runtimeInstall, type
 import { COMPAT_SECTIONS, UNDO_SECTIONS, extractReadmeSection, tipsFor, toolsFor, type ReadmeSection } from "./readme";
 
 export type Item = { name: string; detail?: string; source: string };
-export type EnvVar = { name: string; example: string; secret: boolean; source: string };
+export type EnvVar = { name: string; example: string; secret: boolean; optional?: boolean; source: string };
 export type Step = { title: string; commands: string[]; note?: string; tips?: string[] };
 
 export type Analysis = {
@@ -163,17 +163,32 @@ function toolVersions(text: string | undefined): Record<string, string> {
   return out;
 }
 
+// Comments above a group of settings often say whether they're needed ("# Optional: …", "Leave empty to…").
+// They apply to the settings below them, up to the next blank line.
+const OPTIONAL_NOTE = /\boptional\b|\brecommended\b|\bleave (?:it |them )?(?:empty|blank)\b|\bnot required\b|\bif you (?:want|need|use)\b|\bonly (?:needed|required) (?:if|for|when)\b/i;
+
 function parseEnv(text: string, source: string): EnvVar[] {
   const out: EnvVar[] = [];
+  let note = "";
   for (const raw of text.split("\n")) {
     const line = raw.trim();
+    if (!line) {
+      note = "";
+      continue;
+    }
+    if (line.startsWith("#")) {
+      note += ` ${line}`;
+      continue;
+    }
     const m = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
     if (!m) continue;
     const example = m[2].replace(/\s+#.*$/, "").replace(/^['"]|['"]$/g, "");
+    const inline = m[2].match(/\s#\s*(.*)$/)?.[1] ?? "";
     out.push({
       name: m[1],
       example,
       secret: /KEY|SECRET|TOKEN|PASSWORD|PASS$|PRIVATE|CREDENTIAL/i.test(m[1]),
+      ...(OPTIONAL_NOTE.test(`${note} ${inline}`) ? { optional: true } : {}),
       source,
     });
   }
@@ -672,7 +687,8 @@ export function analyze(
   // ---------- Steps (per OS) ----------
   const uniqServices = dedupe(services, (s) => s.name);
   const rootEnv = envFiles.find((p) => !p.includes("/"));
-  const secrets = envVars.filter((e) => e.secret).map((e) => e.name);
+  const secrets = envVars.filter((e) => e.secret && !e.optional).map((e) => e.name);
+  const optionalSecrets = envVars.filter((e) => e.secret && e.optional).map((e) => e.name);
   const usesMise = Boolean(mise || Object.keys(tv).length);
   const pinnedFiles = new Set([".nvmrc", ".python-version", ".ruby-version", "rust-toolchain"]);
   const pythonPm = packageManagers.find((p) => ["uv", "poetry", "pipenv", "pdm", "pip", "conda"].includes(p.name))?.name;
@@ -722,7 +738,11 @@ export function analyze(
       steps.push({
         title: "Configure environment variables",
         commands: adapt([`cp ${rootEnv} ${target}`]),
-        note: secrets.length ? `Fill in secrets: ${secrets.slice(0, 8).join(", ")}` : undefined,
+        note: secrets.length
+          ? `Fill in secrets: ${secrets.slice(0, 8).join(", ")}`
+          : optionalSecrets.length
+            ? `Optional, add them when you need them: ${optionalSecrets.slice(0, 8).join(", ")}`
+            : undefined,
       });
     }
     if (uniqServices.length) {
@@ -765,7 +785,7 @@ export function analyze(
   const score =
     runtimes.length +
     uniqServices.length * 2 +
-    Math.ceil(envVars.filter((e) => e.secret).length / 3) +
+    Math.ceil(secrets.length / 3) +
     (hints.some((h) => h.startsWith("Monorepo")) ? 1 : 0) +
     tools.length +
     (needsDevice ? 2 : 0) +

@@ -1,13 +1,14 @@
 {
-  "_about": "Repos the setup-script checks always cover, by kind. `run` lists the systems where CI really runs the script (scripts/run-setup-script.sh, .github/workflows/setup-scripts.yml).",
+  "_about": "Repos the setup-script checks always cover, by kind. `run` lists the systems where CI really runs the script (.github/workflows/setup-scripts.yml), built from the branch's own code.",
   "repos": [
     { "repo": "github/github-mcp-server", "kind": "MCP server (Go)", "run": ["linux", "mac", "windows"] },
     { "repo": "microsoft/playwright-mcp", "kind": "MCP server (Node)", "run": ["linux", "mac", "windows"] },
     { "repo": "upstash/context7", "kind": "MCP server (Node)" },
+    { "repo": "modelcontextprotocol/python-sdk", "kind": "MCP SDK (Python, uv)", "run": ["linux", "mac", "windows"] },
     { "repo": "modelcontextprotocol/servers", "kind": "MCP servers (monorepo)" },
     { "repo": "anthropics/skills", "kind": "Agent skills", "run": ["linux", "mac", "windows"] },
     { "repo": "obra/superpowers", "kind": "Agent skills" },
-    { "repo": "BurntSushi/ripgrep", "kind": "CLI tool (Rust)", "run": ["linux", "mac"] },
+    { "repo": "BurntSushi/ripgrep", "kind": "CLI tool (Rust)", "run": ["linux", "mac", "windows"] },
     { "repo": "junegunn/fzf", "kind": "CLI tool (Go)", "run": ["linux", "mac", "windows"] },
     { "repo": "sharkdp/bat", "kind": "CLI tool (Rust)" },
     { "repo": "jesseduffield/lazygit", "kind": "CLI tool (Go)" },
@@ -19,7 +20,9 @@
     { "repo": "immich-app/immich", "kind": "Self-hosted app (Docker)" },
     { "repo": "ollama/ollama", "kind": "Desktop app / server (Go)" },
     { "repo": "openclaw/Peekaboo", "kind": "macOS app (Swift)" },
-    { "repo": "mastodon/mastodon", "kind": "Rails app" },
-    { "repo": "gohugoio/hugo", "kind": "CLI tool (Go)" }
+    { "repo": "mastodon/mastodon", "kind": "Rails app (pauses for secrets)", "run": ["linux"] },
+    { "repo": "gohugoio/hugo", "kind": "CLI tool (Go)" },
+    { "repo": "spring-projects/spring-petclinic", "kind": "Java app + Docker Compose", "run": ["linux"] },
+    { "repo": "jellyfin/jellyfin", "kind": ".NET server", "run": ["linux", "windows"] }
   ]
 }
