@@ -1,17 +1,47 @@
-node_modules
-.next
-.vercel
-.env
-.env.local
+# Dependencies and build output (rebuilt automatically)
+node_modules/
+.next/
+out/
+build/
+coverage/
+.turbo/
+.vercel/
 next-env.d.ts
 *.tsbuildinfo
-.DS_Store
 
-# local SQLite history (production uses Turso)
+# Secrets: every .env file except the documented example
+.env
+.env.*
+!.env.example
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+
+# Local databases (production uses Turso; copy with `npm run db:push`)
 data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
 
-# repos cloned while testing
-dumbtv/
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# local Claude Code state
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local tool state
 .claude/
+
+# Repos cloned while testing
+dumbtv/

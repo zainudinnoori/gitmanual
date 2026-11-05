@@ -88,10 +88,26 @@ export function repoFrom(post: GraphPost, pageId?: string, names?: Map<string, s
   return byName ? { repo: byName, by: "name" } : null;
 }
 
+// Tokens pasted into a dashboard often pick up quotes, spaces or a stray character at the end.
+function pageToken(): string | null {
+  const raw = process.env.FB_PAGE_TOKEN?.trim().replace(/^["']|["']$/g, "").trim();
+  if (!raw) return null;
+  if (!/^[A-Za-z0-9]+$/.test(raw)) {
+    const bad = [...new Set(raw.replace(/[A-Za-z0-9]/g, ""))].map((c) => (c === " " ? "a space" : `"${c}"`)).join(", ");
+    throw new Error(`FB_PAGE_TOKEN contains ${bad}. Facebook tokens are only letters and numbers: paste it again without extra characters.`);
+  }
+  return raw;
+}
+
+// Facebook echoes the token in some errors; never pass it on.
+function hideToken(message: string): string {
+  return message.replace(/EAA[A-Za-z0-9]{20,}\S*/g, "[token]");
+}
+
 async function graph<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
   const body = await res.json();
-  if (!res.ok) throw new Error(`Facebook API: ${body?.error?.message ?? res.status}`);
+  if (!res.ok) throw new Error(`Facebook API: ${hideToken(body?.error?.message ?? String(res.status))}`);
   return body as T;
 }
 
@@ -120,7 +136,7 @@ async function originalImage(photoId: string, token: string): Promise<string | n
 // images: re-download the image of posts already saved (e.g. after a change in how images are picked).
 export async function syncFacebook(opts: { images?: boolean } = {}): Promise<SyncResult> {
   const page = process.env.FB_PAGE_ID;
-  const token = process.env.FB_PAGE_TOKEN;
+  const token = pageToken();
   if (!page || !token) throw new Error("Set FB_PAGE_ID and FB_PAGE_TOKEN to sync the Facebook page.");
 
   const [known, names] = await Promise.all([fbKnownIds(), shelfNames()]);
