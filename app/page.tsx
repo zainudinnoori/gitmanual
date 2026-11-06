@@ -17,5 +17,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ u
   // A repo shows in one place: "Rising this week" keeps its own, and the shelf section fills up with others.
   const shown = new Set(rising.map((r) => r.fullName));
   const others = (list: typeof recent) => list.filter((r) => !shown.has(r.fullName)).slice(0, 6);
-  return <Landing recent={others(recent)} popular={others(popular)} rising={rising} risingTotal={risingTotal} />;
+  return (
+    <Landing
+      recent={others(recent)}
+      popular={others(popular)}
+      rising={rising}
+      risingTotal={risingTotal}
+      extension={process.env.NEXT_CHROME_EXTENSION_URL || null}
+    />
+  );
 }
