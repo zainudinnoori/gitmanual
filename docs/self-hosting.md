@@ -6,8 +6,9 @@ Running gitmanual locally needs nothing but Node.js. A public deployment needs t
 - [2. A GitHub token](#2-a-github-token)
 - [3. A database (Turso)](#3-a-database-turso)
 - [4. Deploy to Vercel](#4-deploy-to-vercel)
-- [5. Optional: AI guides](#5-optional-ai-guides)
-- [6. Optional: Finds from a Facebook Page](#6-optional-finds-from-a-facebook-page)
+- [5. Optional: rising repos, every day](#5-optional-rising-repos-every-day)
+- [6. Optional: AI guides](#6-optional-ai-guides)
+- [7. Optional: Finds from a Facebook Page](#7-optional-finds-from-a-facebook-page)
 - [All settings](#all-settings)
 
 ## 1. Run it locally
@@ -65,13 +66,19 @@ Tables are created on the first request, and new columns are added automatically
 3. Deploy, then add your domain under **Settings → Domains**.
 4. After launch: submit `https://<your-site>/sitemap.xml` in Google Search Console.
 
-## 5. Optional: AI guides
+## 5. Optional: rising repos, every day
+
+`vercel.json` also runs `/api/cron/trending` daily at 06:00 UTC. It looks up repos gaining stars fast on GitHub (its search API; there's no API for the Trending page) and adds manuals for up to 15 new ones, so they're on the shelf and in the sitemap while people search for them. It needs `CRON_SECRET`.
+
+Only repos that look like real projects are added: a description and a license, some use (issues or forks), no giveaway, cracking or adult words, and an owner account that's at least a year old (an organization, or a person with 20+ followers). Star-farmed and malware repos usually come from fresh accounts. The rules are in `risingRepos` in `lib/github.ts`.
+
+## 6. Optional: AI guides
 
 Set `ANTHROPIC_API_KEY` to turn on **"Write my guide"** on each manual. Claude reads the repo's key files on the server (the browser only sends the repo name). Each guide is generated once per repo and system and then served from the database, so costs stay bounded by the number of different repos people ask about.
 
 New guides are rate-limited: 5 a day per visitor and 100 a day in all. Guides that are already written are never limited. The numbers are in `lib/limit.ts`.
 
-## 6. Optional: Finds from a Facebook Page
+## 7. Optional: Finds from a Facebook Page
 
 Finds is a `/finds` page that shows a Facebook Page's posts (posters and Reels) as a feed. Each post links to its repo's manual, the repo's page shows a "Featured in …" block, and Reels play in the feed (Facebook's player loads only when someone presses ▶). **It's off unless `FINDS_NAME` is set.**
 

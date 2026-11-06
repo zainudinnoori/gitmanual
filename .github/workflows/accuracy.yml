@@ -1,0 +1,110 @@
+# How often does a gitmanual setup script really work? Runs the Linux setup script for every repo in
+# scripts/accuracy-sample.json on a fresh Ubuntu machine, then adds up one report. Started by hand (Actions →
+# Accuracy run → Run workflow); scripts are built from this branch's code.
+name: Accuracy run
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.plan.outputs.repos }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: |
+          echo "repos=$(jq -c '.repos' scripts/accuracy-sample.json)" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: plan
+    name: ${{ matrix.repo }}
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        repo: ${{ fromJson(needs.plan.outputs.repos) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REPO: ${{ matrix.repo }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: gitmanual
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gitmanual/package-lock.json
+      - name: Build the script from this branch
+        working-directory: gitmanual
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --ignore-scripts
+          mkdir -p ../work
+          npm run -s setup-script -- "$REPO" linux > ../work/setup.sh
+      # The outcome is recorded rather than failing the job, so the report can count every kind of result.
+      - name: Run setup.sh
+        working-directory: work
+        run: |
+          set +e
+          timeout 1200 bash setup.sh > log.txt 2>&1
+          code=$?
+          tail -n 60 log.txt
+          steps=$(grep -c "^step '" setup.sh)
+          if [ "$code" = 124 ]; then outcome=timeout
+          elif [ "$code" != 0 ]; then outcome=failed
+          elif grep -q "then run this script again" log.txt; then outcome=needs-input
+          elif [ "$steps" -le 1 ]; then outcome=clone-only
+          else outcome=passed; fi
+          # The last line that looks like an error, for the report.
+          reason=$(grep -iE "error|not found|failed|denied|cannot|unable" log.txt | tail -n 1 | cut -c1-180)
+          jq -n --arg repo "$REPO" --arg outcome "$outcome" --arg code "$code" --arg reason "$reason" \
+            '{repo: $repo, outcome: $outcome, exit: ($code | tonumber), reason: $reason}' > result.json
+          echo "$outcome"
+      - name: Save the result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ strategy.job-index }}
+          path: work/result.json
+          if-no-files-found: ignore
+
+  report:
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: result-*
+          path: results
+          merge-multiple: false
+      - name: Add up the results
+        run: |
+          jq -s '.' results/*/result.json > all.json
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          rows = json.load(open("all.json"))
+          count = lambda o: sum(r["outcome"] == o for r in rows)
+          ran = len(rows) - count("clone-only")
+          ok = count("passed") + count("needs-input")
+          print(f"## Accuracy: {ok}/{ran} set up ({ok / max(ran, 1):.0%})\n")
+          print(f"Out of {len(rows)} repos: {count('passed')} set up, {count('needs-input')} stopped for secrets as designed, "
+                f"{count('clone-only')} had nothing to install, {count('failed')} failed, {count('timeout')} timed out.\n")
+          print("| Repo | Outcome | Last error |\n|---|---|---|")
+          icon = {"passed": "✅", "needs-input": "⏸", "clone-only": "➖", "failed": "❌", "timeout": "⏱"}
+          for r in sorted(rows, key=lambda r: (r["outcome"] in ("passed", "needs-input", "clone-only"), r["repo"].lower())):
+              reason = r["reason"].replace("|", "\\|") if r["outcome"] in ("failed", "timeout") else ""
+              print(f"| `{r['repo']}` | {icon.get(r['outcome'], '')} {r['outcome']} | {reason} |")
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-results
+          path: all.json

@@ -53,6 +53,15 @@ const FAQ = [
     a: <>It&apos;s written by Claude from the same files, and it can make mistakes. Use it when you&apos;re stuck, and check it against the README.</>,
   },
   {
+    q: "Can my AI assistant use it?",
+    a: (
+      <>
+        Yes. Add <code>https://gitmanual.com/mcp</code> as an MCP server in Claude, Cursor or any MCP client, then ask how to set up a
+        repo. The same facts are at <code>/api/v1/manual?repo=owner/repo</code> as JSON, and <code>/llms.txt</code> describes it all.
+      </>
+    ),
+  },
+  {
     q: "What do you store?",
     a: (
       <>

@@ -126,3 +126,51 @@ export async function getLatestRelease({ owner, repo }: RepoRef): Promise<any | 
     null
   );
 }
+
+// Words that mark giveaway, cracking and jailbreak repos (the usual bait in star-farmed, often malicious repos),
+// and adult or gambling content, which doesn't belong on a public shelf.
+const BAIT = /\b(free|crack(ed)?|keygen|cheat|hack(ed)?|uncensored|jailbreak|bypass|unlimited|zero ?cost|giveaway|airdrop|exploit|spoofer|injector|unlock(er)?|nsfw|porn|nude|hentai|adult|casino|betting|gambl\w*)\b|zerocost/i;
+
+type SearchItem = {
+  full_name: string;
+  description: string | null;
+  license: { spdx_id: string } | null;
+  forks_count: number;
+  open_issues_count: number;
+  owner: { login: string; type: "User" | "Organization" };
+};
+
+// Stars on a brand-new repo can be bought; an established owner can't. Fake-star and malware campaigns use fresh
+// accounts, so the owner has to be at least a year old, and a person needs some following.
+async function trustedOwner(login: string): Promise<boolean> {
+  try {
+    const u = await gh<{ type: string; created_at: string; followers: number }>(`/users/${encodeURIComponent(login)}`);
+    const years = (Date.now() - Date.parse(u.created_at)) / (365 * 864e5);
+    return years >= 1 && (u.type === "Organization" || u.followers >= 20);
+  } catch {
+    return false;
+  }
+}
+
+// GitHub has no API for its Trending page. The closest official signal: new repos gathering stars fast, in two
+// windows so this week's breakouts and last month's steady climbers both show up. Only repos that look like real
+// projects pass: a description and a license, some use (issues or forks), no bait words, and a trusted owner.
+export async function risingRepos(limit = 30): Promise<string[]> {
+  const day = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+  const queries = [`created:>${day(7)} stars:>150`, `created:>${day(30)} stars:>800`].map((q) => `${q} fork:false archived:false`);
+  const picked: string[] = [];
+  const seen = new Set<string>();
+  for (const q of queries) {
+    const { items } = await gh<{ items: SearchItem[] }>(`/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=50`);
+    for (const r of items) {
+      if (picked.length >= limit || seen.has(r.full_name)) continue;
+      seen.add(r.full_name);
+      if (!r.description?.trim() || !r.license || r.license.spdx_id === "NOASSERTION") continue;
+      if (r.open_issues_count < 1 && r.forks_count < 20) continue;
+      if (BAIT.test(`${r.full_name} ${r.description}`)) continue;
+      if (!(await trustedOwner(r.owner.login))) continue;
+      picked.push(r.full_name);
+    }
+  }
+  return picked;
+}

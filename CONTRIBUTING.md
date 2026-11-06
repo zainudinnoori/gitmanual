@@ -47,5 +47,5 @@ Add a `GITHUB_TOKEN` to `.env.local` if you'll be looking up many repos ([how](d
 ## Pull requests
 
 - One change per PR.
-- `npm run typecheck`, `npm run build` and `npm run check:scripts -- --add` pass (CI checks all three). The **Setup scripts** workflow also runs the scripts, built from your branch, on real macOS, Windows and Linux machines: on pull requests that touch `lib/`, and weekly. To see one script: `npm run -s setup-script -- owner/repo linux`.
+- `npm run typecheck`, `npm run build` and `npm run check:scripts -- --add` pass (CI checks all three). The **Setup scripts** workflow also runs the scripts, built from your branch, on real macOS, Windows and Linux machines: on pull requests that touch `lib/`, and weekly. To see one script: `npm run -s setup-script -- owner/repo linux`. The **Accuracy run** workflow runs the scripts for 100 random shelf repos (`scripts/accuracy-sample.json`) and reports the pass rate.
 - Be kind in reviews. See the [Code of Conduct](CODE_OF_CONDUCT.md).

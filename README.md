@@ -59,6 +59,8 @@ Plenty of people find a great project on GitHub and don't know how to run it. RE
 
 [![Setup manual](https://gitmanual.com/ollama/ollama/badge.svg)](https://gitmanual.com/ollama/ollama)
 
+**For AI assistants:** an MCP server at `https://gitmanual.com/mcp` (tools `get_setup_manual` and `get_setup_script`), the same facts as JSON at `/api/v1/manual?repo=owner/repo` (`&os=`, `&arch=`, `&format=md`), and [`/llms.txt`](https://gitmanual.com/llms.txt).
+
 **Browser extension:** a **Setup manual** button on every GitHub repo, next to Star and Fork. See [`extension/`](extension/README.md).
 
 Plus **the shelf** (`/shelf`): every repo people have looked up, with search and filters for stars, language and difficulty. Every repo also gets a share image and a 1080×1080 poster.
@@ -110,7 +112,7 @@ All settings are environment variables, and every one is optional for local use.
 | `NEXT_PUBLIC_REPO_URL` | Your fork's GitHub URL: a GitHub link with stars in the menu, and "Report a wrong setup" |
 | `CONTACT_FORM_URL` | A [ShareText](https://sharetext.net) form's embed link: adds "Contact" to the footer, opening the form over the page |
 | `RATE_LIMITS`, `LIMIT_SALT` | Limits are on by default (new analyses 40/hour per visitor and 1,000/hour in all, new AI guides 5/day and 100/day, votes once per repo and system a day). `RATE_LIMITS=off` turns them off; `LIMIT_SALT` is any random string that keeps visitor codes unguessable |
-| `FINDS_*`, `FB_PAGE_*`, `CRON_SECRET` | Optional [Finds](docs/self-hosting.md#6-optional-finds-from-a-facebook-page) page: posts from a Facebook Page, each linked to its manual |
+| `FINDS_*`, `FB_PAGE_*`, `CRON_SECRET` | Optional [Finds](docs/self-hosting.md#7-optional-finds-from-a-facebook-page) page: posts from a Facebook Page, each linked to its manual |
 
 ## Deploy
 
