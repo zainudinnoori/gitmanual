@@ -38,6 +38,7 @@ export type InstallOptions = {
   commands: InstallCommand[];
   declared?: { unsupported: OS[]; quote: string } | null; // what the README says about unsupported systems
   platforms: OS[]; // OSes with a ready-made download or an app install command
+  downloadPage?: { host: string; platforms: OS[]; urls: Partial<Record<OS, string>> } | null; // the project's own download pages, when apps live there
 };
 
 const SKIP = /(\.(sha\d+|sha\d+sum|md5|sig|asc|pem|crt|sbom|spdx|cdx|intoto\.jsonl|blockmap|ya?ml|json|txt|sum|minisig|bundle|aab|ipa|nupkg|whl|vsix|jar|pom)$)|checksums?|sha256sums|^source/i;

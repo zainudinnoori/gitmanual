@@ -662,6 +662,19 @@ function InstallPanel({ install, os, onSource }: { install: InstallOptions; os: 
   const others = assets.filter((a) => a !== recommended);
   const commands = install.commands.filter((c) => c.os.includes(os));
   const otherOs = OS_LIST.filter((o) => o !== os && install.platforms.includes(o));
+  // Apps the project publishes on its own site rather than in GitHub releases.
+  const page = !assets.length && install.downloadPage?.platforms.includes(os) ? install.downloadPage : null;
+  const pageCard = page && (
+    <div className="panel">
+      <div className="panel-head">
+        <h3>Download for {OS_LABEL[os]}</h3>
+        <a className="btn btn-sm btn-go" href={page.urls[os]} target="_blank" rel="noreferrer">
+          Open {page.host} ↗
+        </a>
+      </div>
+      <p className="note">The project publishes its {OS_LABEL[os]} app on its own website, not in GitHub releases. The README links to this page.</p>
+    </div>
+  );
 
   const devices = release?.deviceAssets ?? [];
   const deviceCard = devices.length > 0 && release && (
@@ -696,7 +709,7 @@ function InstallPanel({ install, os, onSource }: { install: InstallOptions; os: 
     </div>
   );
 
-  if (!assets.length && !commands.length) {
+  if (!assets.length && !commands.length && !page) {
     return (
       <>
         {deviceCard}
@@ -719,6 +732,7 @@ function InstallPanel({ install, os, onSource }: { install: InstallOptions; os: 
   return (
     <>
       {deviceCard}
+      {pageCard}
       {recommended && release && (
         <div className="panel">
           <div className="panel-head">
@@ -779,6 +793,8 @@ function installWay(install: InstallOptions, os: OS): InstallWay | null {
   const cmds = install.commands.filter((c) => c.os.includes(os));
   const app = cmds.find((c) => c.kind === "app");
   if (install.release?.assets.some((a) => a.os === os)) return { tag: "Download", title: "Get the ready-made app", sub: `Built for ${label}. No code needed.` };
+  if (install.downloadPage?.platforms.includes(os))
+    return { tag: "Download", title: "Get the ready-made app", sub: `From ${install.downloadPage.host}, for ${label}. No code needed.` };
   if (app) return { tag: "Install", title: `Install it with ${app.method}`, sub: `One command on ${label}.` };
   if (install.release?.deviceAssets.length)
     return { tag: "Device app", title: "Install it on your device", sub: "An Android / TV app (.apk), installed from this computer." };

@@ -1,13 +1,13 @@
 import { analyze, presentPaths, selectFiles, type Analysis } from "./detect";
 import { CACHE_MS, countView, getCached, repoKey, saveRepo } from "./db";
 import { getFiles, getLatestRelease, getRepoMeta, getTree, type RepoMeta, type RepoRef } from "./github";
-import { findDocsLink, findSetupDocs, findSetupScripts, type Guides, type SetupDoc } from "./guides";
+import { findDocsLink, findDownloadPage, findSetupDocs, findSetupScripts, type Guides, type SetupDoc } from "./guides";
 import { parseRelease, readmeInstallCommands, type InstallOptions } from "./install";
 import { OS_LIST } from "./os";
 import { declaredPlatforms, mentions } from "./platforms";
 
 // Bump when the analysis output changes shape or rules, so saved copies are re-analyzed instead of shown.
-const VERSION = 11;
+const VERSION = 12;
 
 export type RepoData = {
   version: number;
@@ -80,13 +80,16 @@ async function analyzeRepo(ref: RepoRef): Promise<RepoData> {
       ),
     }))
     .filter((c) => c.os.length);
+  const downloadPage = findDownloadPage(readme, { name, website: meta.homepage });
   const install: InstallOptions = {
     release,
     commands,
     declared: declared?.unsupported.length ? declared : null,
     platforms: OS_LIST.filter(
-      (os) => release?.assets.some((a) => a.os === os) || commands.some((c) => c.kind === "app" && c.os.includes(os)),
+      (os) =>
+        release?.assets.some((a) => a.os === os) || commands.some((c) => c.kind === "app" && c.os.includes(os)) || downloadPage?.platforms.includes(os),
     ),
+    downloadPage,
   };
   const docsLink = findDocsLink(readme, { name, website: meta.homepage });
   const guides: Guides = {

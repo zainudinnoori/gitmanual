@@ -1,3 +1,4 @@
+import type { OS } from "./os";
 import type { TreeEntry } from "./github";
 
 export type SetupDoc = { path: string; label: string };
@@ -101,6 +102,53 @@ export function findDocsLink(readme: string | undefined, repo: { name: string; w
     return href;
   }
   return null;
+}
+
+// Systems a download link is for, written the ways READMEs do: ".dmg", "Apple Silicon", "AppImage"…
+const DOWNLOAD_OS: [OS, RegExp][] = [
+  ["mac", /\bmac(?:os)?\b|\bos ?x\b|apple silicon|\.dmg\b/i],
+  ["windows", /\bwindows\b|\bwin(?:32|64)\b|\.exe\b|\.msi\b/i],
+  ["linux", /\blinux\b|ubuntu|debian|fedora|\.deb\b|\.rpm\b|appimage|flatpak/i],
+];
+const systemsIn = (text: string): OS[] => DOWNLOAD_OS.filter(([, re]) => re.test(text)).map(([os]) => os);
+
+export type DownloadPage = { host: string; platforms: OS[]; urls: Partial<Record<OS, string>> };
+
+// Some projects publish their apps on their own site instead of GitHub releases (presenton.ai/download).
+// A README link counts when it says "download" (or is in a list of downloads), points to the project's own
+// site, and is clearly tied to systems: the link text names one ("[Mac](…)"), a parenthesis right after it
+// lists them ("[Desktop App](…) (Mac, Windows & Linux)"), or it sits in a table row that names one.
+// A sentence about the whole project ("available on Windows, Linux and macOS… our desktop app") doesn't count.
+export function findDownloadPage(readme: string | undefined, repo: { name: string; website: string | null }): DownloadPage | null {
+  if (!readme) return null;
+  const name = repo.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const site = repo.website ? hostOf(repo.website) : null;
+  const ours = (host: string) => host.replace(/[^a-z0-9]/g, "").includes(name) || (site !== null && (host === site || host.endsWith(`.${site}`)));
+  const urls: Partial<Record<OS, string>> = {};
+  let pageHost: string | null = null;
+  const add = (href: string, label: string, systems: OS[]) => {
+    const host = hostOf(href);
+    if (!host || /(^|\.)github(usercontent)?\.com$/.test(host) || !ours(host)) return; // release files come from the API
+    if (!/download/i.test(`${label} ${href}`)) return; // "installation" pages are usually developer guides, not apps
+    if (pageHost && host !== pageHost) return; // one site
+    pageHost ??= host;
+    for (const os of systems) urls[os] ??= href;
+  };
+
+  // Tables of downloads: each <tr> names its system.
+  for (const [row] of readme.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)) {
+    const systems = systemsIn(row.replace(/<a\b[^>]*>/gi, ""));
+    for (const m of row.matchAll(/<a\b[^>]*href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) add(m[1], m[2], systems);
+  }
+  // Markdown links: systems from the link text, or from a parenthesis right after it.
+  for (const m of readme.replace(/<tr\b[\s\S]*?<\/tr>/gi, "").matchAll(/\[([^\]]{1,80})\]\((https?:\/\/[^)\s]+)\)(?:\s*\(([^)]{3,60})\))?/g)) {
+    const [, label, href, after] = m;
+    const fromLabel = systemsIn(label);
+    add(href, label, fromLabel.length ? fromLabel : after ? systemsIn(after) : []);
+  }
+
+  const platforms = (["mac", "windows", "linux"] as OS[]).filter((os) => urls[os]);
+  return pageHost && platforms.length ? { host: pageHost, platforms, urls } : null;
 }
 
 function hostOf(url: string): string | null {

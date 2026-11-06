@@ -50,6 +50,12 @@ export function fitCheck(a: Analysis, install: InstallOptions, os: OS, arch: Arc
     return { status: "yes", headline: `Yes, it installs on your ${name}`, reasons };
   }
 
+  // The release has nothing for this system, but the project's own site does (the README links to it).
+  if (install.downloadPage?.platforms.includes(os)) {
+    reasons.push(`The project's website (${install.downloadPage.host}) has a ready-made ${name} download; the README links to it.`);
+    return { status: "yes", headline: `Yes, it installs on your ${name}`, reasons };
+  }
+
   if (assets.length && arch) {
     reasons.push(`There are ${name} downloads, but none built for your chip. Building from source usually still works.`);
     return { status: "maybe", headline: "Probably, from source", reasons };
