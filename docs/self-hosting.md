@@ -74,7 +74,7 @@ Only repos that look like real projects are added: a description and a license, 
 
 ## 6. Optional: AI guides
 
-Set `ANTHROPIC_API_KEY` to turn on **"Write my guide"** on each manual. Claude reads the repo's key files on the server (the browser only sends the repo name). Each guide is generated once per repo and system and then served from the database, so costs stay bounded by the number of different repos people ask about.
+Without a key, each manual ends with **"Ask Claude"** and **"Ask ChatGPT"** links that open the visitor's own chat with the manual filled in, at no cost to you. Set `ANTHROPIC_API_KEY` to replace them with **"Write my guide"**. Claude reads the repo's key files on the server (the browser only sends the repo name). Each guide is generated once per repo and system and then served from the database, so costs stay bounded by the number of different repos people ask about.
 
 New guides are rate-limited: 5 a day per visitor and 100 a day in all. Guides that are already written are never limited. The numbers are in `lib/limit.ts`.
 
@@ -148,7 +148,7 @@ A file with the same `url` as a synced post overrides it, which is handy for fix
 | `NEXT_PUBLIC_SITE_URL` | production | Canonical links, sitemap, share images and posters |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | production | Hosted database. Locally a SQLite file is used |
 | `GITMANUAL_DB` | | Path of the local SQLite file (default `data/gitmanual.db`) |
-| `ANTHROPIC_API_KEY` | | "Write my guide" (Claude) |
+| `ANTHROPIC_API_KEY` | | "Write my guide" (Claude); without it, "Ask Claude / ChatGPT" links |
 | `NEXT_PUBLIC_REPO_URL` | | GitHub link with stars in the menu; "Report a wrong setup" |
 | `FINDS_NAME`, `FINDS_ABOUT`, `FINDS_URL`, `FINDS_AVATAR` | | The Finds page (on when `FINDS_NAME` is set) |
 | `FB_PAGE_ID`, `FB_PAGE_TOKEN`, `FB_GRAPH_VERSION` | | Facebook Page sync (Graph API version defaults to `v23.0`) |

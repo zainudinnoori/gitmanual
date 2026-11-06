@@ -74,6 +74,52 @@ export function defaultMode(r: Result): Mode {
   return r.install.platforms.length || r.install.commands.length ? "install" : "source";
 }
 
+// Without a server key, "Still stuck?" hands the manual to the visitor's own AI chat: the prompt goes in the link,
+// and nothing is sent anywhere until they open it. Commands are trimmed so the link stays a sensible length.
+function askPrompt(result: Result, os: OS, arch: Arch | null): string {
+  const { meta, analysis: a } = result;
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const shell = os === "windows" ? "PowerShell" : os === "mac" ? "zsh" : "bash";
+  const chip = archLabel(arch, os);
+  const needs = [...a.runtimes.map((r) => (r.detail ? `${r.name} ${r.detail}` : r.name)), ...a.tools, ...a.packageManagers.map((p) => p.name), ...a.services.map((s) => s.name)];
+  const steps = a.steps[os].slice(0, 6).map((s, i) => {
+    const cmds = s.commands.slice(0, 3).map((c) => (c.length > 120 ? `${c.slice(0, 117)}...` : c));
+    return `${i + 1}. ${s.title}${cmds.length ? `: ${cmds.join(" ; ")}` : ""}`;
+  });
+  return [
+    `I'm trying to set up ${meta.fullName} (${meta.htmlUrl}) on ${OS_LABEL[os]}${chip ? ` (${chip})` : ""} and I'm stuck.`,
+    `Its setup manual on gitmanual: ${site}/${meta.fullName}?os=${os}`,
+    needs.length ? `It needs: ${needs.join(", ")}.` : "",
+    steps.length ? `Suggested steps:\n${steps.join("\n")}` : "",
+    `Walk me through the setup one step at a time, with ${shell} commands for ${OS_LABEL[os]}. Check the repo's README if you can. Before each step, tell me how to check it worked, and ask me for the exact error message if something fails.`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function AskAi({ prompt, os }: { prompt: string; os: OS }) {
+  const q = encodeURIComponent(prompt);
+  return (
+    <div className="panel ai">
+      <div className="panel-head">
+        <div>
+          <h3>Still stuck? Ask an AI</h3>
+          <p className="note">Opens a chat with this manual already filled in, for {OS_LABEL[os]}. It uses your own account; gitmanual sends nothing.</p>
+        </div>
+      </div>
+      <div className="ask-ai">
+        <a className="btn btn-sm btn-go" href={`https://claude.ai/new?q=${q}`} target="_blank" rel="noreferrer">
+          Ask Claude
+        </a>
+        <a className="btn btn-sm" href={`https://chatgpt.com/?q=${q}`} target="_blank" rel="noreferrer">
+          Ask ChatGPT
+        </a>
+        <CopyButton text={prompt} className="btn btn-sm" label="Copy the prompt" />
+      </div>
+    </div>
+  );
+}
+
 // The page server-renders the manual (initial / initialError) so search engines and first paint get the real steps;
 // the browser then switches to the visitor's own system. Fetching here only happens on "Re-read the repo".
 export function ReportView({
@@ -504,7 +550,7 @@ function Report({
               {steps.length <= 1 && (
                 <p className="empty">
                   We couldn&apos;t spot a known stack.{" "}
-                  {aiGuide ? "The AI guide below can read the code for you." : "The README and the maintainers' docs are the best place to start."}
+                  {aiGuide ? "The AI guide below can read the code for you." : "Start with the README, or ask an AI below to go through it with you."}
                 </p>
               )}
               {!a.readmeFirst && a.readme && (
@@ -545,6 +591,7 @@ function Report({
               {guide && <div className="prose">{md(guide)}</div>}
             </div>
           )}
+          {!aiGuide && <AskAi prompt={askPrompt(result, os, myArch)} os={os} />}
         </div>
 
         <aside className="sheet-side">

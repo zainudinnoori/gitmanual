@@ -49,8 +49,14 @@ const FAQ = [
     ),
   },
   {
-    q: "Is the AI guide accurate?",
-    a: <>It&apos;s written by Claude from the same files, and it can make mistakes. Use it when you&apos;re stuck, and check it against the README.</>,
+    q: "What do the \u201cAsk Claude\u201d and \u201cAsk ChatGPT\u201d buttons do?",
+    a: (
+      <>
+        They open a chat in a new tab with the repo, your system and this manual&apos;s steps already in the prompt, so the AI can take you
+        through it and help with errors. They use your own account, and gitmanual sends nothing. AI can make mistakes, so check what it
+        suggests against the README.
+      </>
+    ),
   },
   {
     q: "Can my AI assistant use it?",

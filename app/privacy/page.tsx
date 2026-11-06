@@ -3,6 +3,8 @@ import Link from "next/link";
 import { CONTACT_FORM, REPO_URL, SITE_HOST } from "@/lib/site";
 import { DocPage } from "../doc";
 
+const AI_GUIDES = Boolean(process.env.ANTHROPIC_API_KEY);
+
 export const metadata: Metadata = {
   title: "Privacy",
   description: "What gitmanual stores, what it doesn't, and which outside services are involved.",
@@ -67,9 +69,16 @@ export default function Privacy() {
           </li>
         )}
         <li>
-          <strong>Anthropic</strong>: the optional &ldquo;Write my guide&rdquo; button sends the repo&apos;s public files to Anthropic&apos;s
-          Claude to write the guide. Nothing about you is sent with them.
+          <strong>AI chats</strong>: the &ldquo;Ask Claude&rdquo; and &ldquo;Ask ChatGPT&rdquo; buttons open claude.ai or chatgpt.com in a
+          new tab with a prompt about the repo already filled in. gitmanual sends nothing itself; what happens there is between you and that
+          service, under its own privacy policy.
         </li>
+        {AI_GUIDES && (
+          <li>
+            <strong>Anthropic</strong>: the optional &ldquo;Write my guide&rdquo; button sends the repo&apos;s public files to Anthropic&apos;s
+            Claude to write the guide. Nothing about you is sent with them.
+          </li>
+        )}
       </ul>
 
       <h2>The browser extension, API and MCP server</h2>

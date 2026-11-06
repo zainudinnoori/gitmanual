@@ -323,6 +323,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 details[open].panel > summary h3::after { content: " −"; }
 .steps + .panel, .steps ~ details.panel { margin-top: 22px; }
 .panel.ai { margin-top: 28px; border: 1.5px dashed var(--line-strong); background: transparent; }
+.ask-ai { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .release { font: 500 var(--fs-meta) var(--mono); color: var(--pencil); text-decoration: none; }
 .release:hover { color: var(--ink); }
 

@@ -50,7 +50,7 @@ Plenty of people find a great project on GitHub and don't know how to run it. RE
 - **Setup script**: the same steps as one `setup.sh` or `setup.ps1` (`/owner/repo/setup/mac.sh`, `linux.sh`, `windows.ps1`). It stops at the first error, skips what's already installed and is safe to run again. It never starts servers or runs commands that still need your own values; it lists those at the end.
 - **Install it**: the right download for your system and CPU, plus Homebrew, winget, apt, Docker and other commands taken from the README.
 - **Did you get it running?**: per-system votes, so the next person knows what to expect.
-- **AI guide** (optional): Claude reads the key files and writes a guide. It's generated once per repo and system, then cached.
+- **Still stuck?**: "Ask Claude" and "Ask ChatGPT" open a chat with the repo, your system and the manual's steps already filled in, using your own account. With an `ANTHROPIC_API_KEY`, the site writes the guide itself instead (once per repo and system, then cached).
 
 **Maintainers:** add a badge to your README so newcomers find the steps. Swap in your `owner/repo`:
 
@@ -117,7 +117,7 @@ All settings are environment variables, and every one is optional for local use.
 | `GITHUB_TOKEN` | GitHub API limit 60 → 5,000 requests/hour. **Needed in production** |
 | `NEXT_PUBLIC_SITE_URL` | The site's address, for canonical links, the sitemap and share images. **Needed in production** |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Hosted database for history, cache and votes. **Needed in production** (falls back to a local file in development) |
-| `ANTHROPIC_API_KEY` | Turns on "Write my guide" (Claude) |
+| `ANTHROPIC_API_KEY` | Optional: "Write my guide" (Claude) instead of the "Ask Claude / ChatGPT" links |
 | `NEXT_PUBLIC_REPO_URL` | Your fork's GitHub URL: a GitHub link with stars in the menu, and "Report a wrong setup" |
 | `CONTACT_FORM_URL` | A [ShareText](https://sharetext.net) form's embed link: adds "Contact" to the footer, opening the form over the page |
 | `RATE_LIMITS`, `LIMIT_SALT` | Limits are on by default (new analyses 40/hour per visitor and 1,000/hour in all, new AI guides 5/day and 100/day, votes once per repo and system a day). `RATE_LIMITS=off` turns them off; `LIMIT_SALT` is any random string that keeps visitor codes unguessable |
