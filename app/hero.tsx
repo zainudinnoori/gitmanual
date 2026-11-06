@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RepoCard } from "@/lib/db";
 import { OS_LABEL, type OS } from "@/lib/os";
-import { ShelfCard } from "./cards";
+import { RisingCard, ShelfCard } from "./cards";
 import { RepoForm, Wrenches, detectOS } from "./ui";
 
 type Demo = {
@@ -96,7 +96,17 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-export function Landing({ recent, popular }: { recent: RepoCard[]; popular: RepoCard[] }) {
+export function Landing({
+  recent,
+  popular,
+  rising,
+  risingTotal,
+}: {
+  recent: RepoCard[];
+  popular: RepoCard[];
+  rising: RepoCard[];
+  risingTotal: number;
+}) {
   const [idx, setIdx] = useState(0);
   const [os, setOs] = useState<OS>("mac");
   const [auto, setAuto] = useState(true);
@@ -200,6 +210,7 @@ export function Landing({ recent, popular }: { recent: RepoCard[]; popular: Repo
       </section>
 
       {recent.length > 0 && <Shelf recent={recent} popular={popular} />}
+      {rising.length > 0 && <Rising repos={rising} total={risingTotal} />}
 
       <section className="band" aria-labelledby="inside-h">
         <div className="wrap">
@@ -304,6 +315,34 @@ function StepsArt() {
       <path d="M28 62 h20 M54 62 h40" stroke="#5b606b" strokeWidth="2.5" strokeLinecap="round" />
       <circle cx="128" cy="62" r="8" fill="var(--yes)" />
     </svg>
+  );
+}
+
+// Repos the daily trending job found gaining stars fast in the last 7 days, most stars first.
+function Rising({ repos, total }: { repos: RepoCard[]; total: number }) {
+  return (
+    <section className="rising" aria-labelledby="rising-h">
+      <div className="wrap">
+        <div className="rising-head">
+          <div>
+            <p className="eyebrow">New on GitHub</p>
+            <h2 id="rising-h" className="rising-h">
+              Rising this week
+            </h2>
+          </div>
+          <Link className="open-link" href="/shelf?rising=1">
+            {total > repos.length ? `See all ${total} on the shelf →` : "See them on the shelf →"}
+          </Link>
+        </div>
+        <ol className="rising-list">
+          {repos.map((r, i) => (
+            <li key={r.fullName}>
+              <RisingCard repo={r} rank={i + 1} />
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
   );
 }
 

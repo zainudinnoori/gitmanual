@@ -437,6 +437,42 @@ details[open].panel > summary h3::after { content: " −"; }
 /* Landing: repos people set up here */
 .shelf { padding: 72px 0 84px; }
 .shelf-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+/* "Rising this week": compact ranked cards under the shelf. */
+.rising { padding: 0 0 84px; }
+.rising-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.rising-h { margin: 6px 0 0; font: 800 var(--fs-h2) var(--display); letter-spacing: -0.025em; }
+.rising-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rising-card {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; height: 100%; padding: 14px 16px; text-decoration: none; color: var(--ink);
+  background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 14px; transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+}
+.rising-card:hover { transform: translate(-2px, -2px); box-shadow: var(--hard); }
+.rising-card:focus-visible { outline: 2px solid var(--wrench); outline-offset: 3px; }
+.rising-rank { font: 800 22px/1 var(--display); color: var(--wrench); padding-top: 2px; }
+.rising-body { display: grid; gap: 4px; min-width: 0; }
+.rising-name { font: 700 var(--fs-body)/1.25 var(--display); overflow-wrap: anywhere; }
+.rising-owner { font: 500 var(--fs-meta) var(--mono); color: var(--pencil); display: block; }
+.rising-desc { font-size: var(--fs-small); color: var(--pencil); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rising-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font: 500 var(--fs-meta) var(--mono); color: var(--ink); }
+/* Read by screen readers, not shown. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.rising-stars { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+.rising-stars svg { color: var(--wrench); flex: none; }
+.rising-tag {
+  margin-left: auto; margin-right: 8px; font: 700 var(--fs-label) var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink); background: var(--maybe, #ffc53d); border: 1.5px solid var(--ink); border-radius: 999px; padding: 1px 8px; white-space: nowrap;
+}
+/* The shelf's All / Rising switch, beside the title. */
+.view-switch { display: inline-flex; flex: none; padding: 4px; gap: 4px; background: var(--sheet); border: 2px solid var(--ink); border-radius: 14px; box-shadow: 3px 3px 0 var(--ink); }
+.view-switch a {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px; font: var(--ui); color: var(--pencil);
+  text-decoration: none; white-space: nowrap; transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.view-switch a:hover { color: var(--ink); background: var(--paper); }
+.view-switch a:focus-visible { outline: 2px solid var(--wrench); outline-offset: 2px; }
+.view-switch a[aria-current="page"] { color: var(--ink); background: var(--maybe); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.view-switch .count { font: 600 var(--fs-label) var(--mono); background: var(--paper); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 7px; }
+.view-switch a[aria-current="page"] .count { background: var(--sheet); }
 .shelf-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
 .shelf-card {
   display: flex; flex-direction: column; height: 100%; text-decoration: none; background: var(--sheet);
@@ -468,7 +504,7 @@ details[open].panel > summary h3::after { content: " −"; }
 
 /* The shelf page */
 .shelf-page { padding: 48px 24px 88px; }
-.shelf-page-head { margin-bottom: 26px; }
+.shelf-page-head { display: flex; justify-content: space-between; align-items: end; gap: 20px 32px; flex-wrap: wrap; margin-bottom: 26px; }
 .shelf-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .filters {
   display: grid; grid-template-columns: minmax(240px, 2fr) repeat(4, minmax(150px, 1fr)); gap: 14px; align-items: end;
@@ -644,6 +680,7 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 .side-card > .btn { width: 100%; }
 
 @media (max-width: 960px) {
+  .rising-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fb-body { grid-template-columns: minmax(0, 500px); gap: 0; }
   .fb-side { position: static; }
   .fb-title { text-align: center; }
@@ -670,6 +707,9 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .footer-brand { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) {
+  .view-switch { width: 100%; }
+  .view-switch a { flex: 1; justify-content: center; padding-inline: 8px; }
+  .rising-list { grid-template-columns: minmax(0, 1fr); }
   .pager .btn { min-width: 0; padding-inline: 14px; }
   .nav-links a.nav-gh { display: none; }
   /* Long commands wrap rather than scroll under the Copy button; Copy still copies them as written. */

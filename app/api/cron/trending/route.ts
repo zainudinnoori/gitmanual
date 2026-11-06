@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCached, repoKey } from "@/lib/db";
+import { getCached, markRising, repoKey } from "@/lib/db";
 import { risingRepos } from "@/lib/github";
 import { loadRepo } from "@/lib/pipeline";
 
@@ -29,13 +29,16 @@ export async function GET(req: Request) {
   let known = 0;
   for (const full of candidates) {
     if (added.length >= PER_RUN || Date.now() - started > 240_000) break; // leave room before the time limit
-    if (await getCached(repoKey(...(full.split("/") as [string, string])))) {
+    const [owner, repo] = full.split("/");
+    // Already on the shelf: it's still rising, so it counts for "Rising this week" too.
+    if (await getCached(repoKey(owner, repo))) {
       known++;
+      await markRising(repoKey(owner, repo));
       continue;
     }
-    const [owner, repo] = full.split("/");
     try {
-      await loadRepo({ owner, repo });
+      const { key } = await loadRepo({ owner, repo });
+      await markRising(key);
       added.push(full);
     } catch (e) {
       failed.push({ repo: full, error: e instanceof Error ? e.message : String(e) });

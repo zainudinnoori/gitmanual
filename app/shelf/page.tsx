@@ -10,7 +10,7 @@ const DESCRIPTION = "Browse the open-source repos people have set up with gitman
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Params> }): Promise<Metadata> {
   const p = await searchParams;
   const page = Math.max(1, Number(p.page) || 1);
-  const filtered = Boolean(p.q || p.lang || p.level || p.min || (p.sort && p.sort !== "stars"));
+  const filtered = Boolean(p.q || p.lang || p.level || p.min || p.rising || (p.sort && p.sort !== "stars"));
   return {
     title: page > 1 ? `The shelf, page ${page}` : "The shelf: open-source repos people set up",
     description: DESCRIPTION,
@@ -31,6 +31,8 @@ function parse(p: Params): ShelfQuery {
     difficulty: ["Easy", "Moderate", "Involved"].includes(p.level ?? "") ? p.level : undefined,
     minStars: Number.isFinite(minStars) && minStars > 0 ? minStars : undefined,
     sort: SORTS.includes(p.sort as (typeof SORTS)[number]) ? (p.sort as ShelfQuery["sort"]) : "stars",
+    // ?sort=rising was the old way to ask for it.
+    rising: p.rising === "1" || p.sort === "rising" || undefined,
     page: Math.max(1, Number(p.page) || 1),
   };
 }
@@ -38,21 +40,43 @@ function parse(p: Params): ShelfQuery {
 export default async function ShelfPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
   const query = parse(params);
-  const { repos, total, languages } = await browseRepos(query);
+  const { repos, total, languages, all, rising } = await browseRepos(query);
   const pages = Math.max(1, Math.ceil(total / SHELF_PAGE));
   const pageHref = (n: number) => {
     const next = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => Boolean(e[1])));
     next.set("page", String(n));
     return `/shelf?${next}`;
   };
-  const filtered = Boolean(query.q || query.language || query.difficulty || query.minStars);
+  const filtered = Boolean(query.q || query.language || query.difficulty || query.minStars || query.rising);
+  // The All / Rising switch keeps the other filters and starts again at page 1.
+  const viewHref = (risingOnly: boolean) => {
+    const next = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => Boolean(e[1])));
+    next.delete("page");
+    next.delete("rising");
+    if (next.get("sort") === "rising") next.delete("sort"); // the old way to ask for it
+    if (risingOnly) next.set("rising", "1");
+    return `/shelf${next.size ? `?${next}` : ""}`;
+  };
 
   return (
     <div className="wrap shelf-page">
       <header className="shelf-page-head">
-        <p className="eyebrow">The shelf</p>
-        <h1 className="display-md">What people are setting up</h1>
-        <p className="lead">Every repo someone has looked up on gitmanual. Open one to get its manual.</p>
+        <div>
+          <p className="eyebrow">The shelf</p>
+          <h1 className="display-md">What people are setting up</h1>
+          <p className="lead">Every repo looked up here. Open one for its manual.</p>
+        </div>
+        {/* Hidden when nothing is rising, unless that view is open (so it can be switched back). */}
+        {(rising > 0 || query.rising) && (
+          <nav className="view-switch" aria-label="Show">
+            <Link href={viewHref(false)} aria-current={!query.rising ? "page" : undefined} scroll={false}>
+              All repos <span className="count">{all.toLocaleString()}</span>
+            </Link>
+            <Link href={viewHref(true)} aria-current={query.rising ? "page" : undefined} scroll={false}>
+              Rising this week <span className="count">{rising}</span>
+            </Link>
+          </nav>
+        )}
       </header>
 
       <ShelfFilters query={query} languages={languages} />

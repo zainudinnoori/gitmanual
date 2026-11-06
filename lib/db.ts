@@ -14,6 +14,7 @@ export type RepoCard = {
   worked: number;
   stuck: number;
   analyzedAt: number;
+  risingAt: number | null; // when the trending job last found it rising
 };
 
 export type Votes = { worked: number; stuck: number; byOs: Record<string, { worked: number; stuck: number }> };
@@ -83,7 +84,11 @@ function db(): Promise<Client | null> {
     try {
       await client.executeMultiple(SCHEMA);
       // Columns added after a table first shipped; "duplicate column" just means it's already there.
-      for (const sql of ["ALTER TABLE fb_posts ADD COLUMN video_id TEXT"]) await client.execute(sql).catch(() => {});
+      for (const sql of [
+        "ALTER TABLE fb_posts ADD COLUMN video_id TEXT",
+        "ALTER TABLE repos ADD COLUMN rising_at INTEGER", // when the daily trending job last found it rising
+      ])
+        await client.execute(sql).catch(() => {});
     } catch (e) {
       client.close();
       throw e;
@@ -182,17 +187,37 @@ export function saveGuide(key: string, os: string, text: string): Promise<unknow
   );
 }
 
-export function listRepos(order: "recent" | "popular", limit = 6): Promise<RepoCard[]> {
+// The trending job marks repos it finds rising. A repo keeps its date while it's still rising, and gets a fresh
+// one if it rises again a month later, so "Rising this week" is a rolling week.
+export function markRising(key: string): Promise<unknown> {
+  const now = Date.now();
+  return safely(null, (c) =>
+    c.execute({
+      sql: "UPDATE repos SET rising_at = ? WHERE key = ? AND (rising_at IS NULL OR rising_at < ?)",
+      args: [now, key, now - 30 * 864e5],
+    }),
+  );
+}
+
+// How many repos are rising this week, for "See all N on the shelf".
+export function countRising(): Promise<number> {
+  return safely(0, async (c) => {
+    const { rows } = await c.execute({ sql: "SELECT COUNT(*) AS n FROM repos WHERE key NOT LIKE '%@%' AND rising_at > ?", args: [Date.now() - 7 * 864e5] });
+    return Number(rows[0]?.n ?? 0);
+  });
+}
+
+export function listRepos(order: "recent" | "popular" | "rising", limit = 6): Promise<RepoCard[]> {
   return safely([], async (c) => {
     const { rows } = await c.execute({
-      sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at,
+      sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at, r.rising_at,
                    COALESCE(SUM(v.worked), 0) AS worked, COUNT(v.key) - COALESCE(SUM(v.worked), 0) AS stuck
             FROM repos r LEFT JOIN votes v ON v.key = r.key
-            WHERE r.key NOT LIKE '%@%'
+            WHERE r.key NOT LIKE '%@%' ${order === "rising" ? "AND r.rising_at > ?" : ""}
             GROUP BY r.key
-            ORDER BY ${order === "recent" ? "r.last_viewed" : "r.views + 3 * worked"} DESC
+            ORDER BY ${order === "recent" ? "r.last_viewed" : order === "rising" ? "r.stars" : "r.views + 3 * worked"} DESC
             LIMIT ?`,
-      args: [limit],
+      args: order === "rising" ? [Date.now() - 7 * 864e5, limit] : [limit],
     });
     return rows.map((r) => ({
       fullName: String(r.full_name),
@@ -204,6 +229,7 @@ export function listRepos(order: "recent" | "popular", limit = 6): Promise<RepoC
       worked: Number(r.worked),
       stuck: Number(r.stuck),
       analyzedAt: Number(r.analyzed_at),
+      risingAt: r.rising_at == null ? null : Number(r.rising_at),
     }));
   });
 }
@@ -214,6 +240,7 @@ export type ShelfQuery = {
   difficulty?: string;
   minStars?: number;
   sort?: "stars" | "recent" | "popular" | "worked";
+  rising?: boolean; // only repos rising this week
   page?: number;
 };
 
@@ -227,8 +254,10 @@ const SHELF_ORDER: Record<NonNullable<ShelfQuery["sort"]>, string> = {
 };
 
 // Every repo people have looked up, filtered and sorted for the /shelf page.
-export function browseRepos(query: ShelfQuery): Promise<{ repos: RepoCard[]; total: number; languages: { name: string; count: number }[] }> {
-  return safely({ repos: [], total: 0, languages: [] }, async (c) => {
+export function browseRepos(
+  query: ShelfQuery,
+): Promise<{ repos: RepoCard[]; total: number; languages: { name: string; count: number }[]; all: number; rising: number }> {
+  return safely({ repos: [], total: 0, languages: [], all: 0, rising: 0 }, async (c) => {
     const where = ["r.key NOT LIKE '%@%'"];
     const args: (string | number)[] = [];
     if (query.q) {
@@ -247,11 +276,16 @@ export function browseRepos(query: ShelfQuery): Promise<{ repos: RepoCard[]; tot
       where.push("r.stars >= ?");
       args.push(query.minStars);
     }
+    const weekAgo = Date.now() - 7 * 864e5;
+    if (query.rising) {
+      where.push("r.rising_at > ?");
+      args.push(weekAgo);
+    }
     const filter = where.join(" AND ");
     const page = Math.max(1, query.page ?? 1);
-    const [rows, count, langs] = await Promise.all([
+    const [rows, count, langs, rising] = await Promise.all([
       c.execute({
-        sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at,
+        sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at, r.rising_at,
                      COALESCE(SUM(v.worked), 0) AS worked, COUNT(v.key) - COALESCE(SUM(v.worked), 0) AS stuck
               FROM repos r LEFT JOIN votes v ON v.key = r.key
               WHERE ${filter}
@@ -264,6 +298,11 @@ export function browseRepos(query: ShelfQuery): Promise<{ repos: RepoCard[]; tot
       c.execute(
         "SELECT language, COUNT(*) AS n FROM repos WHERE key NOT LIKE '%@%' AND language IS NOT NULL GROUP BY language ORDER BY n DESC, language",
       ),
+      // The whole shelf and this week's rising repos, for the All / Rising switch.
+      c.execute({
+        sql: "SELECT COUNT(*) AS n, COALESCE(SUM(rising_at > ?), 0) AS rising FROM repos WHERE key NOT LIKE '%@%'",
+        args: [weekAgo],
+      }),
     ]);
     return {
       repos: rows.rows.map((r) => ({
@@ -276,9 +315,12 @@ export function browseRepos(query: ShelfQuery): Promise<{ repos: RepoCard[]; tot
         worked: Number(r.worked),
         stuck: Number(r.stuck),
         analyzedAt: Number(r.analyzed_at),
+        risingAt: r.rising_at == null ? null : Number(r.rising_at),
       })),
       total: Number(count.rows[0]?.n ?? 0),
       languages: langs.rows.map((r) => ({ name: String(r.language), count: Number(r.n) })),
+      all: Number(rising.rows[0]?.n ?? 0),
+      rising: Number(rising.rows[0]?.rising ?? 0),
     };
   });
 }
