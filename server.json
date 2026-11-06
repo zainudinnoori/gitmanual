@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.zainudinnoori/gitmanual",
+  "title": "gitmanual",
+  "description": "Setup manuals for any GitHub repo: will it run on macOS, Windows or Linux, and the exact steps.",
+  "version": "1.0.0",
+  "websiteUrl": "https://gitmanual.com",
+  "repository": {
+    "url": "https://github.com/zainudinnoori/gitmanual",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://gitmanual.com/icon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": [
+        "any"
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://gitmanual.com/mcp"
+    }
+  ]
+}
