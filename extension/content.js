@@ -3,7 +3,7 @@
 const SITE = "https://gitmanual.com";
 const ID = "gitmanual-open";
 const ICON =
-  '<svg width="16" height="16" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M13 2l10 5v12l-10 5-10-5V7z" fill="#ff6b2c" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 7l10 5 10-5M13 12v12" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 13l2.4 1.8L6 17.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M13 2l10 5v12l-10 5-10-5V7z" fill="#ff6b2c" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 7l10 5 10-5M13 12v12" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 13l2.4 1.8L6 17.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // GitHub sets this on every repo page, with the canonical owner/repo (whatever case the URL used).
 function currentRepo() {
@@ -26,7 +26,8 @@ function render() {
   link.rel = "noopener";
   link.className = "btn btn-sm";
   link.title = "Will it run on your device, and how to set it up: open the manual on gitmanual";
-  link.innerHTML = `${ICON}<span>Setup manual</span>`;
+  // Built from a fixed string without innerHTML, so store reviewers (and anyone reading) can see nothing dynamic goes in as markup.
+  link.append(new DOMParser().parseFromString(ICON, "image/svg+xml").documentElement, Object.assign(document.createElement("span"), { textContent: "Setup manual" }));
 
   // On the repo's home page: in the row with the repo name, after the title block (inside it, it would wrap
   // under the name). Pages without that header (issues, folders…) get a small floating button.
