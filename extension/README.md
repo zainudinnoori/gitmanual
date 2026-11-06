@@ -4,6 +4,8 @@
 
 Adds a **Setup manual** button to GitHub repos. On a repo's home page it sits next to Notifications, Fork and Star; on its other pages (issues, folders…) it's a small button in the corner. The toolbar icon opens the manual for the repo you're on.
 
+![The Setup manual button on a GitHub repo opens its manual in a new tab](../docs/extension-demo.gif)
+
 **Privacy:** the extension reads the repo's name from the GitHub page and links to `gitmanual.com/owner/repo`. It makes no requests, stores nothing and collects nothing. The only permission is `activeTab`, so the toolbar icon can read the current tab's address when you click it.
 
 ## Try it locally

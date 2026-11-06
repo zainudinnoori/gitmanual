@@ -70,6 +70,8 @@ The same facts are available as JSON at `/api/v1/manual?repo=owner/repo` (`&os=`
 
 **Browser extension:** a **Setup manual** button on every GitHub repo, next to Star and Fork. [Add it to Chrome](https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn) (works in Edge and Brave too); the code is in [`extension/`](extension/README.md).
 
+![The Setup manual button on a GitHub repo opens its manual in a new tab](docs/extension-demo.gif)
+
 Plus **the shelf** (`/shelf`): every repo people have looked up, with search and filters for stars, language and difficulty. Every repo also gets a share image and a 1080×1080 poster.
 
 <p align="center"><img src="docs/shelf.png" width="49%" alt="The shelf" /> <img src="docs/how.png" width="49%" alt="How it works" /></p>
