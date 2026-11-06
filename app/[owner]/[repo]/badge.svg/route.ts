@@ -1,6 +1,7 @@
 import { fitCheck } from "@/lib/fit";
 import { GitHubError } from "@/lib/github";
 import { OS_LIST } from "@/lib/os";
+import { analyzeGate } from "@/lib/limit";
 import { loadRepo } from "@/lib/pipeline";
 
 const LABEL = { mac: "macOS", windows: "Windows", linux: "Linux" } as const;
@@ -54,10 +55,10 @@ function svg(body: string, maxAge: number) {
 }
 
 // Systems the manual says "yes" or "maybe" for, without knowing the reader's chip.
-export async function GET(_req: Request, { params }: { params: Promise<{ owner: string; repo: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ owner: string; repo: string }> }) {
   const { owner, repo } = await params;
   try {
-    const { meta, analysis, install } = (await loadRepo({ owner, repo })).data;
+    const { meta, analysis, install } = (await loadRepo({ owner, repo }, { gate: analyzeGate(req.headers) })).data;
     const systems = OS_LIST.filter((os) => fitCheck(analysis, install, os, null, meta.archived).status !== "no").map((os) => LABEL[os]);
     return svg(badge("setup manual", systems.length ? systems.join(" · ") : "read the manual"), 3600);
   } catch (e) {

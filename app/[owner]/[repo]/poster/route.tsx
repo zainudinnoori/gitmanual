@@ -2,6 +2,7 @@ import { GitHubError } from "@/lib/github";
 import { fitCheck } from "@/lib/fit";
 import { posterImage } from "@/lib/og";
 import { OS_LIST } from "@/lib/os";
+import { analyzeGate } from "@/lib/limit";
 import { loadRepo } from "@/lib/pipeline";
 
 const LABEL = { mac: "macOS", windows: "Windows", linux: "Linux" } as const;
@@ -16,7 +17,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ owner: s
   const { owner, repo } = await params;
   let loaded;
   try {
-    loaded = await loadRepo({ owner, repo });
+    loaded = await loadRepo({ owner, repo }, { gate: analyzeGate(req.headers) });
   } catch (e) {
     return new Response(e instanceof GitHubError ? e.message : "Couldn't load the repository.", { status: e instanceof GitHubError ? e.status : 500 });
   }

@@ -1,5 +1,6 @@
 import { GitHubError } from "@/lib/github";
 import type { OS } from "@/lib/os";
+import { analyzeGate } from "@/lib/limit";
 import { loadRepo } from "@/lib/pipeline";
 import { buildScript } from "@/lib/script";
 
@@ -13,7 +14,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ owner: s
   if (!os) return new Response("Use mac.sh, linux.sh or windows.ps1.", { status: 404 });
   let loaded;
   try {
-    loaded = await loadRepo({ owner, repo });
+    loaded = await loadRepo({ owner, repo }, { gate: analyzeGate(req.headers) });
   } catch (e) {
     return new Response(e instanceof GitHubError ? e.message : "Couldn't load the repository.", { status: e instanceof GitHubError ? e.status : 500 });
   }

@@ -1,0 +1,4 @@
+#gitmanual-open { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; text-decoration: none; }
+#gitmanual-open svg { flex: none; }
+#gitmanual-open.gitmanual-float { position: fixed; right: 20px; bottom: 20px; z-index: 100; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+@media print { #gitmanual-open { display: none; } }

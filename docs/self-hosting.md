@@ -69,7 +69,7 @@ Tables are created on the first request, and new columns are added automatically
 
 Set `ANTHROPIC_API_KEY` to turn on **"Write my guide"** on each manual. Claude reads the repo's key files on the server (the browser only sends the repo name). Each guide is generated once per repo and system and then served from the database, so costs stay bounded by the number of different repos people ask about.
 
-There's no rate limiting yet. On a busy public site, keep an eye on usage, or leave the key unset.
+New guides are rate-limited: 5 a day per visitor and 100 a day in all. Guides that are already written are never limited. The numbers are in `lib/limit.ts`.
 
 ## 6. Optional: Finds from a Facebook Page
 
@@ -146,3 +146,5 @@ A file with the same `url` as a synced post overrides it, which is handy for fix
 | `FINDS_NAME`, `FINDS_ABOUT`, `FINDS_URL`, `FINDS_AVATAR` | | The Finds page (on when `FINDS_NAME` is set) |
 | `FB_PAGE_ID`, `FB_PAGE_TOKEN`, `FB_GRAPH_VERSION` | | Facebook Page sync (Graph API version defaults to `v23.0`) |
 | `CRON_SECRET` | with the sync | Protects `/api/cron/facebook` |
+| `LIMIT_SALT` | production | Any long random string; keeps the daily visitor codes used for rate limits unguessable |
+| `RATE_LIMITS` | | `off` turns rate limits off (they're on by default; see `lib/limit.ts`) |

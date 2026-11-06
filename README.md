@@ -59,6 +59,8 @@ Plenty of people find a great project on GitHub and don't know how to run it. RE
 
 [![Setup manual](https://gitmanual.com/ollama/ollama/badge.svg)](https://gitmanual.com/ollama/ollama)
 
+**Browser extension:** a **Setup manual** button on every GitHub repo, next to Star and Fork. See [`extension/`](extension/README.md).
+
 Plus **the shelf** (`/shelf`): every repo people have looked up, with search and filters for stars, language and difficulty. Every repo also gets a share image and a 1080×1080 poster.
 
 <p align="center"><img src="docs/shelf.png" width="49%" alt="The shelf" /> <img src="docs/how.png" width="49%" alt="How it works" /></p>
@@ -106,6 +108,7 @@ All settings are environment variables, and every one is optional for local use.
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Hosted database for history, cache and votes. **Needed in production** (falls back to a local file in development) |
 | `ANTHROPIC_API_KEY` | Turns on "Write my guide" (Claude) |
 | `NEXT_PUBLIC_REPO_URL` | Your fork's GitHub URL: a GitHub link with stars in the menu, and "Report a wrong setup" |
+| `RATE_LIMITS`, `LIMIT_SALT` | Limits are on by default (new analyses 40/hour per visitor and 1,000/hour in all, new AI guides 5/day and 100/day, votes once per repo and system a day). `RATE_LIMITS=off` turns them off; `LIMIT_SALT` is any random string that keeps visitor codes unguessable |
 | `FINDS_*`, `FB_PAGE_*`, `CRON_SECRET` | Optional [Finds](docs/self-hosting.md#6-optional-finds-from-a-facebook-page) page: posts from a Facebook Page, each linked to its manual |
 
 ## Deploy
@@ -141,8 +144,6 @@ These are the known gaps. Help is welcome:
 - Apps inside subfolders of big repos (monorepos) are listed but not fully set up.
 - System support that a README doesn't mention can't be detected (vLLM on Windows, for example).
 - Install guides that live only on a project's website are linked, not turned into steps.
-- Rate limiting for public deployments (votes and AI guides).
-- A browser extension: "Open in gitmanual" on any GitHub page.
 
 ## Contributing
 

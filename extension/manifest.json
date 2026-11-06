@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "gitmanual: setup manual for any GitHub repo",
+  "short_name": "gitmanual",
+  "version": "1.0.0",
+  "description": "Adds a Setup manual button to GitHub repos: will it run on your device, what you need, and the steps for macOS, Windows or Linux.",
+  "homepage_url": "https://gitmanual.com",
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": { "default_title": "Open this repo's setup manual", "default_icon": { "16": "icons/16.png", "32": "icons/32.png" } },
+  "background": { "service_worker": "background.js", "scripts": ["background.js"] },
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    { "matches": ["https://github.com/*"], "js": ["content.js"], "css": ["content.css"], "run_at": "document_idle" }
+  ],
+  "browser_specific_settings": { "gecko": { "id": "extension@gitmanual.com", "strict_min_version": "121.0" } }
+}

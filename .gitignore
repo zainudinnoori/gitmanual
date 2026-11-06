@@ -45,3 +45,6 @@ Thumbs.db
 
 # Repos cloned while testing
 dumbtv/
+
+# Packaged browser extension (npm run extension:zip)
+gitmanual-extension.zip

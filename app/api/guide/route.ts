@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getGuide, saveGuide } from "@/lib/db";
 import { GitHubError, parseRepoUrl } from "@/lib/github";
+import { analyzeGate, limit, LimitError, limitHeaders, visitor } from "@/lib/limit";
 import { loadRepo } from "@/lib/pipeline";
 import { OS_LABEL, OS_LIST, type OS } from "@/lib/os";
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
 
   let loaded;
   try {
-    loaded = await loadRepo(ref);
+    loaded = await loadRepo(ref, { gate: analyzeGate(req.headers) });
   } catch (err) {
     return new Response(`**Error:** ${err instanceof GitHubError ? err.message : "Couldn't load the repository."}`, { status: 502 });
   }
@@ -37,6 +38,14 @@ export async function POST(req: Request) {
   // Each repo and OS is written once and then served from the database.
   const saved = await getGuide(key, os);
   if (saved) return new Response(saved, { headers: { "Content-Type": "text/plain; charset=utf-8", "X-Guide-Cached": "1" } });
+
+  // Only new guides cost anything, so only they count.
+  try {
+    await limit("guide", visitor(req.headers));
+  } catch (e) {
+    if (e instanceof LimitError) return new Response(`**${e.message}**`, { status: 429, headers: { "Content-Type": "text/plain; charset=utf-8", ...limitHeaders(e) } });
+    throw e;
+  }
 
   const shell = os === "windows" ? "PowerShell" : os === "mac" ? "zsh" : "bash";
   // Only send this OS's slice to keep the prompt focused.

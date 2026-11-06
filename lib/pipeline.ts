@@ -21,7 +21,8 @@ export type RepoData = {
 export type Loaded = { key: string; data: RepoData; analyzedAt: number; cached: boolean; stale?: boolean };
 
 // Repos analyzed in the last 12 hours come straight from the database: instant, and no GitHub calls.
-export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boolean } = {}): Promise<Loaded> {
+// gate runs only when the repo has to be read from GitHub (see lib/limit.ts); it throws to refuse.
+export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boolean; gate?: () => Promise<void> } = {}): Promise<Loaded> {
   const lookup = repoKey(ref.owner, ref.repo, ref.ref);
   const saved = await getCached(lookup);
   const cached = saved && (saved.data as RepoData).version === VERSION ? saved : null;
@@ -31,6 +32,7 @@ export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boo
   }
 
   try {
+    await opts.gate?.();
     const data = await analyzeRepo(ref);
     const [owner, name] = data.meta.fullName.split("/");
     const key = repoKey(owner, name, ref.ref);
@@ -43,7 +45,7 @@ export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boo
     if (opts.view) await countView(key);
     return { key, data, analyzedAt, cached: false };
   } catch (err) {
-    // GitHub is down or rate-limited: an older saved copy beats an error page.
+    // GitHub is down or rate-limited, or the visitor is over a limit: an older saved copy beats an error page.
     if (!cached) throw err;
     if (opts.view) await countView(lookup);
     return { key: lookup, data: cached.data as RepoData, analyzedAt: cached.analyzedAt, cached: true, stale: true };

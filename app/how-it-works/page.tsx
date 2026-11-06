@@ -57,7 +57,7 @@ const FAQ = [
     a: (
       <>
         Each repo&apos;s manual (public GitHub data), how often it&apos;s looked up, and &ldquo;did it work&rdquo; answers with the system
-        they were for. No accounts, no cookies, and nothing else about you. Page views are counted anonymously with Vercel Analytics. Pressing play on a Reel loads Facebook&apos;s video player, which follows
+        they were for. No accounts, no cookies, and nothing else about you. To stop abuse, a counter per visitor (a scrambled code that changes daily, never your IP address) limits how many new repos and AI guides can be requested in a row. Page views are counted anonymously with Vercel Analytics. Pressing play on a Reel loads Facebook&apos;s video player, which follows
         Facebook&apos;s own privacy rules; until then, nothing on the page comes from Facebook.
       </>
     ),

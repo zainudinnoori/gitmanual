@@ -56,6 +56,11 @@ const SCHEMA = `
     created_at INTEGER NOT NULL,
     PRIMARY KEY (key, os)
   );
+  CREATE TABLE IF NOT EXISTS hits (
+    bucket TEXT PRIMARY KEY,        -- what is counted, e.g. "analyze:<hashed visitor>" (never a raw IP)
+    count INTEGER NOT NULL,
+    reset_at INTEGER NOT NULL       -- when the window ends and counting starts over
+  );
 `;
 
 // One connection per server process. Kept on globalThis because dev hot reloads re-run this module,
@@ -353,5 +358,24 @@ export function shelfNames(): Promise<Map<string, string>> {
       byName.set(name, [...(byName.get(name) ?? []), full]);
     }
     return new Map([...byName].filter(([, list]) => list.length === 1).map(([name, [full]]) => [name, full]));
+  });
+}
+
+// Counts one use of a limited action in a fixed time window; returns the count so far, or 0 when the
+// database is unavailable (limits then let requests through rather than blocking everyone).
+export function hit(bucket: string, windowMs: number): Promise<{ count: number; resetAt: number }> {
+  return safely({ count: 0, resetAt: 0 }, async (c) => {
+    const now = Date.now();
+    const { rows } = await c.execute({
+      sql: `INSERT INTO hits (bucket, count, reset_at) VALUES (?, 1, ?)
+            ON CONFLICT (bucket) DO UPDATE SET
+              count = CASE WHEN reset_at <= ? THEN 1 ELSE count + 1 END,
+              reset_at = CASE WHEN reset_at <= ? THEN excluded.reset_at ELSE reset_at END
+            RETURNING count, reset_at`,
+      args: [bucket, now + windowMs, now, now],
+    });
+    // Now and then, clear out windows that have ended.
+    if (Math.random() < 0.02) await c.execute({ sql: "DELETE FROM hits WHERE reset_at <= ?", args: [now] });
+    return { count: Number(rows[0].count), resetAt: Number(rows[0].reset_at) };
   });
 }

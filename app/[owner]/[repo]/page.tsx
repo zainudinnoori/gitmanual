@@ -6,6 +6,7 @@ import { getVotes } from "@/lib/db";
 import { GitHubError } from "@/lib/github";
 import { OS_LABEL, OS_LIST, type OS } from "@/lib/os";
 import { PICKS, picksFor } from "@/lib/picks";
+import { analyzeGate } from "@/lib/limit";
 import { loadRepo } from "@/lib/pipeline";
 import { ReportView, type ReportData, type Mode } from "../../report";
 
@@ -15,9 +16,10 @@ const BOTS = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|quora|w
 
 // One load per request, shared by generateMetadata and the page.
 const getRepo = cache(async (owner: string, repo: string, ref?: string): Promise<{ data: ReportData } | { error: string; status: number }> => {
-  const ua = (await headers()).get("user-agent") ?? "";
+  const h = await headers();
+  const ua = h.get("user-agent") ?? "";
   try {
-    const l = await loadRepo({ owner, repo: repo.replace(/\.git$/, ""), ref }, { view: !BOTS.test(ua) });
+    const l = await loadRepo({ owner, repo: repo.replace(/\.git$/, ""), ref }, { view: !BOTS.test(ua), gate: analyzeGate(h) });
     return { data: { ...l.data, analyzedAt: l.analyzedAt, cached: l.cached, stale: l.stale, votes: await getVotes(l.key) } as ReportData };
   } catch (e) {
     return e instanceof GitHubError ? { error: e.message, status: e.status } : { error: "Failed to analyze repository.", status: 500 };

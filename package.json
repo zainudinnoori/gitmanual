@@ -30,7 +30,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "node scripts/push-to-turso.mjs",
     "check:scripts": "node --env-file-if-exists=.env.local --import tsx scripts/check-setup-scripts.ts",
-    "setup-script": "node --env-file-if-exists=.env.local --import tsx scripts/print-setup-script.ts"
+    "setup-script": "node --env-file-if-exists=.env.local --import tsx scripts/print-setup-script.ts",
+    "extension:zip": "cd extension && rm -f ../gitmanual-extension.zip && zip -qr ../gitmanual-extension.zip manifest.json background.js content.js content.css icons"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
