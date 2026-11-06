@@ -273,9 +273,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .fit-device .eyebrow { margin: 0; }
 
 .seg { display: inline-flex; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 10px; padding: 3px; gap: 2px; }
-.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 7px; cursor: pointer; font: var(--ui); display: flex; align-items: center; gap: 6px; }
-.seg button:hover { background: var(--paper); }
-.seg button.on { background: var(--ink); color: var(--paper); }
+.seg button, .seg a { border: 0; background: none; padding: 6px 12px; border-radius: 7px; cursor: pointer; font: var(--ui); display: flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.seg button:hover, .seg a:hover { background: var(--paper); }
+.seg button.on, .seg a.on { background: var(--ink); color: var(--paper); }
 .you { font: 600 var(--fs-label) var(--mono); text-transform: uppercase; background: var(--wrench); color: var(--ink); padding: 1px 5px; border-radius: 4px; }
 
 /* Sheet: steps + parts list */
@@ -749,7 +749,7 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .fit-stamp { width: 52px; height: 52px; font-size: 26px; }
   .step { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .step-n { text-align: left; font-size: 34px; }
-  .seg button { padding: 6px 9px; }
+  .seg button, .seg a { padding: 6px 9px; }
 }
 
 /* The narrowest phones: the menu gets its own row under the logo instead of running off the screen. */

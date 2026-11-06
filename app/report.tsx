@@ -7,7 +7,7 @@ import type { Guides } from "@/lib/guides";
 import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
 import type { Arch, Asset, InstallKind, InstallOptions } from "@/lib/install";
-import { OS_LABEL, OS_LIST, type OS } from "@/lib/os";
+import { OS_LABEL, OS_LIST, OS_SLUG, type OS } from "@/lib/os";
 import { buildScript } from "@/lib/script";
 import { CodeBlock, CopyButton, RepoForm, Wrenches, detectArch, detectOS } from "./ui";
 
@@ -88,7 +88,7 @@ function askPrompt(result: Result, os: OS, arch: Arch | null): string {
   });
   return [
     `I'm trying to set up ${meta.fullName} (${meta.htmlUrl}) on ${OS_LABEL[os]}${chip ? ` (${chip})` : ""} and I'm stuck.`,
-    `Its setup manual on gitmanual: ${site}/${meta.fullName}?os=${os}`,
+    `Its setup manual on gitmanual: ${site}/${meta.fullName}/${OS_SLUG[os]}`,
     needs.length ? `It needs: ${needs.join(", ")}.` : "",
     steps.length ? `Suggested steps:\n${steps.join("\n")}` : "",
     `Walk me through the setup one step at a time, with ${shell} commands for ${OS_LABEL[os]}. Check the repo's README if you can. Before each step, tell me how to check it worked, and ask me for the exact error message if something fails.`,
@@ -133,7 +133,10 @@ export function ReportView({
   picks = [],
   curator = "",
   aiGuide = false,
+  osPage = null,
 }: {
+  // Set on /owner/repo/windows etc.: that system is the page's subject, so it isn't swapped for the visitor's.
+  osPage?: OS | null;
   picks?: Pick[];
   curator?: string;
   // "Write my guide" only shows when the server has an Anthropic key.
@@ -163,7 +166,7 @@ export function ReportView({
     detectArch().then(setArch);
     const q = new URLSearchParams(window.location.search);
     const qOs = q.get("os") as OS | null;
-    setOs(qOs && OS_LIST.includes(qOs) ? qOs : d);
+    setOs(osPage ?? (qOs && OS_LIST.includes(qOs) ? qOs : d));
     const qMode = q.get("mode");
     if (refresh === 0 && (initial || initialError)) return;
 
@@ -200,10 +203,13 @@ export function ReportView({
   useEffect(() => {
     if (!result) return;
     const params = new URLSearchParams(window.location.search);
-    params.set("os", os);
     params.set("mode", mode);
-    window.history.replaceState(null, "", `?${params}`);
-  }, [result, os, mode]);
+    // On a per-system page the system is in the path, so switching moves to that system's page.
+    if (osPage) params.delete("os");
+    else params.set("os", os);
+    const path = osPage ? `/${result.meta.fullName}/${OS_SLUG[os]}` : window.location.pathname;
+    window.history.replaceState(null, "", `${path}?${params}`);
+  }, [result, os, mode, osPage]);
 
   async function generateGuide() {
     if (!result) return;
@@ -274,6 +280,7 @@ export function ReportView({
       picks={picks}
       curator={curator}
       aiGuide={aiGuide}
+      osPage={Boolean(osPage)}
       onRefresh={() => setRefresh((n) => n + 1)}
       onVotes={(votes) => setResult((r) => r && { ...r, votes })}
     />
@@ -296,10 +303,12 @@ function Report({
   picks,
   curator,
   aiGuide,
+  osPage,
 }: {
   picks: Pick[];
   curator: string;
   aiGuide: boolean;
+  osPage: boolean;
   result: Result;
   os: OS;
   detectedOs: OS | null;
@@ -337,7 +346,7 @@ function Report({
     <div className="wrap report">
       <header className="sheet-head">
         <div>
-          <p className="eyebrow">Assembly instructions</p>
+          <p className="eyebrow">{osPage ? `How to install on ${OS_LABEL[os]}` : "Assembly instructions"}</p>
           <h1 className="display-md repo-title" translate="no">
             <a href={meta.htmlUrl} target="_blank" rel="noreferrer">
               <span className="owner">{meta.fullName.split("/")[0]}/</span>
@@ -449,10 +458,21 @@ function Report({
           <span className="eyebrow">Checking for</span>
           <div className="seg" role="radiogroup" aria-label="Operating system">
             {OS_LIST.map((o) => (
-              <button key={o} role="radio" aria-checked={o === os} className={o === os ? "on" : ""} onClick={() => onOs(o)}>
+              // Real links, so search engines find each system's page; clicking just switches in place.
+              <a
+                key={o}
+                href={`/${meta.fullName}/${OS_SLUG[o]}`}
+                role="radio"
+                aria-checked={o === os}
+                className={o === os ? "on" : ""}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onOs(o);
+                }}
+              >
                 {OS_LABEL[o]}
                 {o === detectedOs && <span className="you">you</span>}
-              </button>
+              </a>
             ))}
           </div>
           {myArch && <span className="note">Your chip: {archLabel(myArch, os)}</span>}

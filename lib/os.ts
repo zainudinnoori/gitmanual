@@ -1,6 +1,9 @@
 export type OS = "mac" | "windows" | "linux";
 export const OS_LIST: OS[] = ["mac", "windows", "linux"];
 export const OS_LABEL: Record<OS, string> = { mac: "macOS", windows: "Windows", linux: "Linux" };
+// Each system has its own manual page (/owner/repo/windows), so it can rank for "how to install X on Windows".
+export const OS_SLUG: Record<OS, string> = { mac: "macos", windows: "windows", linux: "linux" };
+export const osFromSlug = (slug: string): OS | null => OS_LIST.find((o) => OS_SLUG[o] === slug.toLowerCase()) ?? null;
 
 export function majorMinor(v: string | undefined): string | undefined {
   return v?.match(/(\d+(?:\.\d+)?)/)?.[1];
