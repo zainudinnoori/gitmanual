@@ -144,6 +144,8 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .trick { margin: 18px 0 0; font-size: var(--fs-small); color: var(--pencil); }
 .trick s { text-decoration-color: var(--no); text-decoration-thickness: 2px; font-family: var(--mono); }
 .trick b { font-family: var(--mono); color: var(--wrench-2); }
+.trick a { color: var(--ink); text-underline-offset: 3px; }
+.trick a:hover { color: var(--wrench-2); }
 
 /* Landing hero */
 .hero { padding: 72px 0 88px; }

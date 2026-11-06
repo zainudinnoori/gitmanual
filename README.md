@@ -16,6 +16,7 @@
 
 <p align="center">
   <a href="https://gitmanual.com/zainudinnoori/gitmanual"><img src="https://gitmanual.com/zainudinnoori/gitmanual/badge.svg" alt="Setup manual" /></a>
+  <a href="https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn"><img src="https://img.shields.io/badge/Chrome-extension-15161a?logo=googlechrome&logoColor=white" alt="Chrome extension" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ff6b2c" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/Next.js-16-15161a" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/TypeScript-strict-3178c6" alt="TypeScript" />
@@ -67,7 +68,7 @@ Plenty of people find a great project on GitHub and don't know how to run it. RE
 
 The same facts are available as JSON at `/api/v1/manual?repo=owner/repo` (`&os=`, `&arch=`, `&format=md`), and [`/llms.txt`](https://gitmanual.com/llms.txt) describes it all.
 
-**Browser extension:** a **Setup manual** button on every GitHub repo, next to Star and Fork. See [`extension/`](extension/README.md).
+**Browser extension:** a **Setup manual** button on every GitHub repo, next to Star and Fork. [Add it to Chrome](https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn) (works in Edge and Brave too); the code is in [`extension/`](extension/README.md).
 
 Plus **the shelf** (`/shelf`): every repo people have looked up, with search and filters for stars, language and difficulty. Every repo also gets a share image and a 1080×1080 poster.
 

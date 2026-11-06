@@ -1,4 +1,5 @@
 import { GitHubError } from "@/lib/github";
+import { compactCount } from "@/lib/format";
 import { fitCheck } from "@/lib/fit";
 import { posterImage } from "@/lib/og";
 import { OS_LIST } from "@/lib/os";
@@ -8,9 +9,6 @@ import { loadRepo } from "@/lib/pipeline";
 const LABEL = { mac: "macOS", windows: "Windows", linux: "Linux" } as const;
 const TIME: Record<string, string> = { Easy: "~5 min", Moderate: "~15 min", Involved: "30+ min" };
 
-function compact(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}k` : String(n);
-}
 
 // A 1080×1080 poster for social posts. ?download=1 saves it as a file.
 export async function GET(req: Request, { params }: { params: Promise<{ owner: string; repo: string }> }) {
@@ -28,7 +26,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ owner: s
     owner: o,
     name: n,
     description: meta.description?.replace(/:[a-z0-9_+-]+:\s*/g, "") ?? null,
-    stars: compact(meta.stars),
+    stars: compactCount(meta.stars),
     difficulty: analysis.difficulty.label,
     time: TIME[analysis.difficulty.label] ?? "",
     // Chip is unknown here, so the verdict is the system-level one.

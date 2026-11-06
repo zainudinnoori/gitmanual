@@ -7,6 +7,9 @@ import { OS_LABEL, type OS } from "@/lib/os";
 import { RisingCard, ShelfCard } from "./cards";
 import { RepoForm, Wrenches, detectOS } from "./ui";
 
+// The browser extension's store page, when this deployment has one (NEXT_PUBLIC_EXTENSION_URL).
+const EXTENSION_URL = process.env.NEXT_PUBLIC_EXTENSION_URL || null;
+
 type Demo = {
   repo: string;
   parts: { name: string; kind: string }[];
@@ -151,7 +154,18 @@ export function Landing({
               ))}
             </p>
             <p className="trick">
-              Shortcut: in any GitHub URL, change <s>hub</s> to <b>manual</b>.
+              Shortcut: in any GitHub URL, change <s>hub</s> to <b>manual</b>
+              {EXTENSION_URL ? (
+                <>
+                  , or add the{" "}
+                  <a href={EXTENSION_URL} target="_blank" rel="noreferrer">
+                    Chrome extension
+                  </a>
+                  .
+                </>
+              ) : (
+                "."
+              )}
             </p>
           </div>
 

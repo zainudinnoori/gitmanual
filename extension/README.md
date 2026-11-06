@@ -1,5 +1,7 @@
 # gitmanual browser extension
 
+**[Get it on the Chrome Web Store](https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn)**
+
 Adds a **Setup manual** button to GitHub repos. On a repo's home page it sits next to Notifications, Fork and Star; on its other pages (issues, folders…) it's a small button in the corner. The toolbar icon opens the manual for the repo you're on.
 
 **Privacy:** the extension reads the repo's name from the GitHub page and links to `gitmanual.com/owner/repo`. It makes no requests, stores nothing and collects nothing. The only permission is `activeTab`, so the toolbar icon can read the current tab's address when you click it.

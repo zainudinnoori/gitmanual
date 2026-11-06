@@ -28,6 +28,8 @@ export const viewport: Viewport = { themeColor: "#f2f3f5" };
 
 // gitmanual's own open-source repo, e.g. https://github.com/you/gitmanual. The menu's GitHub link appears once it's set.
 const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL || null;
+// Optional: the browser extension's store page, linked from the footer and the home page.
+const EXTENSION_URL = process.env.NEXT_PUBLIC_EXTENSION_URL || null;
 // Optional: a ShareText form for "Contact" in the footer (only https links are used).
 const CONTACT_FORM = /^https:\/\/[^\s"]+$/.test(process.env.CONTACT_FORM_URL ?? "") ? process.env.CONTACT_FORM_URL! : null;
 
@@ -82,6 +84,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/shelf">The shelf</Link>
               {finds && <Link href="/finds">{finds}</Link>}
               <Link href="/how-it-works">How it works</Link>
+              {EXTENSION_URL && (
+                <a href={EXTENSION_URL} target="_blank" rel="noreferrer">
+                  Chrome extension&nbsp;↗
+                </a>
+              )}
             </nav>
             {repo && (
               <nav className="footer-col" aria-label="Open source">
