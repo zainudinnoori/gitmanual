@@ -86,9 +86,12 @@ export function ReportView({
   initialMode,
   picks = [],
   curator = "",
+  aiGuide = false,
 }: {
   picks?: Pick[];
   curator?: string;
+  // "Write my guide" only shows when the server has an Anthropic key.
+  aiGuide?: boolean;
   owner: string;
   repo: string;
   gitRef?: string;
@@ -224,6 +227,7 @@ export function ReportView({
       onGuide={generateGuide}
       picks={picks}
       curator={curator}
+      aiGuide={aiGuide}
       onRefresh={() => setRefresh((n) => n + 1)}
       onVotes={(votes) => setResult((r) => r && { ...r, votes })}
     />
@@ -245,9 +249,11 @@ function Report({
   onVotes,
   picks,
   curator,
+  aiGuide,
 }: {
   picks: Pick[];
   curator: string;
+  aiGuide: boolean;
   result: Result;
   os: OS;
   detectedOs: OS | null;
@@ -495,7 +501,12 @@ function Report({
                   <ReactMarkdown components={inline}>{n}</ReactMarkdown>
                 </p>
               ))}
-              {steps.length <= 1 && <p className="empty">We couldn&apos;t spot a known stack. The AI guide below can read the code for you.</p>}
+              {steps.length <= 1 && (
+                <p className="empty">
+                  We couldn&apos;t spot a known stack.{" "}
+                  {aiGuide ? "The AI guide below can read the code for you." : "The README and the maintainers' docs are the best place to start."}
+                </p>
+              )}
               {!a.readmeFirst && a.readme && (
                 <details className="panel">
                   <summary>
@@ -509,29 +520,31 @@ function Report({
 
           <DidItWork repo={meta.fullName} os={os} votes={result.votes} onVotes={onVotes} />
 
-          <div className="panel ai">
-            <div className="panel-head">
-              <div>
-                <h3>Still stuck? Get a written guide</h3>
-                <p className="note">
-                  Claude reads the {Object.keys(files).length} key files and writes a step-by-step guide for {OS_LABEL[os]}. Once written, it&apos;s saved for everyone.
-                </p>
+          {aiGuide && (
+            <div className="panel ai">
+              <div className="panel-head">
+                <div>
+                  <h3>Still stuck? Get a written guide</h3>
+                  <p className="note">
+                    Claude reads the {Object.keys(files).length} key files and writes a step-by-step guide for {OS_LABEL[os]}. Once written, it&apos;s saved for everyone.
+                  </p>
+                </div>
+                <button className="btn btn-sm btn-go" onClick={onGuide} disabled={guideLoading || Boolean(guide)}>
+                  {guideLoading ? (
+                    <>
+                      <span className="spinner" />
+                      Writing…
+                    </>
+                  ) : guide ? (
+                    "Written"
+                  ) : (
+                    "Write my guide"
+                  )}
+                </button>
               </div>
-              <button className="btn btn-sm btn-go" onClick={onGuide} disabled={guideLoading || Boolean(guide)}>
-                {guideLoading ? (
-                  <>
-                    <span className="spinner" />
-                    Writing…
-                  </>
-                ) : guide ? (
-                  "Written"
-                ) : (
-                  "Write my guide"
-                )}
-              </button>
+              {guide && <div className="prose">{md(guide)}</div>}
             </div>
-            {guide && <div className="prose">{md(guide)}</div>}
-          </div>
+          )}
         </div>
 
         <aside className="sheet-side">

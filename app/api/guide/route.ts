@@ -24,6 +24,8 @@ export async function POST(req: Request) {
   const { url, os: rawOs } = (await req.json().catch(() => ({}))) as { url?: string; os?: OS };
   const ref = url ? parseRepoUrl(url) : null;
   if (!ref) return new Response("Expected { url, os }", { status: 400 });
+  // Written guides are optional: without a key the button isn't shown, and this says so to anyone calling it directly.
+  if (!process.env.ANTHROPIC_API_KEY) return new Response("**Written guides aren't available on this site.**", { status: 404 });
   const os: OS = rawOs && OS_LIST.includes(rawOs) ? rawOs : "linux";
 
   let loaded;
@@ -112,16 +114,12 @@ Write the setup guide.`;
         if (final.stop_reason === "refusal") controller.enqueue(encoder.encode("\n\n_The model declined to generate this guide._"));
         if (final.stop_reason === "max_tokens") controller.enqueue(encoder.encode("\n\n_…output truncated._"));
       } catch (err) {
+        // Visitors get a plain message; the details go to the server log.
+        console.error("guide:", err);
         const msg =
-          err instanceof Anthropic.AuthenticationError
-            ? "No valid Anthropic credentials. Set ANTHROPIC_API_KEY in .env.local and restart `npm run dev`."
-            : err instanceof Anthropic.RateLimitError
-              ? "Anthropic rate limit hit — try again shortly."
-              : err instanceof Anthropic.APIError
-                ? `Anthropic API error ${err.status}: ${err.message}`
-                : err instanceof Error && /credentials|api key|apiKey/i.test(err.message)
-                  ? "No Anthropic credentials found. Set ANTHROPIC_API_KEY in .env.local and restart `npm run dev`."
-                  : `Failed to generate guide: ${err instanceof Error ? err.message : String(err)}`;
+          err instanceof Anthropic.RateLimitError
+            ? "Too many guides are being written right now. Try again in a minute."
+            : "Couldn't write the guide right now. Try again later.";
         controller.enqueue(encoder.encode(`\n\n**Error:** ${msg}`));
       } finally {
         controller.close();

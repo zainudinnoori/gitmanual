@@ -86,6 +86,7 @@ export default async function RepoPage({ params, searchParams }: Props) {
         initialMode={initialMode}
         picks={"data" in r ? await picksFor(r.data.meta.fullName) : []}
         curator={PICKS.curator}
+        aiGuide={Boolean(process.env.ANTHROPIC_API_KEY)}
       />
     </>
   );
