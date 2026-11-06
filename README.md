@@ -23,7 +23,7 @@
   <a href="https://vercel.com/new/clone?repository-url=https://github.com/zainudinnoori/gitmanual&env=GITHUB_TOKEN,TURSO_DATABASE_URL,TURSO_AUTH_TOKEN,NEXT_PUBLIC_SITE_URL&envDescription=See%20docs%2Fself-hosting.md&project-name=gitmanual"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="20" /></a>
 </p>
 
-![gitmanual home page](docs/landing.png)
+![Changing github.com/ollama/ollama to gitmanual.com/ollama/ollama opens its setup manual](docs/demo.gif)
 
 ## The trick
 

@@ -110,6 +110,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
           <div className="wrap footer-base">
             <span>© {new Date().getFullYear()} gitmanual · MIT license</span>
+            <nav className="footer-legal" aria-label="About this site">
+              <Link href="/about">About</Link>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/terms">Terms</Link>
+              <Link href="/contact">Contact</Link>
+            </nav>
             <span>Reads public data from GitHub. Always read commands before you run them.</span>
           </div>
         </footer>

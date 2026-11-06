@@ -67,7 +67,8 @@ const FAQ = [
       <>
         Each repo&apos;s manual (public GitHub data), how often it&apos;s looked up, and &ldquo;did it work&rdquo; answers with the system
         they were for. No accounts, no cookies, and nothing else about you. To stop abuse, a counter per visitor (a scrambled code that changes daily, never your IP address) limits how many new repos and AI guides can be requested in a row. Page views are counted anonymously with Vercel Analytics. Pressing play on a Reel loads Facebook&apos;s video player, which follows
-        Facebook&apos;s own privacy rules; until then, nothing on the page comes from Facebook. The same goes for the contact form: it loads from sharetext.net only when you open it.
+        Facebook&apos;s own privacy rules; until then, nothing on the page comes from Facebook. The same goes for the contact form: it loads from sharetext.net only on the contact page or when you open it. The details are in the{" "}
+        <Link href="/privacy">privacy policy</Link>.
       </>
     ),
   },

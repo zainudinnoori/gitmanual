@@ -383,6 +383,9 @@ details[open].panel > summary h3::after { content: " −"; }
 .footer-col a { color: var(--pencil); text-decoration: none; }
 .footer-col a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .footer-col a:focus-visible, .footer-brand .wordmark:focus-visible { outline: 2px solid var(--wrench); outline-offset: 2px; border-radius: 3px; }
+.footer-legal { display: flex; gap: 16px; flex-wrap: wrap; }
+.footer-legal a { color: var(--pencil); text-decoration: none; }
+.footer-legal a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .footer-base { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding-block: 18px 26px; border-top: 1px dashed var(--line-strong); font-size: var(--fs-meta); }
 /* Contact dialog: the site's own box around the ShareText form's iframe. */
 .contact { padding: 0; border: 0; background: transparent; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: visible; }
@@ -543,6 +546,21 @@ details[open].panel > summary h3::after { content: " −"; }
 .pager span.num { font: 500 var(--fs-meta) var(--mono); color: var(--pencil); white-space: nowrap; }
 
 /* How it works */
+/* About, Privacy, Terms, Contact: a narrow reading column. */
+.doc { padding: 56px 24px 96px; }
+.doc-head { max-width: 680px; margin-bottom: 36px; }
+.doc-updated { margin: 14px 0 0; font: 500 var(--fs-meta) var(--mono); color: var(--pencil); }
+.doc-body { max-width: 680px; font-size: var(--fs-body); line-height: 1.65; overflow-wrap: anywhere; }
+.doc-body h2 { font: 800 var(--fs-h3) var(--display); letter-spacing: -0.015em; margin: 36px 0 10px; }
+.doc-body p, .doc-body ul { margin: 0 0 14px; }
+.doc-body ul { padding-left: 1.2em; }
+.doc-body li { margin-bottom: 8px; }
+.doc-body a { color: var(--ink); text-underline-offset: 3px; }
+.doc-body a:hover { color: var(--wrench-2); }
+.doc-body code { font: 500 0.9em var(--mono); background: var(--sheet); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+.doc-body strong { font-weight: 650; }
+.doc-form { margin: 8px 0 28px; background: var(--sheet); border: 2px solid var(--ink); border-radius: 16px; box-shadow: 5px 5px 0 var(--ink); overflow: hidden; }
+.doc-form iframe { display: block; width: calc(100% + 6px); margin: -3px; height: 460px; border: 0; }
 .how { padding: 56px 24px 96px; }
 .how-head { max-width: 640px; margin-bottom: 40px; }
 .how-h2 { font: 800 var(--fs-h2) var(--display); letter-spacing: -0.025em; margin: 0 0 16px; }
