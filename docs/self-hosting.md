@@ -146,5 +146,6 @@ A file with the same `url` as a synced post overrides it, which is handy for fix
 | `FINDS_NAME`, `FINDS_ABOUT`, `FINDS_URL`, `FINDS_AVATAR` | | The Finds page (on when `FINDS_NAME` is set) |
 | `FB_PAGE_ID`, `FB_PAGE_TOKEN`, `FB_GRAPH_VERSION` | | Facebook Page sync (Graph API version defaults to `v23.0`) |
 | `CRON_SECRET` | with the sync | Protects `/api/cron/facebook` |
+| `CONTACT_FORM_URL` | | A ShareText form's embed link (`https://sharetext.net/form/<code>/embed`): adds "Contact" to the footer. Its script loads only when someone opens the form |
 | `LIMIT_SALT` | production | Any long random string; keeps the daily visitor codes used for rate limits unguessable |
 | `RATE_LIMITS` | | `off` turns rate limits off (they're on by default; see `lib/limit.ts`) |

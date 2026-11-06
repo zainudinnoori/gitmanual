@@ -370,8 +370,38 @@ details[open].panel > summary h3::after { content: " −"; }
 .prose table { border-collapse: collapse; display: block; overflow-x: auto; }
 .prose td, .prose th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
 
-.footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--pencil); font-size: var(--fs-meta); }
-.footer-inner { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.footer { border-top: 1.5px solid var(--ink); margin-top: 24px; padding: 44px 0 0; background: var(--sheet); color: var(--pencil); font-size: var(--fs-small); }
+.footer-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)); gap: 40px; padding-bottom: 36px; }
+.footer-brand .wordmark, .footer-brand .contact-open { color: var(--ink); }
+.footer-brand p { margin: 12px 0 18px; max-width: 34ch; line-height: 1.5; }
+.footer-brand s { text-decoration-color: var(--no); text-decoration-thickness: 2px; font-family: var(--mono); }
+.footer-brand b { font-family: var(--mono); font-weight: 600; color: var(--wrench-2); }
+.footer-col { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.footer-col h2 { margin: 0 0 4px; font: 600 var(--fs-label) var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink); }
+.footer-col a { color: var(--pencil); text-decoration: none; }
+.footer-col a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.footer-col a:focus-visible, .footer-brand .wordmark:focus-visible { outline: 2px solid var(--wrench); outline-offset: 2px; border-radius: 3px; }
+.footer-base { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding-block: 18px 26px; border-top: 1px dashed var(--line-strong); font-size: var(--fs-meta); }
+/* Contact dialog: the site's own box around the ShareText form's iframe. */
+.contact { padding: 0; border: 0; background: transparent; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: visible; }
+.contact::backdrop { background: rgb(21 22 26 / 0.55); backdrop-filter: blur(2px); }
+.contact-box {
+  display: flex; flex-direction: column; max-height: calc(100dvh - 32px); background: var(--sheet); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 18px; box-shadow: 6px 6px 0 var(--ink); overflow: hidden;
+}
+.contact-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px 14px 22px; border-bottom: 2px solid var(--ink); }
+.contact-head h2 { margin: 0; font: 800 var(--fs-h3) var(--display); letter-spacing: -0.02em; }
+.contact-head p { margin: 2px 0 0; font-size: var(--fs-small); color: var(--pencil); }
+.contact-close {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center; font: 600 22px/1 var(--sans);
+  color: var(--ink); background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 9px; cursor: pointer;
+}
+.contact-close:hover { box-shadow: 2px 2px 0 var(--ink); transform: translate(-1px, -1px); }
+.contact-close:focus-visible { outline: 2px solid var(--wrench); outline-offset: 2px; }
+/* The form page draws its own thin frame; tuck that edge under ours so the box has one border. */
+.contact-frame { display: block; width: calc(100% + 6px); margin: -3px -3px -3px; height: 420px; border: 0; flex: 1 1 auto; min-height: 0; }
+.contact[open] .contact-box { animation: contact-in 0.18s var(--ease); }
+@keyframes contact-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 
 /* Start here: the ways into a repo */
 .stamp-line { margin: 14px 0 0; font: var(--fs-meta) var(--mono); color: var(--pencil); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -471,7 +501,8 @@ details[open].panel > summary h3::after { content: " −"; }
 .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; }
 .pager .btn { min-width: 132px; }
 .pager .btn[aria-disabled="true"] { opacity: 0.35; cursor: default; box-shadow: none; transform: none; }
-.pager span.num { font: 500 var(--fs-meta) var(--mono); color: var(--pencil); }
+.pager { gap: 12px; }
+.pager span.num { font: 500 var(--fs-meta) var(--mono); color: var(--pencil); white-space: nowrap; }
 
 /* How it works */
 .how { padding: 56px 24px 96px; }
@@ -634,7 +665,12 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .fit { grid-template-columns: auto minmax(0, 1fr); }
   .fit-device { grid-column: 1 / -1; justify-items: start; }
 }
+@media (max-width: 760px) {
+  .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+  .footer-brand { grid-column: 1 / -1; }
+}
 @media (max-width: 560px) {
+  .pager .btn { min-width: 0; padding-inline: 14px; }
   .nav-links a.nav-gh { display: none; }
   /* Long commands wrap rather than scroll under the Copy button; Copy still copies them as written. */
   .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }

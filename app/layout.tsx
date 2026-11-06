@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { PICKS, sortedPicks } from "@/lib/picks";
-import { Logo, NavLinks } from "./ui";
+import { ContactButton, Logo, NavLinks } from "./ui";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display" });
@@ -28,6 +28,8 @@ export const viewport: Viewport = { themeColor: "#f2f3f5" };
 
 // gitmanual's own open-source repo, e.g. https://github.com/you/gitmanual. The menu's GitHub link appears once it's set.
 const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL || null;
+// Optional: a ShareText form for "Contact" in the footer (only https links are used).
+const CONTACT_FORM = /^https:\/\/[^\s"]+$/.test(process.env.CONTACT_FORM_URL ?? "") ? process.env.CONTACT_FORM_URL! : null;
 
 async function repoStars(): Promise<number | null> {
   const m = REPO_URL?.match(/github\.com\/([\w.-]+\/[\w.-]+)/);
@@ -44,6 +46,8 @@ async function repoStars(): Promise<number | null> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const finds = (await sortedPicks()).length ? PICKS.curator : null;
+  const repo = REPO_URL?.replace(/\/$/, "") ?? null;
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>
@@ -56,13 +60,49 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Logo />
               gitmanual
             </Link>
-            <NavLinks repo={REPO_URL} stars={await repoStars()} finds={(await sortedPicks()).length ? PICKS.curator : null} />
+            <NavLinks repo={REPO_URL} stars={await repoStars()} finds={finds} />
           </div>
         </header>
         <main id="main">{children}</main>
         <footer className="footer">
-          <div className="wrap footer-inner">
-            <span>gitmanual · open source</span>
+          <div className="wrap footer-grid">
+            <div className="footer-brand">
+              <Link className="wordmark" href="/">
+                <Logo />
+                gitmanual
+              </Link>
+              <p>
+                Setup manuals for open source. In any GitHub link, swap <s>hub</s> for <b>manual</b>.
+              </p>
+              {CONTACT_FORM && <ContactButton form={CONTACT_FORM} />}
+            </div>
+            <nav className="footer-col" aria-label="Use gitmanual">
+              <h2>Use it</h2>
+              <Link href="/">Look up a repo</Link>
+              <Link href="/shelf">The shelf</Link>
+              {finds && <Link href="/finds">{finds}</Link>}
+              <Link href="/how-it-works">How it works</Link>
+            </nav>
+            {repo && (
+              <nav className="footer-col" aria-label="Open source">
+                <h2>Open source</h2>
+                <a href={repo} target="_blank" rel="noreferrer">
+                  GitHub&nbsp;↗
+                </a>
+                <a href={`${repo}/issues/new/choose`} target="_blank" rel="noreferrer">
+                  Report a wrong setup&nbsp;↗
+                </a>
+                <a href={`${repo}/blob/main/docs/self-hosting.md`} target="_blank" rel="noreferrer">
+                  Host your own&nbsp;↗
+                </a>
+                <a href={`${repo}#whats-in-every-manual`} target="_blank" rel="noreferrer">
+                  Badge for your README&nbsp;↗
+                </a>
+              </nav>
+            )}
+          </div>
+          <div className="wrap footer-base">
+            <span>© {new Date().getFullYear()} gitmanual · MIT license</span>
             <span>Reads public data from GitHub. Always read commands before you run them.</span>
           </div>
         </footer>
