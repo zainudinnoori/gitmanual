@@ -26,7 +26,7 @@ npm run extension:zip      # → gitmanual-extension.zip
 - **Single purpose:** "Adds a button on GitHub repository pages that opens the repository's setup manual on gitmanual.com."
 - **Permission justification, activeTab:** "When the toolbar icon is clicked, reads the current tab's address to open that repository's manual."
 - **Data usage:** collects no user data (tick none), and certify the three statements.
-- **Screenshots:** 1280×800, e.g. a repo page with the button, and the manual it opens.
+- **Images** (in `store/`): screenshots `screenshot-1.png` to `screenshot-5.png` (1280×800), small promo tile `promo-tile-440x280.png`, marquee `marquee-1400x560.png`.
 
 Edge Add-ons (<https://partner.microsoft.com/dashboard/microsoftedge>) and Firefox Add-ons (<https://addons.mozilla.org/developers>) take the same zip, free.
 
