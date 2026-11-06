@@ -48,12 +48,18 @@ jobs:
         run: |
           npm ci --ignore-scripts
           mkdir -p ../work
-          npm run -s setup-script -- "$REPO" linux > ../work/setup.sh
+          npm run -s setup-script -- "$REPO" linux > ../work/setup.sh || rm -f ../work/setup.sh
       # The outcome is recorded rather than failing the job, so the report can count every kind of result.
       - name: Run setup.sh
+        if: always()
         working-directory: work
         run: |
           set +e
+          # Building the script failed (e.g. GitHub dropped the connection): count it, so the repo isn't just missing.
+          if [ ! -s setup.sh ]; then
+            jq -n --arg repo "$REPO" '{repo: $repo, outcome: "no-script", exit: 1, reason: "Building the script failed; see the step above."}' > result.json
+            exit 0
+          fi
           timeout 1200 bash setup.sh > log.txt 2>&1
           code=$?
           tail -n 60 log.txt
@@ -93,15 +99,18 @@ jobs:
           import json
           rows = json.load(open("all.json"))
           count = lambda o: sum(r["outcome"] == o for r in rows)
-          ran = len(rows) - count("clone-only")
+          ran = len(rows) - count("clone-only") - count("no-script")
           ok = count("passed") + count("needs-input")
           print(f"## Accuracy: {ok}/{ran} set up ({ok / max(ran, 1):.0%})\n")
-          print(f"Out of {len(rows)} repos: {count('passed')} set up, {count('needs-input')} stopped for secrets as designed, "
-                f"{count('clone-only')} had nothing to install, {count('failed')} failed, {count('timeout')} timed out.\n")
+          parts = [f"{count('passed')} set up", f"{count('needs-input')} stopped for secrets as designed",
+                   f"{count('clone-only')} had nothing to install", f"{count('failed')} failed", f"{count('timeout')} timed out"]
+          if count("no-script"):
+              parts.append(f"{count('no-script')} not tested (the script couldn't be built)")
+          print(f"Out of {len(rows)} repos: {', '.join(parts)}.\n")
           print("| Repo | Outcome | Last error |\n|---|---|---|")
-          icon = {"passed": "✅", "needs-input": "⏸", "clone-only": "➖", "failed": "❌", "timeout": "⏱"}
+          icon = {"passed": "✅", "needs-input": "⏸", "clone-only": "➖", "failed": "❌", "timeout": "⏱", "no-script": "⚠️"}
           for r in sorted(rows, key=lambda r: (r["outcome"] in ("passed", "needs-input", "clone-only"), r["repo"].lower())):
-              reason = r["reason"].replace("|", "\\|") if r["outcome"] in ("failed", "timeout") else ""
+              reason = r["reason"].replace("|", "\\|") if r["outcome"] in ("failed", "timeout", "no-script") else ""
               print(f"| `{r['repo']}` | {icon.get(r['outcome'], '')} {r['outcome']} | {reason} |")
           EOF
       - uses: actions/upload-artifact@v4

@@ -49,8 +49,23 @@ function headers(): HeadersInit {
   return h;
 }
 
+// GitHub sometimes drops a connection or answers 502/503/504 for a moment. Try again twice, after a short pause,
+// before failing the whole analysis; real answers (404, rate limits) come back right away.
+async function fetchRetry(url: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (attempt < 3 && [502, 503, 504].includes(res.status)) throw new Error(`GitHub answered ${res.status}`);
+      return res;
+    } catch (e) {
+      if (attempt >= 3) throw e;
+      await new Promise((r) => setTimeout(r, attempt * 600));
+    }
+  }
+}
+
 async function gh<T>(path: string): Promise<T> {
-  const res = await fetch(`https://api.github.com${path}`, { headers: headers(), cache: "no-store" });
+  const res = await fetchRetry(`https://api.github.com${path}`, { headers: headers(), cache: "no-store" });
   if (!res.ok) {
     if (res.status === 404) throw new GitHubError("Repository not found (or it is private).", 404);
     if (res.status === 403 || res.status === 429) {
@@ -105,7 +120,7 @@ export async function getFiles(
           .split("/")
           .map(encodeURIComponent)
           .join("/")}`;
-        const res = await fetch(url, { cache: "no-store" });
+        const res = await fetchRetry(url, { cache: "no-store" });
         if (res.ok) out[e.path] = await res.text();
       }),
   );
