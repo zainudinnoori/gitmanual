@@ -59,7 +59,13 @@ Plenty of people find a great project on GitHub and don't know how to run it. RE
 
 [![Setup manual](https://gitmanual.com/ollama/ollama/badge.svg)](https://gitmanual.com/ollama/ollama)
 
-**For AI assistants:** an MCP server at `https://gitmanual.com/mcp` (tools `get_setup_manual` and `get_setup_script`), the same facts as JSON at `/api/v1/manual?repo=owner/repo` (`&os=`, `&arch=`, `&format=md`), and [`/llms.txt`](https://gitmanual.com/llms.txt).
+**For AI assistants:** an MCP server at `https://gitmanual.com/mcp`, listed in the [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.zainudinnoori/gitmanual) as `io.github.zainudinnoori/gitmanual`. Its tools are `get_setup_manual` and `get_setup_script`; no login needed.
+
+- **Claude Code:** `claude mcp add --transport http gitmanual https://gitmanual.com/mcp`
+- **Claude (desktop or web):** Settings → Connectors → Add custom connector → `https://gitmanual.com/mcp`
+- **Cursor** (`~/.cursor/mcp.json`) and other clients: `{ "mcpServers": { "gitmanual": { "url": "https://gitmanual.com/mcp" } } }`
+
+The same facts are available as JSON at `/api/v1/manual?repo=owner/repo` (`&os=`, `&arch=`, `&format=md`), and [`/llms.txt`](https://gitmanual.com/llms.txt) describes it all.
 
 **Browser extension:** a **Setup manual** button on every GitHub repo, next to Star and Fork. See [`extension/`](extension/README.md).
 
