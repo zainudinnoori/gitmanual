@@ -1,15 +1,12 @@
-import { redirect } from "next/navigation";
 import { countRising, facetCounts, listRepos } from "@/lib/db";
-import { parseRepoUrl } from "@/lib/github";
 import { LISTS, MIN_LIST } from "@/lib/lists";
 import { OS_LIST } from "@/lib/os";
 import { Landing, type SystemLists } from "./hero";
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ url?: string }> }) {
-  // Old links used /?url=…; send them to the repo's own page.
-  const { url } = await searchParams;
-  const ref = url ? parseRepoUrl(url) : null;
-  if (ref) redirect(`/${ref.owner}/${ref.repo}${ref.ref ? `?ref=${encodeURIComponent(ref.ref)}` : ""}`);
+// Cached and rebuilt at most every 5 minutes: the shelf and rising lists don't need to be fresher than that.
+export const revalidate = 300;
+
+export default async function Home() {
   const [recent, popular, rising, risingTotal, counts] = await Promise.all([
     listRepos("recent", 12),
     listRepos("popular", 12),

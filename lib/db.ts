@@ -91,6 +91,26 @@ function db(): Promise<Client | null> {
         "ALTER TABLE repos ADD COLUMN facets TEXT", // searchable facts for lists and suggestions (lib/facets.ts)
       ])
         await client.execute(sql).catch(() => {});
+      // "Got it running" counts kept on the repo, so lists and the shelf don't join and group the votes table.
+      // Filled from the votes once, when the columns are first added; addVote keeps them current after that.
+      const counted = await client.execute("ALTER TABLE repos ADD COLUMN worked INTEGER NOT NULL DEFAULT 0").then(
+        () => true,
+        () => false,
+      );
+      await client.execute("ALTER TABLE repos ADD COLUMN stuck INTEGER NOT NULL DEFAULT 0").catch(() => {});
+      if (counted)
+        await client.execute(`UPDATE repos SET
+          worked = (SELECT COALESCE(SUM(worked), 0) FROM votes WHERE votes.key = repos.key),
+          stuck = (SELECT COUNT(*) - COALESCE(SUM(worked), 0) FROM votes WHERE votes.key = repos.key)`);
+      // Indexes for the sort orders, so a page of results reads that page instead of the whole table.
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS repos_stars ON repos (stars);
+        CREATE INDEX IF NOT EXISTS repos_last_viewed ON repos (last_viewed);
+        CREATE INDEX IF NOT EXISTS repos_views ON repos (views, stars);
+        CREATE INDEX IF NOT EXISTS repos_worked ON repos (worked, stars);
+        CREATE INDEX IF NOT EXISTS repos_popular ON repos ((views + 3 * worked));
+        CREATE INDEX IF NOT EXISTS repos_rising ON repos (rising_at);
+      `);
     } catch (e) {
       client.close();
       throw e;
@@ -159,7 +179,13 @@ export function countView(key: string): Promise<unknown> {
 
 export function addVote(key: string, os: string, worked: boolean): Promise<unknown> {
   return safely(null, (c) =>
-    c.execute({ sql: "INSERT INTO votes (key, os, worked, created_at) VALUES (?, ?, ?, ?)", args: [key, os, worked ? 1 : 0, Date.now()] }),
+    c.batch(
+      [
+        { sql: "INSERT INTO votes (key, os, worked, created_at) VALUES (?, ?, ?, ?)", args: [key, os, worked ? 1 : 0, Date.now()] },
+        { sql: `UPDATE repos SET ${worked ? "worked = worked + 1" : "stuck = stuck + 1"} WHERE key = ?`, args: [key] },
+      ],
+      "write",
+    ),
   );
 }
 
@@ -218,11 +244,10 @@ export function listRepos(order: "recent" | "popular" | "rising", limit = 6): Pr
   return safely([], async (c) => {
     const { rows } = await c.execute({
       sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at, r.rising_at,
-                   COALESCE(SUM(v.worked), 0) AS worked, COUNT(v.key) - COALESCE(SUM(v.worked), 0) AS stuck
-            FROM repos r LEFT JOIN votes v ON v.key = r.key
+                   r.worked, r.stuck
+            FROM repos r
             WHERE r.key NOT LIKE '%@%' ${order === "rising" ? "AND r.rising_at > ?" : ""}
-            GROUP BY r.key
-            ORDER BY ${order === "recent" ? "r.last_viewed" : order === "rising" ? "r.stars" : "r.views + 3 * worked"} DESC
+            ORDER BY ${order === "recent" ? "r.last_viewed" : order === "rising" ? "r.stars" : "r.views + 3 * r.worked"} DESC
             LIMIT ?`,
       args: order === "rising" ? [Date.now() - 7 * 864e5, limit] : [limit],
     });
@@ -280,10 +305,9 @@ export function facetRepos(q: { all: string[]; any?: string[]; difficulty?: stri
     }
     const { rows } = await c.execute({
       sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at, r.rising_at,
-                   COALESCE(SUM(v.worked), 0) AS worked, COUNT(v.key) - COALESCE(SUM(v.worked), 0) AS stuck
-            FROM repos r LEFT JOIN votes v ON v.key = r.key
+                   r.worked, r.stuck
+            FROM repos r
             WHERE ${where.join(" AND ")}
-            GROUP BY r.key
             ORDER BY r.stars DESC
             LIMIT ?`,
       args: [...args, q.limit ?? 60],
@@ -367,7 +391,7 @@ const SHELF_ORDER: Record<NonNullable<ShelfQuery["sort"]>, string> = {
   stars: "r.stars DESC",
   recent: "r.last_viewed DESC",
   popular: "r.views DESC, r.stars DESC",
-  worked: "worked DESC, r.stars DESC",
+  worked: "r.worked DESC, r.stars DESC",
 };
 
 // Every repo people have looked up, filtered and sorted for the /shelf page.
@@ -403,10 +427,9 @@ export function browseRepos(
     const [rows, count, langs, rising] = await Promise.all([
       c.execute({
         sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at, r.rising_at,
-                     COALESCE(SUM(v.worked), 0) AS worked, COUNT(v.key) - COALESCE(SUM(v.worked), 0) AS stuck
-              FROM repos r LEFT JOIN votes v ON v.key = r.key
+                     r.worked, r.stuck
+              FROM repos r
               WHERE ${filter}
-              GROUP BY r.key
               ORDER BY ${SHELF_ORDER[query.sort ?? "stars"]}
               LIMIT ? OFFSET ?`,
         args: [...args, SHELF_PAGE, (page - 1) * SHELF_PAGE],

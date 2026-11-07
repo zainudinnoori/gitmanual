@@ -35,7 +35,14 @@ for (const { sql } of schema) {
   await remote.execute(String(sql).replace(/^CREATE (TABLE|INDEX) (?!IF NOT EXISTS)/i, "CREATE $1 IF NOT EXISTS "));
 }
 // Columns added in later versions (a fresh remote table created by the app may lack them).
-await remote.execute("ALTER TABLE fb_posts ADD COLUMN video_id TEXT").catch(() => {});
+for (const sql of [
+  "ALTER TABLE fb_posts ADD COLUMN video_id TEXT",
+  "ALTER TABLE repos ADD COLUMN rising_at INTEGER",
+  "ALTER TABLE repos ADD COLUMN facets TEXT",
+  "ALTER TABLE repos ADD COLUMN worked INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE repos ADD COLUMN stuck INTEGER NOT NULL DEFAULT 0",
+])
+  await remote.execute(sql).catch(() => {});
 
 const BATCH = 20;
 for (const { name } of schema.filter((s) => s.type === "table")) {

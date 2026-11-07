@@ -9,8 +9,18 @@ export const contentType = "image/png";
 export const alt = "Setup manual on gitmanual";
 
 
+// Cached for a day by browsers and Vercel's CDN: link previews and crawlers fetch this often, and drawing the PNG
+// takes a second or more. A day old is fine for stars and a description.
+const CACHE = "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+
+export default async function Image(props: { params: Promise<{ owner: string; repo: string }> }) {
+  const res = await draw(props);
+  res.headers.set("Cache-Control", CACHE);
+  return res;
+}
+
 // Uses the saved manual only, so a share preview never triggers a fresh GitHub analysis.
-export default async function Image({ params }: { params: Promise<{ owner: string; repo: string }> }) {
+async function draw({ params }: { params: Promise<{ owner: string; repo: string }> }) {
   const { owner, repo } = await params;
   const saved = await getCached(repoKey(owner, repo));
   const data = saved?.data as RepoData | undefined;
