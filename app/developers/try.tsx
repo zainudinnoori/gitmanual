@@ -85,7 +85,7 @@ export function TryIt({ site, path, params, example, response }: { site: string;
   }
 
   return (
-    <div className="try">
+    <div className="tryit">
       <div className="try-box">
         <div className="try-bar">
           <div className="try-tabs" role="tablist" aria-label="Language">

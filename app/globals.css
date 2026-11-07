@@ -965,7 +965,7 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 .endpoint h4 { margin: 18px 0 6px; font: 600 var(--fs-label) var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--pencil); }
 .endpoint-limit { font-size: var(--fs-meta); color: var(--pencil); }
 /* Try it: tabs, editable parameters, live response */
-.try { display: grid; gap: 12px; }
+.tryit { display: grid; gap: 12px; }
 .try-box { background: var(--code); color: #eef0f4; border-radius: 12px; overflow: hidden; }
 .try-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 6px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
 .try-tabs { display: flex; gap: 2px; }
