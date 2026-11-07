@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { listBySlug, MIN_LIST } from "@/lib/lists";
+import { LISTS, listBySlug, MIN_LIST } from "@/lib/lists";
 import { OS_LABEL, OS_LIST, OS_SLUG } from "@/lib/os";
 import { ShelfCard } from "../../cards";
 import { OsIcon } from "../../icons";
 import { isPublished, loadLists } from "../data";
 
 export const revalidate = 3600;
+
+// Built ahead and refreshed hourly like /lists, so opening a list is a cached page rather than 16 database queries.
+export const generateStaticParams = () => LISTS.map((l) => ({ slug: l.slug }));
 
 type Props = { params: Promise<{ slug: string }> };
 
