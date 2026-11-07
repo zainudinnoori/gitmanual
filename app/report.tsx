@@ -5,6 +5,7 @@ import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Analysis } from "@/lib/detect";
 import type { Guides } from "@/lib/guides";
 import type { Alternative } from "@/lib/db";
+import { beforeYouStart, type Fact } from "@/lib/facts";
 import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
 import { compactCount } from "@/lib/format";
@@ -27,6 +28,8 @@ type Result = {
     topics: string[];
     archived: boolean;
     homepage: string | null;
+    createdAt?: string;
+    ownerType?: "User" | "Organization";
     fileCount: number;
     treeTruncated: boolean;
   };
@@ -428,6 +431,8 @@ function Report({
           </button>
         )}
       </p>
+
+      <BeforeYouStart facts={beforeYouStart(result)} />
 
       <StartHere
         meta={meta}
@@ -956,6 +961,28 @@ function host(url: string): string {
 }
 
 // The ways in, best first: the maintainers' own website, guide and installer beat our generated steps.
+// Is it free, does it use paid AI, is it maintained, can I trust it: what people ask before trying a project.
+function BeforeYouStart({ facts }: { facts: Fact[] }) {
+  return (
+    <section className="facts" aria-labelledby="facts-h">
+      <h2 id="facts-h" className="facts-h">
+        Before you start
+      </h2>
+      <dl className="facts-grid">
+        {facts.map((f) => (
+          <div key={f.q} className={`fact fact-${f.tone}`}>
+            <dt>{f.q}</dt>
+            <dd>
+              <b>{f.a}</b>
+              <span title={f.why}>{f.why}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function StartHere({
   meta,
   guides,

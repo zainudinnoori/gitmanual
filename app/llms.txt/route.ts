@@ -12,6 +12,7 @@ export function GET() {
 - One system: ${SITE}/{owner}/{repo}/macos, /windows or /linux
 - Lists by what repos do and where they run (self-hosted apps, AI tools, CLI tools, MCP servers, apps with a download): ${SITE}/lists
 - Facts as JSON: ${SITE}/api/v1/manual?repo={owner}/{repo} (add &os=mac|windows|linux, &arch=arm64|x64)
+- Every manual (page, JSON, Markdown, MCP) also answers: is it free (its license), does it use paid AI APIs, is it still maintained, and its track record (stars, age, owner). Field: beforeYouStart
 - Facts as Markdown: ${SITE}/api/v1/manual?repo={owner}/{repo}&os=linux&format=md
 - Setup script: ${SITE}/{owner}/{repo}/setup/mac.sh, linux.sh or windows.ps1 (stops at the first error, never starts servers; read before running)
 - MCP server (Streamable HTTP): ${SITE}/mcp, with the tools get_setup_manual and get_setup_script

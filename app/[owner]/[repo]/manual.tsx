@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { alternativesFor, getVotes, type Alternative } from "@/lib/db";
+import { answered, asked, beforeYouStart } from "@/lib/facts";
 import { facetsOf, hasDownload, topicsOf } from "@/lib/facets";
 import { GitHubError } from "@/lib/github";
 import { fitCheck } from "@/lib/fit";
@@ -163,6 +164,15 @@ function JsonLd({ data, os, osPage }: { data: ReportData; os: OS; osPage: OS | n
         position: i + 1,
         name: s.title,
         text: [s.note, ...s.commands].filter(Boolean).join("\n") || s.title,
+      })),
+    },
+    // The questions people search after a project's name, answered from the same facts as the page.
+    {
+      "@type": "FAQPage",
+      mainEntity: beforeYouStart(data).map((f) => ({
+        "@type": "Question",
+        name: asked(f, meta.fullName),
+        acceptedAnswer: { "@type": "Answer", text: answered(f) },
       })),
     },
     {

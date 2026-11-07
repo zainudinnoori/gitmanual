@@ -13,6 +13,8 @@ export type RepoMeta = {
   topics: string[];
   archived: boolean;
   homepage: string | null;
+  createdAt?: string; // missing on manuals saved before it was read
+  ownerType?: "User" | "Organization";
 };
 
 export type TreeEntry = { path: string; size: number };
@@ -93,6 +95,8 @@ export async function getRepoMeta({ owner, repo }: RepoRef): Promise<RepoMeta> {
     openIssues: r.open_issues_count ?? 0,
     topics: r.topics ?? [],
     archived: Boolean(r.archived),
+    createdAt: r.created_at,
+    ownerType: r.owner?.type === "Organization" ? "Organization" : "User",
     homepage: r.homepage ? (/^https?:\/\//.test(r.homepage) ? r.homepage : `https://${r.homepage}`) : null,
   };
 }

@@ -1,3 +1,4 @@
+import { answered, asked, beforeYouStart } from "./facts";
 import { fitCheck } from "./fit";
 import type { Arch } from "./install";
 import { OS_LABEL, OS_LIST, type OS } from "./os";
@@ -17,6 +18,8 @@ export type ManualFacts = {
   maintainersGuide: string | null;
   difficulty: string;
   analyzedAt: string;
+  // Is it free, does it use paid AI, is it maintained, can I trust it (lib/facts.ts)
+  beforeYouStart: { question: string; answer: string; detail: string; tone: "yes" | "maybe" | "no" }[];
   systems: Partial<Record<OS, SystemFacts>>;
   parts: { runtimes: string[]; tools: string[]; packageManagers: string[]; services: string[]; envVars: { name: string; secret: boolean; optional: boolean }[] };
 };
@@ -63,6 +66,7 @@ export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?
     maintainersGuide: guides.doc ? `${meta.htmlUrl}/blob/${meta.branch}/${guides.doc.path}` : null,
     difficulty: a.difficulty.label,
     analyzedAt: new Date(analyzedAt).toISOString(),
+    beforeYouStart: beforeYouStart(d).map((f) => ({ question: asked(f, meta.fullName), answer: f.a, detail: f.why, tone: f.tone })),
     systems,
     parts: {
       runtimes: a.runtimes.map((r) => (r.detail ? `${r.name} ${r.detail}` : r.name)),
@@ -82,6 +86,7 @@ export function manualMarkdown(f: ManualFacts): string {
   if (f.maintainersGuide) out.push(`Maintainers' setup guide: ${f.maintainersGuide}`);
   const parts = [...f.parts.runtimes, ...f.parts.tools, ...f.parts.services];
   if (parts.length) out.push(`Needs: ${parts.join(", ")}`);
+  if (f.beforeYouStart.length) out.push("", "## Before you start", ...f.beforeYouStart.map((b) => `- ${b.question} ${b.answer}. ${b.detail}`));
   for (const [os, s] of Object.entries(f.systems) as [OS, SystemFacts][]) {
     out.push("", `## ${OS_LABEL[os]}: ${s.headline} (${s.verdict})`, ...s.reasons.map((r) => `- ${r}`));
     const best = s.downloads.find((x) => x.recommended) ?? s.downloads[0];

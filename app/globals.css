@@ -411,6 +411,26 @@ details[open].panel > summary h3::after { content: " −"; }
 
 /* Start here: the ways into a repo */
 .stamp-line { margin: 14px 0 0; font: var(--fs-meta) var(--mono); color: var(--pencil); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* "Before you start": one compact strip of quick answers, a colored dot for yes / maybe / no */
+.facts { margin-top: 18px; }
+.facts-h { font: 600 var(--fs-label) var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--pencil); margin: 0 0 8px; }
+.facts-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin: 0;
+  background: var(--sheet); border: 1.5px solid var(--line-strong); border-radius: 12px; overflow: hidden;
+}
+.fact { padding: 10px 14px; display: grid; gap: 2px; align-content: start; min-width: 0; box-shadow: -1px 0 0 var(--line), 0 -1px 0 var(--line); }
+.fact dt { font: 500 var(--fs-label) var(--mono); color: var(--pencil); letter-spacing: 0.02em; }
+.fact dd { margin: 0; display: grid; gap: 2px; min-width: 0; }
+.fact b { font: 700 var(--fs-body)/1.3 var(--display); display: flex; align-items: center; gap: 7px; }
+.fact b::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); box-shadow: 0 0 0 1.5px var(--ink); }
+.fact-yes b::before { background: var(--yes); }
+.fact-maybe b::before { background: var(--maybe); }
+.fact-no b::before { background: var(--no); }
+.fact dd span {
+  font-size: var(--fs-meta); line-height: 1.4; color: var(--pencil); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 .link { background: none; border: 0; padding: 0; color: var(--wrench-2); font: var(--ui); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .start { margin-top: 28px; }
 .start-h { font: 800 var(--fs-h2) var(--display); letter-spacing: -0.025em; margin-bottom: 12px; }
@@ -805,6 +825,8 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .nav-links a { padding: 7px 9px; font-size: var(--fs-small); }
   .shelf-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .lists-grid, .alts ul, .systems-grid { grid-template-columns: minmax(0, 1fr); }
+  .facts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fact { padding: 9px 11px; }
   .shelf-open { opacity: 1; transform: none; }
   .explode { height: 340px; }
   .parts-float li { padding: 5px 8px; }
