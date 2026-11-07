@@ -123,6 +123,20 @@ All settings are environment variables, and every one is optional for local use.
 | `CONTACT_FORM_URL` | A [ShareText](https://sharetext.net) form's embed link: adds "Contact" to the footer, opening the form over the page |
 | `RATE_LIMITS`, `LIMIT_SALT` | Limits are on by default (new analyses 40/hour per visitor and 1,000/hour in all, new AI guides 5/day and 100/day, votes once per repo and system a day). `RATE_LIMITS=off` turns them off; `LIMIT_SALT` is any random string that keeps visitor codes unguessable |
 | `FINDS_*`, `FB_PAGE_*`, `CRON_SECRET` | Optional [Finds](docs/self-hosting.md#7-optional-finds-from-a-facebook-page) page: posts from a Facebook Page, each linked to its manual |
+| `GITHUB_APP_*`, `SESSION_SECRET` | Optional: "Connect GitHub" for [private repos](#private-repos). Without them, visitors can still paste their own read-only token |
+
+### Private repos
+
+A private repo's page offers two ways in: **Connect GitHub** (the gitmanual GitHub App, read-only, on the repos the visitor picks) or a **fine-grained token** they paste (kept in their browser). Either way the manual is built for that request only and never saved, listed, voted on or sent to an AI service ([`app/api/private`](app/api/private/route.ts)).
+
+To turn on Connect GitHub, create a GitHub App at [github.com/settings/apps/new](https://github.com/settings/apps/new):
+
+- **Callback URL** and **Setup URL**: `https://<your-site>/api/github/callback`. Tick **Request user authorization (OAuth) during installation** and **Redirect on update**; leave **Expire user authorization tokens** on.
+- **Webhook**: off.
+- **Repository permissions**: **Contents: Read-only** (Metadata: Read-only is added automatically). Nothing else.
+- **Where can it be installed**: Any account.
+
+Then generate a client secret and set `GITHUB_APP_SLUG` (from `github.com/apps/<slug>`), `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` and `SESSION_SECRET` (`openssl rand -hex 32`).
 
 ## Deploy
 

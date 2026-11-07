@@ -13,6 +13,7 @@ export type RepoMeta = {
   topics: string[];
   archived: boolean;
   homepage: string | null;
+  private?: boolean; // read with a visitor's own GitHub access (lib/session.ts), never saved
   createdAt?: string; // missing on manuals saved before it was read
   ownerType?: "User" | "Organization";
 };
@@ -42,12 +43,11 @@ export function parseRepoUrl(input: string): RepoRef | null {
   return { owner, repo, ref };
 }
 
-function headers(): HeadersInit {
-  const h: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-    "User-Agent": "gitmanual",
-  };
-  if (process.env.GITHUB_TOKEN) h.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+// `token` is a visitor's own GitHub access, for their private repos; otherwise the site's token is used.
+function headers(token?: string, accept = "application/vnd.github+json"): HeadersInit {
+  const h: Record<string, string> = { Accept: accept, "User-Agent": "gitmanual" };
+  const auth = token ?? process.env.GITHUB_TOKEN;
+  if (auth) h.Authorization = `Bearer ${auth}`;
   return h;
 }
 
@@ -66,10 +66,15 @@ async function fetchRetry(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
-async function gh<T>(path: string): Promise<T> {
-  const res = await fetchRetry(`https://api.github.com${path}`, { headers: headers(), cache: "no-store" });
+async function gh<T>(path: string, token?: string): Promise<T> {
+  const res = await fetchRetry(`https://api.github.com${path}`, { headers: headers(token), cache: "no-store" });
   if (!res.ok) {
+    if (token && res.status === 404) throw new GitHubError("GitHub says this access can't see that repo. Check that it includes this repo.", 404);
     if (res.status === 404) throw new GitHubError("Repository not found (or it is private).", 404);
+    if (token && res.status === 401) throw new GitHubError("GitHub didn't accept the access: it may have expired or been removed.", 401);
+    if (token && (res.status === 403 || res.status === 429)) {
+      throw new GitHubError("GitHub refused: the access may not include reading code, or it hit GitHub's hourly limit.", res.status);
+    }
     if (res.status === 403 || res.status === 429) {
       throw new GitHubError(
         "GitHub API rate limit hit. Add GITHUB_TOKEN to .env.local to raise the limit.",
@@ -81,8 +86,8 @@ async function gh<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function getRepoMeta({ owner, repo }: RepoRef): Promise<RepoMeta> {
-  const r = await gh<any>(`/repos/${owner}/${repo}`);
+export async function getRepoMeta({ owner, repo }: RepoRef, token?: string): Promise<RepoMeta> {
+  const r = await gh<any>(`/repos/${owner}/${repo}`, token);
   return {
     fullName: r.full_name,
     description: r.description,
@@ -95,36 +100,39 @@ export async function getRepoMeta({ owner, repo }: RepoRef): Promise<RepoMeta> {
     openIssues: r.open_issues_count ?? 0,
     topics: r.topics ?? [],
     archived: Boolean(r.archived),
+    private: Boolean(r.private),
     createdAt: r.created_at,
     ownerType: r.owner?.type === "Organization" ? "Organization" : "User",
     homepage: r.homepage ? (/^https?:\/\//.test(r.homepage) ? r.homepage : `https://${r.homepage}`) : null,
   };
 }
 
-export async function getTree({ owner, repo }: RepoRef, ref: string): Promise<{ entries: TreeEntry[]; truncated: boolean }> {
-  const t = await gh<any>(`/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`);
+export async function getTree({ owner, repo }: RepoRef, ref: string, token?: string): Promise<{ entries: TreeEntry[]; truncated: boolean }> {
+  const t = await gh<any>(`/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`, token);
   const entries: TreeEntry[] = (t.tree ?? [])
     .filter((e: any) => e.type === "blob")
     .map((e: any) => ({ path: e.path as string, size: (e.size as number) ?? 0 }));
   return { entries, truncated: Boolean(t.truncated) };
 }
 
-// raw.githubusercontent.com does not count against the REST API rate limit.
+// raw.githubusercontent.com does not count against the REST API rate limit. Private repos (with a visitor's token)
+// are read through the API instead, which every kind of GitHub token can use.
 export async function getFiles(
   { owner, repo }: RepoRef,
   ref: string,
   entries: TreeEntry[],
+  token?: string,
 ): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   await Promise.all(
     entries
       .filter((e) => e.size <= MAX_FILE_BYTES)
       .map(async (e) => {
-        const url = `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${e.path
-          .split("/")
-          .map(encodeURIComponent)
-          .join("/")}`;
-        const res = await fetchRetry(url, { cache: "no-store" });
+        const path = e.path.split("/").map(encodeURIComponent).join("/");
+        const url = token
+          ? `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(ref)}`
+          : `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${path}`;
+        const res = await fetchRetry(url, token ? { headers: headers(token, "application/vnd.github.raw"), cache: "no-store" } : { cache: "no-store" });
         if (res.ok) out[e.path] = await res.text();
       }),
   );
@@ -132,8 +140,8 @@ export async function getFiles(
 }
 
 // Latest stable release that actually ships files; falls back to a pre-release with files.
-export async function getLatestRelease({ owner, repo }: RepoRef): Promise<any | null> {
-  const releases = await gh<any[]>(`/repos/${owner}/${repo}/releases?per_page=10`).catch((e) => {
+export async function getLatestRelease({ owner, repo }: RepoRef, token?: string): Promise<any | null> {
+  const releases = await gh<any[]>(`/repos/${owner}/${repo}/releases?per_page=10`, token).catch((e) => {
     if (e instanceof GitHubError && e.status === 404) return [];
     throw e;
   });

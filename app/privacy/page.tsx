@@ -17,8 +17,8 @@ export default function Privacy() {
     <DocPage
       eyebrow="Privacy"
       title="Privacy policy"
-      lead="Short version: no accounts, no cookies, no ads, and nothing that identifies you is stored."
-      updated="6 November 2026"
+      lead="Short version: no accounts, no ads, no tracking cookies, and nothing that identifies you is stored."
+      updated="7 November 2026"
     >
       <h2>What gitmanual stores</h2>
       <ul>
@@ -37,9 +37,19 @@ export default function Privacy() {
         </li>
       </ul>
 
+      <h2>Private repos</h2>
+      <p>
+        If you open one of your private repos, you give gitmanual read-only access to it, either by connecting the gitmanual GitHub App
+        (you pick the repos on GitHub) or by pasting a token you created. gitmanual reads the repo&apos;s key files once to build your
+        manual and sends it to your browser. The manual and the files are not saved, counted, listed or shown to search engines, and
+        aren&apos;t sent to any AI service. Your token stays in your browser&apos;s local storage; a GitHub App connection is kept in an
+        encrypted cookie that only gitmanual&apos;s servers can read. &ldquo;Disconnect&rdquo; on the manual removes both from this
+        browser, and you can remove the app or delete the token on GitHub at any time.
+      </p>
+
       <h2>What stays in your browser</h2>
       <p>
-        gitmanual sets no cookies. After you answer &ldquo;Did you get it running?&rdquo;, your browser&apos;s local storage remembers your
+        gitmanual sets no cookies unless you connect GitHub for a private repo (above). After you answer &ldquo;Did you get it running?&rdquo;, your browser&apos;s local storage remembers your
         answer for that repo, so you aren&apos;t asked twice. It never leaves your device, and clearing your browser&apos;s site data removes
         it.
       </p>
@@ -55,7 +65,8 @@ export default function Privacy() {
           <strong>Turso</strong> hosts the database that holds what&apos;s listed above.
         </li>
         <li>
-          <strong>GitHub</strong>: gitmanual&apos;s servers read public repositories from GitHub. Your browser doesn&apos;t contact GitHub
+          <strong>GitHub</strong>: gitmanual&apos;s servers read public repositories from GitHub, and private ones only with the
+          access you give (above). Your browser doesn&apos;t contact GitHub
           unless you follow a link there.
         </li>
         <li>

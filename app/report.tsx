@@ -12,6 +12,7 @@ import { compactCount } from "@/lib/format";
 import type { Arch, Asset, InstallKind, InstallOptions } from "@/lib/install";
 import { OS_LABEL, OS_LIST, OS_SLUG, type OS } from "@/lib/os";
 import { buildScript } from "@/lib/script";
+import { disconnect, fetchPrivate, PrivateAccess } from "./private";
 import { CodeBlock, CopyButton, RepoForm, Wrenches, detectArch, detectOS } from "./ui";
 
 type Result = {
@@ -28,6 +29,7 @@ type Result = {
     topics: string[];
     archived: boolean;
     homepage: string | null;
+    private?: boolean;
     createdAt?: string;
     ownerType?: "User" | "Organization";
     fileCount: number;
@@ -133,6 +135,8 @@ export function ReportView({
   gitRef,
   initial = null,
   initialError = null,
+  initialStatus = null,
+  githubApp = false,
   initialOs = "mac",
   initialMode,
   picks = [],
@@ -154,6 +158,9 @@ export function ReportView({
   gitRef?: string;
   initial?: Result | null;
   initialError?: string | null;
+  // 404 may mean private: the page then offers to open it with the visitor's own GitHub access (app/private.tsx).
+  initialStatus?: number | null;
+  githubApp?: boolean;
   initialOs?: OS;
   initialMode?: Mode;
 }) {
@@ -167,6 +174,9 @@ export function ReportView({
   const [arch, setArch] = useState<Arch | null>(null);
   const [mode, setMode] = useState<Mode>(initialMode ?? (initial ? defaultMode(initial) : "source"));
   const [refresh, setRefresh] = useState(0);
+  const [status, setStatus] = useState<number | null>(initialStatus);
+  // Opened with the visitor's GitHub access: re-reads go the same way, and nothing about it is saved.
+  const [isPrivate, setIsPrivate] = useState(false);
 
   useEffect(() => {
     const d = detectOS();
@@ -182,14 +192,21 @@ export function ReportView({
     setResult(null);
     setLine(0);
     const tick = setInterval(() => setLine((l) => Math.min(l + 1, LOADING_LINES.length - 1)), 900);
-    fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: `${owner}/${repo}${gitRef ? `/tree/${gitRef}` : ""}`, fresh: refresh > 0 }),
-    })
+    const url = `${owner}/${repo}${gitRef ? `/tree/${gitRef}` : ""}`;
+    (isPrivate
+      ? fetchPrivate(url)
+      : fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, fresh: refresh > 0 }),
+        })
+    )
       .then(async (res) => {
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Request failed");
+        if (!res.ok) {
+          setStatus(res.status);
+          throw new Error(data.error ?? "Request failed");
+        }
         if (cancelled) return;
         setResult(data);
         setMode(qMode === "install" || qMode === "source" ? qMode : defaultMode(data));
@@ -244,6 +261,24 @@ export function ReportView({
     }
   }
 
+  if (error && (status === 404 || isPrivate)) {
+    return (
+      <PrivateAccess<Result>
+        owner={owner}
+        repo={repo}
+        gitRef={gitRef}
+        appAvailable={githubApp}
+        onLoaded={(r) => {
+          setIsPrivate(true);
+          setError(null);
+          setResult(r);
+          const qMode = new URLSearchParams(window.location.search).get("mode");
+          setMode(qMode === "install" || qMode === "source" ? qMode : defaultMode(r));
+        }}
+      />
+    );
+  }
+
   if (error) {
     return (
       <div className="wrap report-state">
@@ -291,6 +326,12 @@ export function ReportView({
       osPage={Boolean(osPage)}
       alternatives={alternatives}
       onRefresh={() => setRefresh((n) => n + 1)}
+      onDisconnect={async () => {
+        await disconnect();
+        setResult(null);
+        setStatus(404);
+        setError("disconnected");
+      }}
       onVotes={(votes) => setResult((r) => r && { ...r, votes })}
     />
   );
@@ -308,6 +349,7 @@ function Report({
   guideLoading,
   onGuide,
   onRefresh,
+  onDisconnect,
   onVotes,
   picks,
   curator,
@@ -331,9 +373,12 @@ function Report({
   guideLoading: boolean;
   onGuide: () => void;
   onRefresh: () => void;
+  onDisconnect: () => void;
   onVotes: (v: Votes) => void;
 }) {
   const { meta, analysis: a, install, guides, files } = result;
+  // Private manuals are for the visitor alone: no votes, sharing, badge or saved AI guide, and the script is made here.
+  const priv = Boolean(meta.private);
   const steps = a.steps[os];
   const myArch = os === detectedOs ? arch : null;
   const fit = fitCheck(a, install, os, myArch, meta.archived);
@@ -409,12 +454,14 @@ function Report({
             <dt>Open issues</dt>
             <dd className="num">{meta.openIssues.toLocaleString()}</dd>
           </div>
-          <div>
-            <dt>Got it running</dt>
-            <dd className="num">
-              {result.votes.worked ? `${result.votes.worked} ${result.votes.worked === 1 ? "person" : "people"}` : "Be the first"}
-            </dd>
-          </div>
+          {!priv && (
+            <div>
+              <dt>Got it running</dt>
+              <dd className="num">
+                {result.votes.worked ? `${result.votes.worked} ${result.votes.worked === 1 ? "person" : "people"}` : "Be the first"}
+              </dd>
+            </div>
+          )}
           <div>
             <dt>Looked up</dt>
             <dd className="num">{timeAgo(result.analyzedAt)}</dd>
@@ -422,6 +469,18 @@ function Report({
         </dl>
       </header>
 
+      {priv ? (
+        <p className="stamp-line private-line">
+          <span className="private-tag">Private</span> Built just for you {timeAgo(result.analyzedAt)}, and not saved anywhere. Cloning it
+          needs your own GitHub sign-in on this computer (<code>gh auth login</code> or an SSH key).
+          <button className="link" onClick={onRefresh}>
+            Re-read the repo
+          </button>
+          <button className="link" onClick={onDisconnect}>
+            Disconnect
+          </button>
+        </p>
+      ) : (
       <p className="stamp-line">
         {result.stale ? "GitHub didn't answer, so this is the saved copy from " : result.cached ? "Saved setup from " : "Fresh setup, read "}
         {timeAgo(result.analyzedAt)}
@@ -431,6 +490,7 @@ function Report({
           </button>
         )}
       </p>
+      )}
 
       <BeforeYouStart facts={beforeYouStart(result)} />
 
@@ -557,20 +617,31 @@ function Report({
                 {setup.steps.length > 1 && (
                   <div className="setup-btns">
                     <CopyButton text={setup.text} className="btn btn-sm" label="Copy as one script" />
-                    <a className="btn btn-sm" href={`${setupFile}?download=1`} download>
-                      Download {setup.filename}
-                    </a>
+                    {priv ? (
+                      <button className="btn btn-sm" onClick={() => saveText(setup.filename, os === "windows" ? `\uFEFF${setup.text}` : setup.text)}>
+                        Download {setup.filename}
+                      </button>
+                    ) : (
+                      <a className="btn btn-sm" href={`${setupFile}?download=1`} download>
+                        Download {setup.filename}
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
               {setup.steps.length > 1 && (
                 <p className="setup-how">
                   Then run <code>{os === "windows" ? "powershell -ExecutionPolicy Bypass -File .\\setup.ps1" : "bash setup.sh"}</code>. It stops at
-                  the first error and is safe to run again. Servers and tests aren&apos;t started; it lists them at the end.{" "}
-                  <a href={setupFile} target="_blank" rel="noreferrer">
-                    Read it first
-                  </a>
-                  .
+                  the first error and is safe to run again. Servers and tests aren&apos;t started; it lists them at the end.
+                  {!priv && (
+                    <>
+                      {" "}
+                      <a href={setupFile} target="_blank" rel="noreferrer">
+                        Read it first
+                      </a>
+                      .
+                    </>
+                  )}
                 </p>
               )}
               <ol className="steps">
@@ -604,7 +675,7 @@ function Report({
               {steps.length <= 1 && (
                 <p className="empty">
                   We couldn&apos;t spot a known stack.{" "}
-                  {aiGuide ? "The AI guide below can read the code for you." : "Start with the README, or ask an AI below to go through it with you."}
+                  {aiGuide && !priv ? "The AI guide below can read the code for you." : "Start with the README, or ask an AI below to go through it with you."}
                 </p>
               )}
               {!a.readmeFirst && a.readme && (
@@ -618,9 +689,9 @@ function Report({
             </>
           )}
 
-          <DidItWork repo={meta.fullName} os={os} votes={result.votes} onVotes={onVotes} />
+          {!priv && <DidItWork repo={meta.fullName} os={os} votes={result.votes} onVotes={onVotes} />}
 
-          {aiGuide && (
+          {aiGuide && !priv && (
             <div className="panel ai">
               <div className="panel-head">
                 <div>
@@ -645,7 +716,7 @@ function Report({
               {guide && <div className="prose">{md(guide)}</div>}
             </div>
           )}
-          {!aiGuide && <AskAi prompt={askPrompt(result, os, myArch)} os={os} />}
+          {(!aiGuide || priv) && <AskAi prompt={askPrompt(result, os, myArch)} os={os} />}
         </div>
 
         <aside className="sheet-side">
@@ -684,7 +755,7 @@ function Report({
             )}
           </div>
 
-          {picks.length > 0 && (
+          {!priv && picks.length > 0 && (
             <div className="side-card">
               <h3>Featured in {curator}</h3>
               {picks.slice(0, 2).map((p) => (
@@ -700,6 +771,7 @@ function Report({
             </div>
           )}
 
+          {!priv && (
           <div className="side-card">
             <h3>Share this manual</h3>
             <div className="share-btns">
@@ -710,7 +782,9 @@ function Report({
             </div>
           </div>
 
-          <BadgeCard fullName={meta.fullName} />
+          )}
+
+          {!priv && <BadgeCard fullName={meta.fullName} />}
 
           {(a.hints.length > 0 || a.otherManifests.length > 0) && (
             <div className="side-card">
@@ -942,6 +1016,15 @@ function AssetRow({ asset, os, primary }: { asset: Asset; os: OS; primary?: bool
       <CodeBlock text={asset.commands.join("\n")} />
     </div>
   );
+}
+
+// Saves text made in the browser as a file (private manuals have no server copy to download).
+function saveText(filename: string, text: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function timeAgo(ms: number): string {

@@ -1,6 +1,6 @@
 import { analyze, presentPaths, selectFiles, type Analysis } from "./detect";
 import { CACHE_MS, countView, getCached, repoKey, saveRepo } from "./db";
-import { getFiles, getLatestRelease, getRepoMeta, getTree, type RepoMeta, type RepoRef } from "./github";
+import { getFiles, getLatestRelease, getRepoMeta, getTree, GitHubError, type RepoMeta, type RepoRef } from "./github";
 import { findDocsLink, findDownloadPage, findSetupDocs, findSetupScripts, type Guides, type SetupDoc } from "./guides";
 import { parseRelease, readmeInstallCommands, type InstallOptions } from "./install";
 import { OS_LIST } from "./os";
@@ -34,6 +34,8 @@ export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boo
   try {
     await opts.gate?.();
     const data = await analyzeRepo(ref);
+    // The site's own token may be able to see private repos (its owner's); those never go on the public shelf.
+    if (data.meta.private) throw new GitHubError("Repository not found (or it is private).", 404);
     const [owner, name] = data.meta.fullName.split("/");
     const key = repoKey(owner, name, ref.ref);
     const { meta, analysis } = data;
@@ -52,13 +54,20 @@ export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boo
   }
 }
 
-async function analyzeRepo(ref: RepoRef): Promise<RepoData> {
-  const meta = await getRepoMeta(ref);
+// A private repo, read with the visitor's own GitHub access: built in memory for them and never saved, counted or
+// listed anywhere (no database, no shelf, no sitemap).
+export async function loadPrivate(ref: RepoRef, token: string): Promise<{ data: RepoData; analyzedAt: number }> {
+  const data = await analyzeRepo(ref, token);
+  return { data: { ...data, meta: { ...data.meta, private: true } }, analyzedAt: Date.now() };
+}
+
+async function analyzeRepo(ref: RepoRef, token?: string): Promise<RepoData> {
+  const meta = await getRepoMeta(ref, token);
   const branch = ref.ref ?? meta.defaultBranch;
-  const [{ entries, truncated }, rawRelease] = await Promise.all([getTree(ref, branch), getLatestRelease(ref)]);
+  const [{ entries, truncated }, rawRelease] = await Promise.all([getTree(ref, branch, token), getLatestRelease(ref, token)]);
   const docs = findSetupDocs(entries);
   const docEntry = docs[0] && entries.find((e) => e.path === docs[0].path);
-  const files = await getFiles(ref, branch, [...selectFiles(entries), ...(docEntry ? [docEntry] : [])]);
+  const files = await getFiles(ref, branch, [...selectFiles(entries), ...(docEntry ? [docEntry] : [])], token);
   const [owner, name] = meta.fullName.split("/");
   const analysis = analyze({ owner, repo: name }, files, presentPaths(entries), entries.map((e) => e.path), meta.language, meta.description);
 

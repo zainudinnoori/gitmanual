@@ -68,6 +68,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .nav-links { display: flex; align-items: center; gap: 2px; }
 .nav-links a { font: var(--ui); font-size: var(--fs-body); white-space: nowrap; text-decoration: none; color: var(--pencil); padding: 8px 13px; border-radius: 10px; }
 .nav-links a:hover { color: var(--ink); background: var(--sheet); }
+.nav-short { display: none; }
+.nav-links a.nav-finds { position: relative; margin-left: 13px; }
+.nav-links a.nav-finds::before { content: ""; position: absolute; left: -8px; top: 9px; bottom: 9px; width: 1.5px; background: var(--line-strong); }
 .nav-inner { gap: 20px; }
 .nav-search { position: relative; flex: 0 1 340px; margin-left: auto; }
 .nav-search input {
@@ -220,6 +223,26 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .report { padding: 48px 24px 80px; }
 .report-state { padding: 120px 24px; text-align: center; min-height: 70vh; }
 .report-state .lead, .report-state .addr { margin-left: auto; margin-right: auto; }
+
+/* Private repos: two ways to give read-only access, then how it works */
+.report-state.private { padding: 72px 24px 32px; min-height: 0; }
+.report-state.private .private-how { margin-bottom: 0; }
+.private-problem { max-width: 620px; margin: 16px auto 0; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--no) 14%, var(--sheet)); border: 1px solid color-mix(in srgb, var(--no) 45%, var(--line)); font-size: var(--fs-meta); }
+.private-ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; max-width: 820px; margin: 28px auto 0; text-align: left; }
+.private-way { margin: 0; display: grid; gap: 10px; align-content: start; }
+.private-way h2 { font: 700 var(--fs-body)/1.3 var(--display); margin: 0; }
+.private-way .note { margin: 0; }
+.private-way .btn { justify-self: start; }
+.private-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: var(--fs-meta); }
+.private-token { display: flex; gap: 8px; }
+.private-token input { flex: 1; min-width: 0; font: 500 var(--fs-meta) var(--mono); padding: 8px 10px; border: 1.5px solid var(--line-strong); border-radius: 10px; background: var(--paper, var(--sheet)); color: inherit; }
+.private-how { max-width: 820px; margin: 16px auto 28px; text-align: left; font-size: var(--fs-meta); }
+.private-how summary { cursor: pointer; font-weight: 600; }
+.private-how ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--pencil); }
+.private-how b { color: var(--ink); }
+.stamp-line.private-line { display: block; line-height: 1.8; }
+.private-line .link { margin-left: 12px; }
+.private-tag { display: inline-block; font: 600 var(--fs-label) var(--mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; border: 1.5px solid var(--ink); background: var(--maybe); color: #111; margin-right: 6px; }
 .unbox { display: flex; justify-content: center; gap: 10px; margin-bottom: 28px; }
 .unbox span { width: 26px; height: 26px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--wrench); animation: hop 0.9s var(--ease) infinite; }
 .unbox span:nth-child(2) { background: var(--sky); animation-delay: 0.15s; border-radius: 50%; }
@@ -823,6 +846,8 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .how-flow { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .how-flow li::after { display: none; }
   .nav-links a { padding: 7px 9px; font-size: var(--fs-small); }
+  .nav-full { display: none; }
+  .nav-short { display: inline; }
   .shelf-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .lists-grid, .alts ul, .systems-grid { grid-template-columns: minmax(0, 1fr); }
   .facts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -850,3 +875,30 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.private-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.private-way .addr { margin: 0; max-width: none; }
+.my-repos { max-width: 820px; margin: 28px auto 0; text-align: left; display: grid; gap: 14px; }
+.my-repos-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 20px; flex-wrap: wrap; }
+.my-repos-head h2 { font: 700 var(--fs-body)/1.3 var(--display); margin: 0 0 4px; }
+.my-repos-head .note { margin: 0; }
+.my-repos-filter { font: 500 var(--fs-meta) var(--mono); padding: 8px 10px; border: 1.5px solid var(--line-strong); border-radius: 10px; background: var(--sheet); color: inherit; }
+.my-repos-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.my-repos-list li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+.my-repos-list li > div { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.my-repos-list b { overflow-wrap: anywhere; }
+.my-repo-desc { flex-basis: 100%; font-size: var(--fs-meta); color: var(--pencil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-repos-list .btn { flex: none; }
+/* Connect GitHub on /private: one compact card in the manual's ink-and-shadow style */
+.pass { max-width: 520px; margin: 28px auto 0; padding: 18px 22px 20px; text-align: left; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 16px; box-shadow: 4px 4px 0 var(--ink); display: grid; gap: 10px; }
+.pass-label { margin: 0; font: 600 var(--fs-label) var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--pencil); }
+.pass h2 { margin: 0; font: 700 var(--fs-body)/1.3 var(--display); }
+.pass-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--fs-meta); color: var(--pencil); }
+.pass-rules li { display: flex; align-items: center; gap: 6px; }
+.pass-rules li::before { font: 700 12px/1 var(--mono); }
+.pass-yes::before { content: "✓"; color: #12a36b; }
+.pass-no::before { content: "✕"; color: var(--ink); }
+.pass-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 4px; }
+.pass-btn { display: inline-flex; align-items: center; gap: 10px; padding: 0 22px; min-height: 52px; font-size: var(--fs-body); border-radius: 12px; }
+.pass-btn[aria-disabled] { pointer-events: none; opacity: 0.6; }
+.pass-alt { margin: 0; font-size: var(--fs-meta); color: var(--pencil); }
+.pass + .private-how { max-width: 520px; }

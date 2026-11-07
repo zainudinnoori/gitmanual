@@ -79,7 +79,7 @@ function license(id: string | null): { short: string; text: string; tone: Tone }
 }
 
 type Input = {
-  meta: Pick<RepoMeta, "license" | "pushedAt" | "archived" | "stars" | "createdAt" | "ownerType">;
+  meta: Pick<RepoMeta, "license" | "pushedAt" | "archived" | "stars" | "createdAt" | "ownerType" | "private">;
   analysis: { envVars: EnvVar[] };
   install: Pick<InstallOptions, "release">;
 };
@@ -116,7 +116,9 @@ export function beforeYouStart(d: Input): Fact[] {
           : { id: "maintained", q: "Still maintained?", a: "Looks inactive", why: `Last change ${last.text}. Fixes may not come.${releaseText}`, tone: "no" },
   );
 
-  // Can I trust it? Track record only: no one can promise code is safe, so this never says "safe".
+  // Can I trust it? Track record only: no one can promise code is safe, so this never says "safe". A private repo is
+  // the visitor's own (or their team's), and has no public track record to go on.
+  if (meta.private) return facts;
   const age = meta.createdAt ? ago(meta.createdAt) : null;
   const by = meta.ownerType === "Organization" ? "an organization" : null;
   const record = [

@@ -144,21 +144,37 @@ export function Wrenches({ n, of = 3 }: { n: number; of?: number }) {
 
 const NAV = [
   ["/shelf", "The shelf"],
+  ["/private", "Private repos", "Private"], // the short label is for phones
   ["/how-it-works", "How it works"],
 ] as const;
 
-// Every menu item looks the same; the current page is outlined.
+// Every menu item looks the same; the current page is outlined. The product's pages come first; the curator's
+// Finds sit with the GitHub link after a divider, as the people behind it rather than part of the tool.
 // The GitHub link only shows once the project's own repo is set (NEXT_PUBLIC_REPO_URL).
 export function NavLinks({ repo, stars, finds }: { repo: string | null; stars: number | null; finds: string | null }) {
   const path = usePathname();
-  const items = finds ? [NAV[0], ["/finds", finds] as const, NAV[1]] : NAV;
+  // "Zain Finds" is just "Finds" on phones.
+  const items = finds ? [...NAV, ["/finds", finds, finds.split(" ").at(-1)] as const] : NAV;
   return (
     <>
       {path !== "/" && <NavSearch />}
       <nav className="nav-links" aria-label="Site">
-        {items.map(([href, label]) => (
-          <Link key={href} href={href} aria-current={path === href ? "page" : undefined}>
-            {label}
+        {items.map(([href, label, short]: readonly [string, string, string?]) => (
+          <Link
+            key={href}
+            href={href}
+            className={href === "/finds" ? "nav-finds" : undefined}
+            aria-current={path === href ? "page" : undefined}
+            aria-label={short ? label : undefined}
+          >
+            {short ? (
+              <>
+                <span className="nav-full">{label}</span>
+                <span className="nav-short">{short}</span>
+              </>
+            ) : (
+              label
+            )}
           </Link>
         ))}
         {repo && (

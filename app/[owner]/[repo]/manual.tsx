@@ -11,6 +11,7 @@ import { OS_LABEL, OS_LIST, OS_SLUG, osFromSlug, type OS } from "@/lib/os";
 import { PICKS, picksFor } from "@/lib/picks";
 import { analyzeGate } from "@/lib/limit";
 import { loadRepo } from "@/lib/pipeline";
+import { githubApp } from "@/lib/session";
 import { ReportView, type ReportData, type Mode } from "../../report";
 
 // Shared by the repo's manual (/owner/repo) and its per-system pages (/owner/repo/windows).
@@ -120,6 +121,8 @@ export async function RepoManual({ params, searchParams }: Props) {
         gitRef={ref}
         initial={"data" in r ? r.data : null}
         initialError={"error" in r ? r.error : null}
+        initialStatus={"error" in r ? r.status : null}
+        githubApp={Boolean(githubApp())}
         initialOs={initialOs}
         osPage={osPage}
         initialMode={initialMode}
