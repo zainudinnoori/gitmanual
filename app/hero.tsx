@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RepoCard } from "@/lib/db";
 import { OS_LABEL, type OS } from "@/lib/os";
+import { OsIcon, ThemeIcon } from "./icons";
 import { RisingCard, ShelfCard } from "./cards";
 import { RepoForm, Wrenches, detectOS } from "./ui";
 
@@ -101,12 +102,14 @@ export function Landing({
   popular,
   rising,
   risingTotal,
+  systems,
   extension,
 }: {
   recent: RepoCard[];
   popular: RepoCard[];
   rising: RepoCard[];
   risingTotal: number;
+  systems: SystemLists[];
   extension: string | null; // the browser extension's store page, if this deployment has one
 }) {
   const [idx, setIdx] = useState(0);
@@ -224,6 +227,7 @@ export function Landing({
 
       {recent.length > 0 && <Shelf recent={recent} popular={popular} />}
       {rising.length > 0 && <Rising repos={rising} total={risingTotal} />}
+      {systems.length > 0 && <Systems systems={systems} />}
 
       <section className="band" aria-labelledby="inside-h">
         <div className="wrap">
@@ -354,6 +358,58 @@ function Rising({ repos, total }: { repos: RepoCard[]; total: number }) {
             </li>
           ))}
         </ol>
+      </div>
+    </section>
+  );
+}
+
+export type SystemLists = { os: OS; total: number; lists: { slug: string; theme: string; short: string; count: number }[] };
+
+// One card per system, opening its lists: "what runs on my computer?" without having to search.
+function Systems({ systems }: { systems: SystemLists[] }) {
+  return (
+    <section className="systems" aria-labelledby="systems-h">
+      <div className="wrap">
+        <div className="rising-head">
+          <div>
+            <p className="eyebrow">Lists</p>
+            <h2 id="systems-h" className="rising-h">
+              Browse by system
+            </h2>
+          </div>
+          <Link className="open-link" href="/lists">
+            All lists →
+          </Link>
+        </div>
+        <ul className="systems-grid">
+          {systems.map((s) => (
+            <li key={s.os} className="system-card">
+              <Link className="system-head" href={`/lists#lists-${s.os}`}>
+                <span className="system-icon">
+                  <OsIcon os={s.os} size={26} />
+                </span>
+                <span>
+                  <span className="system-name">{OS_LABEL[s.os]}</span>
+                  <span className="system-total num">{s.total.toLocaleString()} repos</span>
+                </span>
+              </Link>
+              <ul className="system-lists">
+                {s.lists.map((l) => (
+                  <li key={l.slug}>
+                    <Link href={`/lists/${l.slug}`}>
+                      <ThemeIcon theme={l.theme} size={18} />
+                      <span className="system-list-name">{l.short}</span>
+                      <span className="num">{l.count >= 60 ? "60+" : l.count}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link className="open-link system-more" href={`/lists#lists-${s.os}`}>
+                {OS_LABEL[s.os]} lists →
+              </Link>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

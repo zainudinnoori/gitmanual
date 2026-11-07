@@ -1,4 +1,5 @@
 import { createClient, type Client } from "@libsql/client";
+import { FACETS_VERSION, facetsOf } from "./facets";
 
 // Turso in production (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN); a local SQLite file in development.
 // Without either (e.g. a Vercel deploy with no database yet) everything still works, just uncached.
@@ -87,6 +88,7 @@ function db(): Promise<Client | null> {
       for (const sql of [
         "ALTER TABLE fb_posts ADD COLUMN video_id TEXT",
         "ALTER TABLE repos ADD COLUMN rising_at INTEGER", // when the daily trending job last found it rising
+        "ALTER TABLE repos ADD COLUMN facets TEXT", // searchable facts for lists and suggestions (lib/facets.ts)
       ])
         await client.execute(sql).catch(() => {});
     } catch (e) {
@@ -118,6 +120,11 @@ export function repoKey(owner: string, repo: string, ref?: string): string {
   return `${owner}/${repo}`.toLowerCase() + (ref ? `@${ref}` : "");
 }
 
+// Whether a repo is on the shelf, without loading its manual.
+export function hasRepo(key: string): Promise<boolean> {
+  return safely(false, async (c) => (await c.execute({ sql: "SELECT 1 FROM repos WHERE key = ?", args: [key] })).rows.length > 0);
+}
+
 export function getCached(key: string): Promise<{ data: unknown; analyzedAt: number } | null> {
   return safely(null, async (c) => {
     const { rows } = await c.execute({ sql: "SELECT data, analyzed_at FROM repos WHERE key = ?", args: [key] });
@@ -133,12 +140,12 @@ export async function saveRepo(
   const now = Date.now();
   await safely(null, (c) =>
     c.execute({
-      sql: `INSERT INTO repos (key, full_name, description, stars, language, difficulty, data, analyzed_at, views, last_viewed)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      sql: `INSERT INTO repos (key, full_name, description, stars, language, difficulty, data, analyzed_at, views, last_viewed, facets)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
             ON CONFLICT(key) DO UPDATE SET full_name = excluded.full_name, description = excluded.description,
               stars = excluded.stars, language = excluded.language, difficulty = excluded.difficulty,
-              data = excluded.data, analyzed_at = excluded.analyzed_at`,
-      args: [key, r.fullName, r.description, r.stars, r.language, r.difficulty, JSON.stringify(data), now, now],
+              data = excluded.data, analyzed_at = excluded.analyzed_at, facets = excluded.facets`,
+      args: [key, r.fullName, r.description, r.stars, r.language, r.difficulty, JSON.stringify(data), now, now, facetsOf(data as Parameters<typeof facetsOf>[0])],
     }),
   );
   // A new analysis may change the steps, so older AI guides no longer match.
@@ -232,6 +239,116 @@ export function listRepos(order: "recent" | "popular" | "rising", limit = 6): Pr
       risingAt: r.rising_at == null ? null : Number(r.rising_at),
     }));
   });
+}
+
+// Fills in facets for repos saved before they existed (or with an older format), from the stored manual.
+// Cheap once done: it only reads rows that still need it, a batch at a time.
+export function ensureFacets(maxRows = 400): Promise<number> {
+  return safely(0, async (c) => {
+    let done = 0;
+    while (done < maxRows) {
+      const { rows } = await c.execute({
+        sql: "SELECT key, data FROM repos WHERE facets IS NULL OR facets NOT LIKE ? LIMIT 25",
+        args: [` ${FACETS_VERSION} %`],
+      });
+      if (!rows.length) break;
+      for (const r of rows) {
+        let facets = ` ${FACETS_VERSION} `;
+        try {
+          facets = facetsOf(JSON.parse(String(r.data)));
+        } catch {} // an unreadable manual just gets no facts, so it isn't retried forever
+        await c.execute({ sql: "UPDATE repos SET facets = ? WHERE key = ?", args: [facets, String(r.key)] });
+      }
+      done += rows.length;
+    }
+    return done;
+  });
+}
+
+// Repos whose facets include every token in `all` and at least one in `any`, most-starred first.
+export function facetRepos(q: { all: string[]; any?: string[]; difficulty?: string; limit?: number }): Promise<RepoCard[]> {
+  return safely([], async (c) => {
+    const where = ["r.key NOT LIKE '%@%'", ...q.all.map(() => "r.facets LIKE ?")];
+    const args: (string | number)[] = q.all.map((t) => `% ${t} %`);
+    if (q.any?.length) {
+      where.push(`(${q.any.map(() => "r.facets LIKE ?").join(" OR ")})`);
+      args.push(...q.any.map((t) => `% ${t} %`));
+    }
+    if (q.difficulty) {
+      where.push("r.difficulty = ?");
+      args.push(q.difficulty);
+    }
+    const { rows } = await c.execute({
+      sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at, r.rising_at,
+                   COALESCE(SUM(v.worked), 0) AS worked, COUNT(v.key) - COALESCE(SUM(v.worked), 0) AS stuck
+            FROM repos r LEFT JOIN votes v ON v.key = r.key
+            WHERE ${where.join(" AND ")}
+            GROUP BY r.key
+            ORDER BY r.stars DESC
+            LIMIT ?`,
+      args: [...args, q.limit ?? 60],
+    });
+    return rows.map(toCard);
+  });
+}
+
+export type Alternative = { fullName: string; description: string | null; stars: number };
+
+// Every repo's facets, kept in memory for an hour: suggestions run on every manual view, and this is a small table
+// (name, stars and a short string per repo) compared with querying per topic each time.
+type FacetRow = { key: string; fullName: string; description: string | null; stars: number; facets: string };
+let facetCache: { at: number; rows: FacetRow[]; df: Map<string, number> } | null = null;
+
+async function facetIndex() {
+  if (facetCache && Date.now() - facetCache.at < 3600e3) return facetCache;
+  const rows = await safely([] as FacetRow[], async (c) => {
+    const { rows } = await c.execute("SELECT key, full_name, description, stars, facets FROM repos WHERE key NOT LIKE '%@%' AND facets IS NOT NULL");
+    return rows.map((r) => ({ key: String(r.key), fullName: String(r.full_name), description: r.description == null ? null : String(r.description), stars: Number(r.stars), facets: String(r.facets) }));
+  });
+  // How many repos share each topic: rare topics ("fediverse") say much more about a repo than common ones ("ai").
+  const df = new Map<string, number>();
+  for (const r of rows) for (const t of r.facets.split(" ")) if (t.startsWith("t:")) df.set(t, (df.get(t) ?? 0) + 1);
+  facetCache = { at: Date.now(), rows, df };
+  return facetCache;
+}
+
+// How many repos match each facets query (same rules as facetRepos), from the in-memory index: cheap enough for the homepage.
+export async function facetCounts(queries: { all: string[]; any?: string[] }[]): Promise<number[]> {
+  const { rows } = await facetIndex();
+  const has = (r: FacetRow, t: string) => r.facets.includes(` ${t} `);
+  return queries.map((q) => rows.filter((r) => q.all.every((t) => has(r, t)) && (!q.any?.length || q.any.some((t) => has(r, t)))).length);
+}
+
+// Repos that run on `os` and do a similar job, judged by shared GitHub topics weighted by rarity.
+// Only fairly close matches count, so a repo with nothing similar on the shelf gets no suggestions.
+export async function alternativesFor(key: string, os: string, topics: string[], limit = 3): Promise<Alternative[]> {
+  if (!topics.length) return [];
+  const { rows, df } = await facetIndex();
+  if (!rows.length) return [];
+  const weight = (t: string) => Math.log(rows.length / (df.get(t) ?? 1));
+  const minScore = 2 * Math.log(20); // about two topics that fewer than 1 in 20 repos share
+  return rows
+    .filter((r) => r.key !== key && r.facets.includes(` os:${os} `))
+    .map((r) => ({ r, score: topics.reduce((sum, t) => sum + (r.facets.includes(` ${t} `) ? weight(t) : 0), 0) }))
+    .filter((x) => x.score >= minScore)
+    .sort((a, b) => b.score - a.score || b.r.stars - a.r.stars)
+    .slice(0, limit)
+    .map(({ r }) => ({ fullName: r.fullName, description: r.description, stars: r.stars }));
+}
+
+function toCard(r: Record<string, unknown>): RepoCard {
+  return {
+    fullName: String(r.full_name),
+    description: r.description == null ? null : String(r.description),
+    stars: Number(r.stars),
+    language: r.language == null ? null : String(r.language),
+    difficulty: String(r.difficulty),
+    views: Number(r.views),
+    worked: Number(r.worked),
+    stuck: Number(r.stuck),
+    analyzedAt: Number(r.analyzed_at),
+    risingAt: r.rising_at == null ? null : Number(r.rising_at),
+  };
 }
 
 export type ShelfQuery = {

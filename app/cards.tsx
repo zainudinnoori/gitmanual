@@ -14,11 +14,12 @@ const LEVEL: Record<string, { n: number; time: string }> = {
 export const risingToday = (r: RepoCard) => r.risingAt !== null && Date.now() - r.risingAt < 864e5;
 
 // One repo on the shelf, drawn like the label on a flat-pack box: what it is, then how hard it is to put together.
-export function ShelfCard({ repo: r }: { repo: RepoCard }) {
+// `href` overrides the link, e.g. to a system's page from a list for that system.
+export function ShelfCard({ repo: r, href }: { repo: RepoCard; href?: string }) {
   const [owner, name] = r.fullName.split("/");
   const level = LEVEL[r.difficulty] ?? LEVEL.Moderate;
   return (
-    <Link className="shelf-card" href={`/${r.fullName}`}>
+    <Link className="shelf-card" href={href ?? `/${r.fullName}`}>
       <span className="shelf-top">
         <span className="shelf-owner" translate="no">
           {owner}/

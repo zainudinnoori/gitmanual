@@ -10,6 +10,7 @@ export function GET() {
 
 - Manual page: ${SITE}/{owner}/{repo} (the same path as github.com, with "hub" swapped for "manual")
 - One system: ${SITE}/{owner}/{repo}/macos, /windows or /linux
+- Lists by what repos do and where they run (self-hosted apps, AI tools, CLI tools, MCP servers, apps with a download): ${SITE}/lists
 - Facts as JSON: ${SITE}/api/v1/manual?repo={owner}/{repo} (add &os=mac|windows|linux, &arch=arm64|x64)
 - Facts as Markdown: ${SITE}/api/v1/manual?repo={owner}/{repo}&os=linux&format=md
 - Setup script: ${SITE}/{owner}/{repo}/setup/mac.sh, linux.sh or windows.ps1 (stops at the first error, never starts servers; read before running)

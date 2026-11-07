@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
-import { getVotes } from "@/lib/db";
+import { alternativesFor, getVotes, type Alternative } from "@/lib/db";
+import { facetsOf, hasDownload, topicsOf } from "@/lib/facets";
 import { GitHubError } from "@/lib/github";
 import { fitCheck } from "@/lib/fit";
 import { OS_LABEL, OS_LIST, OS_SLUG, osFromSlug, type OS } from "@/lib/os";
@@ -61,9 +62,9 @@ function osSummary(d: ReportData, os: OS): string {
   const shell = os === "windows" ? "PowerShell" : os === "mac" ? "Terminal" : "bash";
   const sentences = [
     `How to install ${meta.fullName.split("/")[1]} on ${name}: ${verdict}.`,
-    install.platforms.includes(os) ? `Ready-made ${name} download available.` : null,
+    hasDownload(install, os) ? `Ready-made ${name} download available.` : null,
     // With a download, the runtimes only matter for building from source.
-    a.runtimes.length && !install.platforms.includes(os) ? `Needs ${a.runtimes.slice(0, 3).map((r) => r.name).join(", ")}.` : null,
+    a.runtimes.length && !hasDownload(install, os) ? `Needs ${a.runtimes.slice(0, 3).map((r) => r.name).join(", ")}.` : null,
     steps ? `${steps} steps with copy-paste ${shell} commands and a setup script.` : null,
   ].filter(Boolean);
   return sentences.join(" ").slice(0, 300);
@@ -124,9 +125,18 @@ export async function RepoManual({ params, searchParams }: Props) {
         picks={"data" in r ? await picksFor(r.data.meta.fullName) : []}
         curator={PICKS.curator}
         aiGuide={Boolean(process.env.ANTHROPIC_API_KEY)}
+        alternatives={"data" in r ? await alternatives(r.data) : {}}
       />
     </>
   );
+}
+
+// For each system this repo doesn't clearly run on, a few similar repos (by shared topics) that do.
+async function alternatives(d: ReportData): Promise<Partial<Record<OS, Alternative[]>>> {
+  const topics = topicsOf(facetsOf(d));
+  const missing = OS_LIST.filter((os) => fitCheck(d.analysis, d.install, os, null, d.meta.archived).status !== "yes");
+  const found = await Promise.all(missing.map((os) => alternativesFor(d.meta.fullName.toLowerCase(), os, topics)));
+  return Object.fromEntries(missing.map((os, i) => [os, found[i]]).filter(([, alts]) => alts.length));
 }
 
 // Structured data: what the software is, the setup as a HowTo, and where the page sits on the site.

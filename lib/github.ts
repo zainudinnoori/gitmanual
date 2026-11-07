@@ -153,7 +153,14 @@ type SearchItem = {
   forks_count: number;
   open_issues_count: number;
   owner: { login: string; type: "User" | "Organization" };
+  language: string | null;
+  topics?: string[];
 };
+
+// Reading material rather than software: awesome lists, courses, guides and prompt collections have nothing to set up.
+const NOT_SOFTWARE = /^(awesome(-list)?|tutorials?|course|courses|education|learning|learning-resources|interview|interview-questions|roadmap|books?|cheatsheet|prompts?|system-prompts?|guide|guides|study)$/;
+const isSoftware = (r: SearchItem) =>
+  Boolean(r.language) && !/(^|\/)awesome[-_]|for-beginners/i.test(r.full_name) && !(r.topics ?? []).some((t) => NOT_SOFTWARE.test(t));
 
 // Stars on a brand-new repo can be bought; an established owner can't. Fake-star and malware campaigns use fresh
 // accounts, so the owner has to be at least a year old, and a person needs some following.
@@ -167,24 +174,45 @@ async function trustedOwner(login: string): Promise<boolean> {
   }
 }
 
+// Only repos that look like real projects pass: a description and a license, some use (issues or forks), no bait
+// words, and a trusted owner. `skip` drops repos before the owner check (which costs an API call each).
+async function pickReal(items: SearchItem[], picked: string[], seen: Set<string>, limit: number, skip?: (fullName: string) => Promise<boolean>) {
+  for (const r of items) {
+    if (picked.length >= limit || seen.has(r.full_name)) continue;
+    seen.add(r.full_name);
+    if (!r.description?.trim() || !r.license || r.license.spdx_id === "NOASSERTION") continue;
+    if (r.open_issues_count < 1 && r.forks_count < 20) continue;
+    if (BAIT.test(`${r.full_name} ${r.description}`)) continue;
+    if (skip && (await skip(r.full_name))) continue;
+    if (!(await trustedOwner(r.owner.login))) continue;
+    picked.push(r.full_name);
+  }
+}
+
+const search = (q: string, page = 1) =>
+  gh<{ items: SearchItem[] }>(`/search/repositories?q=${encodeURIComponent(`${q} fork:false archived:false`)}&sort=stars&order=desc&per_page=50&page=${page}`);
+
 // GitHub has no API for its Trending page. The closest official signal: new repos gathering stars fast, in two
-// windows so this week's breakouts and last month's steady climbers both show up. Only repos that look like real
-// projects pass: a description and a license, some use (issues or forks), no bait words, and a trusted owner.
+// windows so this week's breakouts and last month's steady climbers both show up.
 export async function risingRepos(limit = 30): Promise<string[]> {
   const day = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
-  const queries = [`created:>${day(7)} stars:>150`, `created:>${day(30)} stars:>800`].map((q) => `${q} fork:false archived:false`);
   const picked: string[] = [];
   const seen = new Set<string>();
-  for (const q of queries) {
-    const { items } = await gh<{ items: SearchItem[] }>(`/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=50`);
-    for (const r of items) {
-      if (picked.length >= limit || seen.has(r.full_name)) continue;
-      seen.add(r.full_name);
-      if (!r.description?.trim() || !r.license || r.license.spdx_id === "NOASSERTION") continue;
-      if (r.open_issues_count < 1 && r.forks_count < 20) continue;
-      if (BAIT.test(`${r.full_name} ${r.description}`)) continue;
-      if (!(await trustedOwner(r.owner.login))) continue;
-      picked.push(r.full_name);
+  for (const q of [`created:>${day(7)} stars:>150`, `created:>${day(30)} stars:>800`]) await pickReal((await search(q)).items, picked, seen, limit);
+  return picked;
+}
+
+// Established, well-starred repos with any of these GitHub topics that `skip` says aren't on the shelf yet,
+// most stars first. Fills the lists (lib/lists.ts) with the best-known projects, not only what people looked up.
+export async function topicRepos(topics: string[], limit: number, skip: (fullName: string) => Promise<boolean>, minStars = 1000): Promise<string[]> {
+  const picked: string[] = [];
+  const seen = new Set<string>();
+  for (const t of topics) {
+    // Top repos are on the shelf after a few runs, so look further down the list until enough new ones turn up.
+    for (let page = 1; page <= 3 && picked.length < limit; page++) {
+      const { items } = await search(`topic:${t} stars:>${minStars}`, page);
+      await pickReal(items.filter(isSoftware), picked, seen, limit, skip);
+      if (items.length < 50) break;
     }
   }
   return picked;

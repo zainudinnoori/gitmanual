@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Analysis } from "@/lib/detect";
 import type { Guides } from "@/lib/guides";
+import type { Alternative } from "@/lib/db";
 import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
+import { compactCount } from "@/lib/format";
 import type { Arch, Asset, InstallKind, InstallOptions } from "@/lib/install";
 import { OS_LABEL, OS_LIST, OS_SLUG, type OS } from "@/lib/os";
 import { buildScript } from "@/lib/script";
@@ -134,7 +136,10 @@ export function ReportView({
   curator = "",
   aiGuide = false,
   osPage = null,
+  alternatives = {},
 }: {
+  // Similar repos that run on the systems this one doesn't (see manual.tsx).
+  alternatives?: Partial<Record<OS, Alternative[]>>;
   // Set on /owner/repo/windows etc.: that system is the page's subject, so it isn't swapped for the visitor's.
   osPage?: OS | null;
   picks?: Pick[];
@@ -281,6 +286,7 @@ export function ReportView({
       curator={curator}
       aiGuide={aiGuide}
       osPage={Boolean(osPage)}
+      alternatives={alternatives}
       onRefresh={() => setRefresh((n) => n + 1)}
       onVotes={(votes) => setResult((r) => r && { ...r, votes })}
     />
@@ -304,7 +310,9 @@ function Report({
   curator,
   aiGuide,
   osPage,
+  alternatives,
 }: {
+  alternatives: Partial<Record<OS, Alternative[]>>;
   picks: Pick[];
   curator: string;
   aiGuide: boolean;
@@ -478,6 +486,27 @@ function Report({
           {myArch && <span className="note">Your chip: {archLabel(myArch, os)}</span>}
         </div>
       </section>
+
+      {fit.status !== "yes" && (alternatives[os]?.length ?? 0) > 0 && (
+        <aside className="alts" aria-labelledby="alts-h">
+          <h3 id="alts-h">
+            {fit.status === "no" ? `Doesn't run on ${OS_LABEL[os]}? These similar projects do.` : `Prefer one that's sure to run on ${OS_LABEL[os]}? These similar projects do.`}
+          </h3>
+          <ul>
+            {alternatives[os]!.map((r) => (
+              <li key={r.fullName}>
+                <a href={`/${r.fullName}/${OS_SLUG[os]}`}>
+                  <span className="alt-name" translate="no">
+                    {r.fullName.split("/")[1]}
+                    <span className="num">★ {compactCount(r.stars)}</span>
+                  </span>
+                  {r.description && <span className="alt-desc">{r.description.replace(/:[a-z0-9_+-]+:\s*/g, "")}</span>}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
 
       <div className="sheet">
         <div className="sheet-main">

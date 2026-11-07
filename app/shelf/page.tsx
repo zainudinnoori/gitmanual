@@ -64,7 +64,9 @@ export default async function ShelfPage({ searchParams }: { searchParams: Promis
         <div>
           <p className="eyebrow">The shelf</p>
           <h1 className="display-md">What people are setting up</h1>
-          <p className="lead">Every repo looked up here. Open one for its manual.</p>
+          <p className="lead">
+            Every repo looked up here. Open one for its manual, or browse the <Link href="/lists">lists</Link>.
+          </p>
         </div>
         {/* Hidden when nothing is rising, unless that view is open (so it can be switched back). */}
         {(rising > 0 || query.rising) && (
