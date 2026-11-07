@@ -28,8 +28,8 @@ const NAV: { group: string; items: [id: string, label: string, method?: string][
     group: "Getting started",
     items: [
       ["overview", "Overview"],
-      ["quick-start", "Quick start"],
       ["key", "Your API key"],
+      ["quick-start", "Quick start"],
       ["auth", "Authentication"],
       ["limits", "Limits"],
     ],
@@ -182,6 +182,11 @@ export default function Developers() {
           </dl>
         </header>
 
+        <section id="key" className="api-section">
+          <h2>Your API key</h2>
+          <KeyPanel appAvailable={Boolean(githubApp())} />
+        </section>
+
         <section id="quick-start" className="api-section">
           <h2>Quick start</h2>
           <ol className="api-steps">
@@ -190,7 +195,7 @@ export default function Developers() {
               <CodeBlock text={`curl "${SITE}/api/v1/manual?repo=ollama/ollama&os=mac&format=md"`} />
             </li>
             <li>
-              <b>Get a free key</b> below, for higher limits and private repos, and send it as a header:
+              <b>Get a free key</b> above, for higher limits and private repos, and send it as a header:
               <CodeBlock text={`curl -H "Authorization: Bearer gm_your_key" \\\n  "${SITE}/api/v1/search?q=self-hosted&os=linux"`} />
             </li>
             <li>
@@ -198,11 +203,6 @@ export default function Developers() {
               <CodeBlock text={mcp} />
             </li>
           </ol>
-        </section>
-
-        <section id="key" className="api-section">
-          <h2>Your API key</h2>
-          <KeyPanel appAvailable={Boolean(githubApp())} />
         </section>
 
         <section id="auth" className="api-section">
