@@ -85,6 +85,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/lists">Lists</Link>
               <Link href="/private">Private repos</Link>
               <Link href="/how-it-works">How it works</Link>
+              <Link href="/developers">API &amp; MCP</Link>
               {finds && <Link href="/finds">{finds}</Link>}
               {EXTENSION_URL && (
                 <a href={EXTENSION_URL} target="_blank" rel="noreferrer">

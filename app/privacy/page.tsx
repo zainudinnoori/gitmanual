@@ -17,7 +17,7 @@ export default function Privacy() {
     <DocPage
       eyebrow="Privacy"
       title="Privacy policy"
-      lead="Short version: no accounts, no ads, no tracking cookies, and nothing that identifies you is stored."
+      lead="Short version: no accounts, no ads, no tracking cookies, and nothing that identifies you is stored unless you make an API key."
       updated="7 November 2026"
     >
       <h2>What gitmanual stores</h2>
@@ -45,6 +45,14 @@ export default function Privacy() {
         aren&apos;t sent to any AI service. Your token stays in your browser&apos;s local storage; a GitHub App connection is kept in an
         encrypted cookie that only gitmanual&apos;s servers can read. &ldquo;Disconnect&rdquo; on the manual removes both from this
         browser, and you can remove the app or delete the token on GitHub at any time.
+      </p>
+
+      <h2>API keys</h2>
+      <p>
+        If you make an API key on the <Link href="/developers">developers page</Link>, gitmanual stores your GitHub username and account
+        number, when the key was made and last used, and how many requests it has made, so you (and we) can see its use and turn it off
+        if it&apos;s misused. The key itself is stored only as a fingerprint (a hash). Signing in for a key gives gitmanual no access to
+        your repos. Delete the key on that page any time, and its record goes with it.
       </p>
 
       <h2>What stays in your browser</h2>
@@ -100,7 +108,7 @@ export default function Privacy() {
       </p>
 
       <h2>What gitmanual doesn&apos;t do</h2>
-      <p>No accounts, no advertising, no tracking across sites, and no selling or sharing of personal data.</p>
+      <p>No accounts (an API key is the one exception, and it&apos;s optional), no advertising, no tracking across sites, and no selling or sharing of personal data.</p>
 
       <h2>Your choices</h2>
       <p>

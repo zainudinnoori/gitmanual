@@ -23,6 +23,26 @@ const RULES = {
     message: "That's the limit of new AI guides for today. Guides that are already written still open, and the steps above don't need one.",
   },
   vote: { visitor: [30, HOUR], message: "Thanks! That's a lot of votes for one hour; try again later." },
+  // The JSON API and MCP server (lib/apikeys.ts). Every request counts toward the first pair; repos read from GitHub
+  // for the first time also count toward the second. Answers served from the shared cache never reach the server.
+  apiAnonCalls: {
+    visitor: [60, HOUR],
+    message: "Without a key, the API and MCP server answer 60 requests an hour. Get a free key at gitmanual.com/developers for 1,000 an hour.",
+  },
+  apiKeyCalls: {
+    visitor: [1000, HOUR],
+    message: "This key has made 1,000 requests in the last hour. Try again in a little while, or get in touch through gitmanual.com/contact for more.",
+  },
+  apiAnon: {
+    visitor: [10, DAY],
+    site: [300, HOUR],
+    message: "Without a key, the API and MCP server read 10 new repos a day (repos already on the shelf always open). Get a free key at gitmanual.com/developers for 200 an hour.",
+  },
+  apiKey: {
+    visitor: [200, HOUR],
+    site: [600, HOUR],
+    message: "This key has read 200 new repos in the last hour. Repos already on the shelf still open; new ones can be read again soon.",
+  },
 } satisfies Record<string, Rule>;
 
 export type LimitedAction = keyof typeof RULES;

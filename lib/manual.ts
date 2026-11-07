@@ -3,6 +3,7 @@ import { fitCheck } from "./fit";
 import type { Arch } from "./install";
 import { OS_LABEL, OS_LIST, type OS } from "./os";
 import type { RepoData } from "./pipeline";
+import type { Votes } from "./db";
 
 // A manual's facts in a compact, machine-readable form: what the JSON API, the MCP server and llms.txt hand to
 // AI agents and scripts. Same rules as the web page; nothing here is written by a model.
@@ -11,6 +12,8 @@ export type ManualFacts = {
   repo: string;
   description: string | null;
   stars: number;
+  // Read with the caller's own GitHub token: built for that request only and never saved (lib/lookup.ts).
+  private: boolean;
   manual: string;
   github: string;
   website: string | null;
@@ -18,6 +21,8 @@ export type ManualFacts = {
   maintainersGuide: string | null;
   difficulty: string;
   analyzedAt: string;
+  // "Did you get it running?" answers from people who followed the manual, in all and per system.
+  gotItRunning: { worked: number; stuck: number; bySystem: Partial<Record<OS, { worked: number; stuck: number }>> };
   // Is it free, does it use paid AI, is it maintained, can I trust it (lib/facts.ts)
   beforeYouStart: { question: string; answer: string; detail: string; tone: "yes" | "maybe" | "no" }[];
   systems: Partial<Record<OS, SystemFacts>>;
@@ -32,10 +37,10 @@ type SystemFacts = {
   downloadPage: string | null;
   installCommands: { method: string; command: string; kind: string }[];
   steps: { title: string; commands: string[]; note?: string }[];
-  setupScript: string;
+  setupScript: string | null; // private repos have no saved copy to serve it from; get_setup_script returns it instead
 };
 
-export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?: { os?: OS; arch?: Arch | null }): ManualFacts {
+export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?: { os?: OS; arch?: Arch | null }, votes?: Votes): ManualFacts {
   const { meta, analysis: a, install, guides } = d;
   const base = site.replace(/\/$/, "");
   const manual = `${base}/${meta.fullName}`;
@@ -52,13 +57,14 @@ export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?
       downloadPage: install.downloadPage?.urls[os] ?? null,
       installCommands: install.commands.filter((c) => c.os.includes(os)).map((c) => ({ method: c.method, command: c.command, kind: c.kind })),
       steps: a.steps[os].map((s) => ({ title: s.title, commands: s.commands, ...(s.note ? { note: s.note } : {}) })),
-      setupScript: `${manual}/setup/${os === "windows" ? "windows.ps1" : `${os}.sh`}`,
+      setupScript: meta.private ? null : `${manual}/setup/${os === "windows" ? "windows.ps1" : `${os}.sh`}`,
     };
   }
   return {
     repo: meta.fullName,
     description: meta.description,
     stars: meta.stars,
+    private: Boolean(meta.private),
     manual,
     github: meta.htmlUrl,
     website: guides.website,
@@ -66,6 +72,11 @@ export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?
     maintainersGuide: guides.doc ? `${meta.htmlUrl}/blob/${meta.branch}/${guides.doc.path}` : null,
     difficulty: a.difficulty.label,
     analyzedAt: new Date(analyzedAt).toISOString(),
+    gotItRunning: {
+      worked: votes?.worked ?? 0,
+      stuck: votes?.stuck ?? 0,
+      bySystem: Object.fromEntries(OS_LIST.filter((os) => votes?.byOs[os]).map((os) => [os, votes!.byOs[os]])),
+    },
     beforeYouStart: beforeYouStart(d).map((f) => ({ question: asked(f, meta.fullName), answer: f.a, detail: f.why, tone: f.tone })),
     systems,
     parts: {
@@ -80,10 +91,16 @@ export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?
 
 // The same facts as short Markdown for an agent to read or quote: the verdict first, then the easiest way in.
 export function manualMarkdown(f: ManualFacts): string {
-  const out: string[] = [`# ${f.repo}`, f.description ?? "", `Manual: ${f.manual} · GitHub: ${f.github}`];
+  const out: string[] = [
+    `# ${f.repo}`,
+    f.description ?? "",
+    f.private ? `Private repo, read with your GitHub token and not saved. GitHub: ${f.github}` : `Manual: ${f.manual} · GitHub: ${f.github}`,
+  ];
   if (f.website) out.push(`Website: ${f.website}`);
   if (f.docs) out.push(`Docs: ${f.docs}`);
   if (f.maintainersGuide) out.push(`Maintainers' setup guide: ${f.maintainersGuide}`);
+  if (f.gotItRunning.worked + f.gotItRunning.stuck)
+    out.push(`Got it running: ${f.gotItRunning.worked} people said yes, ${f.gotItRunning.stuck} got stuck.`);
   const parts = [...f.parts.runtimes, ...f.parts.tools, ...f.parts.services];
   if (parts.length) out.push(`Needs: ${parts.join(", ")}`);
   if (f.beforeYouStart.length) out.push("", "## Before you start", ...f.beforeYouStart.map((b) => `- ${b.question} ${b.answer}. ${b.detail}`));
@@ -99,7 +116,7 @@ export function manualMarkdown(f: ManualFacts): string {
         out.push(`${i + 1}. ${st.title}${st.note ? ` (${st.note})` : ""}`);
         if (st.commands.length) out.push("```", ...st.commands, "```");
       });
-      out.push(`Setup script: ${s.setupScript}`);
+      if (s.setupScript) out.push(`Setup script: ${s.setupScript}`);
     }
   }
   out.push("", `Analyzed ${f.analyzedAt} by gitmanual from the repo's own files. Read commands before running them.`);

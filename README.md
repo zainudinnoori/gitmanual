@@ -123,7 +123,8 @@ All settings are environment variables, and every one is optional for local use.
 | `CONTACT_FORM_URL` | A [ShareText](https://sharetext.net) form's embed link: adds "Contact" to the footer, opening the form over the page |
 | `RATE_LIMITS`, `LIMIT_SALT` | Limits are on by default (new analyses 40/hour per visitor and 1,000/hour in all, new AI guides 5/day and 100/day, votes once per repo and system a day). `RATE_LIMITS=off` turns them off; `LIMIT_SALT` is any random string that keeps visitor codes unguessable |
 | `FINDS_*`, `FB_PAGE_*`, `CRON_SECRET` | Optional [Finds](docs/self-hosting.md#7-optional-finds-from-a-facebook-page) page: posts from a Facebook Page, each linked to its manual |
-| `GITHUB_APP_*`, `SESSION_SECRET` | Optional: "Connect GitHub" for [private repos](#private-repos). Without them, visitors can still paste their own read-only token |
+| `GITHUB_APP_*`, `SESSION_SECRET` | Optional: "Connect GitHub" for [private repos](#private-repos) and sign-in for free API keys. Without them, visitors can still paste their own read-only token |
+| `ADMIN_GITHUB_LOGINS` | Optional: GitHub usernames who can see and turn off API keys at `/admin/keys` |
 
 ### Private repos
 
@@ -137,6 +138,13 @@ To turn on Connect GitHub, create a GitHub App at [github.com/settings/apps/new]
 - **Where can it be installed**: Any account.
 
 Then generate a client secret and set `GITHUB_APP_SLUG` (from `github.com/apps/<slug>`), `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` and `SESSION_SECRET` (`openssl rand -hex 32`).
+
+The JSON API and the MCP server open private repos too, with a free gitmanual API key (`Authorization: Bearer gm_…`, made at `/developers`) and your own read-only token as `X-GitHub-Token`. Public repos ignore the token; private answers are never saved or cached. Without a key, the API and MCP server answer 60 requests an hour (10 new repos a day); a free key raises that to 1,000 requests and 200 new repos an hour. Besides manuals, the API has `/api/v1/search` (the shelf, with filters), `/api/v1/lists` and `/api/v1/lists/{slug}`, and `/api/v1/alternatives` (similar repos that run on a system); the MCP server has a tool for each. Full docs: [`/developers`](https://gitmanual.com/developers).
+
+```bash
+curl -H "Authorization: Bearer $GITMANUAL_KEY" -H "X-GitHub-Token: $GITHUB_TOKEN" \
+  "https://gitmanual.com/api/v1/manual?repo=acme/internal-app&os=mac&format=md"
+```
 
 ## Deploy
 

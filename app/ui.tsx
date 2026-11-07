@@ -145,28 +145,22 @@ export function Wrenches({ n, of = 3 }: { n: number; of?: number }) {
 const NAV = [
   ["/shelf", "The shelf"],
   ["/private", "Private repos", "Private"], // the short label is for phones
+  ["/developers", "API & MCP", "API"],
   ["/how-it-works", "How it works"],
 ] as const;
 
 // Every menu item looks the same; the current page is outlined. The product's pages come first; the curator's
-// Finds sit with the GitHub link after a divider, as the people behind it rather than part of the tool.
+// Finds (posts from the Facebook Page, so a Facebook mark) sit with the GitHub link after a divider, as the people
+// behind it rather than part of the tool.
 // The GitHub link only shows once the project's own repo is set (NEXT_PUBLIC_REPO_URL).
 export function NavLinks({ repo, stars, finds }: { repo: string | null; stars: number | null; finds: string | null }) {
   const path = usePathname();
-  // "Zain Finds" is just "Finds" on phones.
-  const items = finds ? [...NAV, ["/finds", finds, finds.split(" ").at(-1)] as const] : NAV;
   return (
     <>
       {path !== "/" && <NavSearch />}
       <nav className="nav-links" aria-label="Site">
-        {items.map(([href, label, short]: readonly [string, string, string?]) => (
-          <Link
-            key={href}
-            href={href}
-            className={href === "/finds" ? "nav-finds" : undefined}
-            aria-current={path === href ? "page" : undefined}
-            aria-label={short ? label : undefined}
-          >
+        {NAV.map(([href, label, short]: readonly [string, string, string?]) => (
+          <Link key={href} href={href} aria-current={path === href ? "page" : undefined} aria-label={short ? label : undefined}>
             {short ? (
               <>
                 <span className="nav-full">{label}</span>
@@ -177,6 +171,16 @@ export function NavLinks({ repo, stars, finds }: { repo: string | null; stars: n
             )}
           </Link>
         ))}
+        {finds && (
+          <Link className="nav-finds" href="/finds" aria-current={path === "/finds" ? "page" : undefined} aria-label={finds} title={finds}>
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"
+              />
+            </svg>
+          </Link>
+        )}
         {repo && (
           <a
             className="nav-gh"

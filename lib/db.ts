@@ -58,6 +58,16 @@ const SCHEMA = `
     created_at INTEGER NOT NULL,
     PRIMARY KEY (key, os)
   );
+  CREATE TABLE IF NOT EXISTS api_keys (
+    hash TEXT PRIMARY KEY,          -- SHA-256 of the key; the key itself is shown once and never stored
+    prefix TEXT NOT NULL,           -- its first characters, so the owner can tell which key it is
+    github_id INTEGER NOT NULL UNIQUE, -- one key per GitHub account
+    login TEXT NOT NULL,            -- GitHub username, for the owner and the admin list
+    created_at INTEGER NOT NULL,
+    last_used INTEGER,
+    uses INTEGER NOT NULL DEFAULT 0,    -- API and MCP requests made with it
+    blocked INTEGER NOT NULL DEFAULT 0
+  );
   CREATE TABLE IF NOT EXISTS hits (
     bucket TEXT PRIMARY KEY,        -- what is counted, e.g. "analyze:<hashed visitor>" (never a raw IP)
     count INTEGER NOT NULL,
@@ -382,7 +392,9 @@ export type ShelfQuery = {
   minStars?: number;
   sort?: "stars" | "recent" | "popular" | "worked";
   rising?: boolean; // only repos rising this week
+  os?: string; // only repos that run on this system (verdict yes), for the API
   page?: number;
+  perPage?: number; // defaults to SHELF_PAGE
 };
 
 export const SHELF_PAGE = 24;
@@ -417,6 +429,10 @@ export function browseRepos(
       where.push("r.stars >= ?");
       args.push(query.minStars);
     }
+    if (query.os) {
+      where.push("r.facets LIKE ?");
+      args.push(`% os:${query.os} %`);
+    }
     const weekAgo = Date.now() - 7 * 864e5;
     if (query.rising) {
       where.push("r.rising_at > ?");
@@ -424,6 +440,7 @@ export function browseRepos(
     }
     const filter = where.join(" AND ");
     const page = Math.max(1, query.page ?? 1);
+    const perPage = query.perPage ?? SHELF_PAGE;
     const [rows, count, langs, rising] = await Promise.all([
       c.execute({
         sql: `SELECT r.full_name, r.description, r.stars, r.language, r.difficulty, r.views, r.analyzed_at, r.rising_at,
@@ -432,7 +449,7 @@ export function browseRepos(
               WHERE ${filter}
               ORDER BY ${SHELF_ORDER[query.sort ?? "stars"]}
               LIMIT ? OFFSET ?`,
-        args: [...args, SHELF_PAGE, (page - 1) * SHELF_PAGE],
+        args: [...args, perPage, (page - 1) * perPage],
       }),
       c.execute({ sql: `SELECT COUNT(*) AS n FROM repos r WHERE ${filter}`, args }),
       c.execute(
@@ -560,4 +577,64 @@ export function hit(bucket: string, windowMs: number): Promise<{ count: number; 
     if (Math.random() < 0.02) await c.execute({ sql: "DELETE FROM hits WHERE reset_at <= ?", args: [now] });
     return { count: Number(rows[0].count), resetAt: Number(rows[0].reset_at) };
   });
+}
+
+// API keys (lib/apikeys.ts). Lookups say "error" rather than "no key" when the database can't answer, so an
+// outage doesn't turn every key away as wrong.
+export type ApiKey = { prefix: string; githubId: number; login: string; createdAt: number; lastUsed: number | null; uses: number; blocked: boolean };
+
+const toKey = (r: Record<string, unknown>): ApiKey => ({
+  prefix: String(r.prefix),
+  githubId: Number(r.github_id),
+  login: String(r.login),
+  createdAt: Number(r.created_at),
+  lastUsed: r.last_used == null ? null : Number(r.last_used),
+  uses: Number(r.uses),
+  blocked: Number(r.blocked) === 1,
+});
+
+export async function keyByHash(hash: string): Promise<ApiKey | null | "error"> {
+  return safely<ApiKey | null | "error">("error", async (c) => {
+    const { rows } = await c.execute({ sql: "SELECT * FROM api_keys WHERE hash = ?", args: [hash] });
+    return rows[0] ? toKey(rows[0]) : null;
+  });
+}
+
+export async function keyForUser(githubId: number): Promise<ApiKey | null> {
+  return safely(null, async (c) => {
+    const { rows } = await c.execute({ sql: "SELECT * FROM api_keys WHERE github_id = ?", args: [githubId] });
+    return rows[0] ? toKey(rows[0]) : null;
+  });
+}
+
+// A new key replaces the account's old one; a blocked account stays blocked.
+export async function saveKey(k: { hash: string; prefix: string; githubId: number; login: string }): Promise<boolean> {
+  return safely(false, async (c) => {
+    const old = await keyForUser(k.githubId);
+    if (old?.blocked) return false;
+    await c.batch(
+      [
+        { sql: "DELETE FROM api_keys WHERE github_id = ?", args: [k.githubId] },
+        { sql: "INSERT INTO api_keys (hash, prefix, github_id, login, created_at) VALUES (?, ?, ?, ?, ?)", args: [k.hash, k.prefix, k.githubId, k.login, Date.now()] },
+      ],
+      "write",
+    );
+    return true;
+  });
+}
+
+export async function deleteKey(githubId: number): Promise<void> {
+  await safely(null, (c) => c.execute({ sql: "DELETE FROM api_keys WHERE github_id = ? AND blocked = 0", args: [githubId] }));
+}
+
+export async function useKey(hash: string): Promise<void> {
+  await safely(null, (c) => c.execute({ sql: "UPDATE api_keys SET uses = uses + 1, last_used = ? WHERE hash = ?", args: [Date.now(), hash] }));
+}
+
+export async function listKeys(): Promise<ApiKey[]> {
+  return safely([], async (c) => (await c.execute("SELECT * FROM api_keys ORDER BY last_used DESC NULLS LAST, created_at DESC")).rows.map(toKey));
+}
+
+export async function blockKey(githubId: number, blocked: boolean): Promise<void> {
+  await safely(null, (c) => c.execute({ sql: "UPDATE api_keys SET blocked = ? WHERE github_id = ?", args: [blocked ? 1 : 0, githubId] }));
 }
