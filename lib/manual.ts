@@ -1,5 +1,6 @@
 import { answered, asked, beforeYouStart } from "./facts";
 import { fitCheck } from "./fit";
+import { flowMermaid, flowWorthShowing, setupFlow } from "./flow";
 import type { Arch } from "./install";
 import { OS_LABEL, OS_LIST, type OS } from "./os";
 import type { RepoData } from "./pipeline";
@@ -38,6 +39,7 @@ type SystemFacts = {
   installCommands: { method: string; command: string; kind: string }[];
   steps: { title: string; commands: string[]; note?: string }[];
   setupScript: string | null; // private repos have no saved copy to serve it from; get_setup_script returns it instead
+  flowchart: string | null; // "How it fits together" as Mermaid (lib/flow.ts); null when there's only one way and nothing to it
 };
 
 export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?: { os?: OS; arch?: Arch | null }, votes?: Votes): ManualFacts {
@@ -47,6 +49,7 @@ export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?
   const systems: ManualFacts["systems"] = {};
   for (const os of only?.os ? [only.os] : OS_LIST) {
     const fit = fitCheck(a, install, os, only?.arch ?? null, meta.archived);
+    const flow = setupFlow(a, install, os);
     systems[os] = {
       verdict: fit.status,
       headline: fit.headline,
@@ -58,6 +61,7 @@ export function manualFacts(d: RepoData, analyzedAt: number, site: string, only?
       installCommands: install.commands.filter((c) => c.os.includes(os)).map((c) => ({ method: c.method, command: c.command, kind: c.kind })),
       steps: a.steps[os].map((s) => ({ title: s.title, commands: s.commands, ...(s.note ? { note: s.note } : {}) })),
       setupScript: meta.private ? null : `${manual}/setup/${os === "windows" ? "windows.ps1" : `${os}.sh`}`,
+      flowchart: flowWorthShowing(flow) ? flowMermaid(flow) : null,
     };
   }
   return {
@@ -118,6 +122,7 @@ export function manualMarkdown(f: ManualFacts): string {
       });
       if (s.setupScript) out.push(`Setup script: ${s.setupScript}`);
     }
+    if (s.flowchart) out.push("How it fits together:", "```mermaid", s.flowchart, "```");
   }
   out.push("", `Analyzed ${f.analyzedAt} by gitmanual from the repo's own files. Read commands before running them.`);
   return out.filter((l, i) => l !== "" || out[i - 1] !== "").join("\n");

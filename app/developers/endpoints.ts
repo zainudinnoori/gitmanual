@@ -55,6 +55,7 @@ export const ENDPOINTS: Endpoint[] = [
       ["systems.{os}.downloads", "array", "Ready-made files from its releases; recommended marks the best one."],
       ["systems.{os}.installCommands", "array", "Install commands from the README (Homebrew, winget, pip…)."],
       ["systems.{os}.steps", "array", "Step-by-step setup from source, each with its commands."],
+      ["systems.{os}.flowchart", "string | null", "How it fits together, as a Mermaid diagram (GitHub draws it in READMEs). Null when there's just one way in."],
       ["parts", "object", "Runtimes, tools, services and settings (.env) it needs."],
     ],
     response: `{
@@ -75,7 +76,8 @@ export const ENDPOINTS: Endpoint[] = [
       "downloads": [{ "name": "Ollama.dmg", "url": "https://github.com/…", "arch": null, "recommended": true }],
       "installCommands": [{ "method": "Homebrew", "command": "brew install ollama", "kind": "app" }],
       "steps": [{ "title": "Install Go", "commands": ["brew install go"] }, "…"],
-      "setupScript": "https://gitmanual.com/ollama/ollama/setup/mac.sh"
+      "setupScript": "https://gitmanual.com/ollama/ollama/setup/mac.sh",
+      "flowchart": "flowchart LR\\n  subgraph get[\\"Get it\\"]\\n …"
     }
   },
   "parts": { "runtimes": ["Go 1.24"], "tools": ["Git"], "services": [], "envVars": [] }

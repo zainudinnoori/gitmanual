@@ -9,9 +9,11 @@ import { beforeYouStart, type Fact } from "@/lib/facts";
 import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
 import { compactCount } from "@/lib/format";
+// import { setupFlow } from "@/lib/flow"; — for the route diagram, see `flow` in Report
 import type { Arch, Asset, InstallKind, InstallOptions } from "@/lib/install";
 import { OS_LABEL, OS_LIST, OS_SLUG, type OS } from "@/lib/os";
 import { buildScript } from "@/lib/script";
+// import { FlowMap } from "./flow"; — the route diagram, off the page for now
 import { disconnect, fetchPrivate, PrivateAccess } from "./private";
 import { CodeBlock, CopyButton, RepoForm, Wrenches, detectArch, detectOS } from "./ui";
 
@@ -71,6 +73,9 @@ function formatSize(bytes: number): string {
 }
 
 const inline = { p: ({ children }: { children?: React.ReactNode }) => <>{children}</> };
+// README code blocks: code-highlighting browser extensions (Prism) add a class and tabindex to <pre> before React
+// loads, which React reports as a hydration mismatch. Only the <pre>'s own attributes are let through.
+const blocks = { pre: ({ node: _node, ...props }: React.ComponentProps<"pre"> & { node?: unknown }) => <pre suppressHydrationWarning {...props} /> };
 
 const LOADING_LINES = ["Opening the box…", "Reading the README…", "Counting the parts…", "Checking your device…", "Writing the steps…"];
 
@@ -382,12 +387,17 @@ function Report({
   const steps = a.steps[os];
   const myArch = os === detectedOs ? arch : null;
   const fit = fitCheck(a, install, os, myArch, meta.archived);
+  // The route diagram ("How it fits together", app/flow.tsx) is off the page for now: it made the page heavier
+  // than the three answers people come for. Its Mermaid still goes out with the API, Markdown and MCP.
+  // const flow = setupFlow(a, install, os);
   const fresh = freshness(meta.pushedAt);
   const level = { Easy: 1, Moderate: 2, Involved: 3 }[a.difficulty.label];
   const setup = buildScript(steps, os, meta.fullName, process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000");
   const setupFile = `/${meta.fullName}/setup/${os === "windows" ? "windows.ps1" : `${os}.sh`}`;
   const md = (text: string) => (
-    <ReactMarkdown urlTransform={(url, key) => repoUrl(url, key, meta.htmlUrl, meta.branch)}>{text}</ReactMarkdown>
+    <ReactMarkdown components={blocks} urlTransform={(url, key) => repoUrl(url, key, meta.htmlUrl, meta.branch)}>
+      {text}
+    </ReactMarkdown>
   );
 
   const parts = [
@@ -424,49 +434,40 @@ function Report({
             ))}
           </div>
         </div>
-        <dl className="spec">
-          <div>
-            <dt>Difficulty</dt>
-            <dd>
-              <Wrenches n={level} /> {a.difficulty.label}
-            </dd>
-          </div>
-          <div>
-            <dt>Time</dt>
-            <dd>{setupTime(a.difficulty.score)}</dd>
-          </div>
-          <div>
-            <dt>Stars</dt>
-            <dd className="num">★ {meta.stars.toLocaleString()}</dd>
-          </div>
-          <div>
-            <dt>Activity</dt>
-            <dd>
-              <span className={`dot ${fresh.tone}`} />
-              {fresh.label}
-            </dd>
-          </div>
-          <div>
-            <dt>License</dt>
-            <dd>{meta.license && meta.license !== "NOASSERTION" ? meta.license : "Not detected"}</dd>
-          </div>
-          <div>
-            <dt>Open issues</dt>
-            <dd className="num">{meta.openIssues.toLocaleString()}</dd>
-          </div>
-          {!priv && (
+        <div className="head-side">
+          <dl className="spec">
             <div>
-              <dt>Got it running</dt>
-              <dd className="num">
-                {result.votes.worked ? `${result.votes.worked} ${result.votes.worked === 1 ? "person" : "people"}` : "Be the first"}
+              <dt>Difficulty</dt>
+              <dd>
+                <Wrenches n={level} /> {a.difficulty.label}
               </dd>
             </div>
-          )}
-          <div>
-            <dt>Looked up</dt>
-            <dd className="num">{timeAgo(result.analyzedAt)}</dd>
-          </div>
-        </dl>
+            <div>
+              <dt>Time</dt>
+              <dd>{setupTime(a.difficulty.score)}</dd>
+            </div>
+            <div>
+              <dt>Stars</dt>
+              <dd className="num">★ {meta.stars.toLocaleString()}</dd>
+            </div>
+            <div>
+              <dt>Activity</dt>
+              <dd>
+                <span className={`dot ${fresh.tone}`} />
+                {fresh.label}
+              </dd>
+            </div>
+            {!priv && result.votes.worked > 0 && (
+              <div>
+                <dt>Got it running</dt>
+                <dd className="num">
+                  {result.votes.worked} {result.votes.worked === 1 ? "person" : "people"}
+                </dd>
+              </div>
+            )}
+          </dl>
+          <BeforeYouStart facts={beforeYouStart(result)} />
+        </div>
       </header>
 
       {priv ? (
@@ -492,26 +493,12 @@ function Report({
       </p>
       )}
 
-      <BeforeYouStart facts={beforeYouStart(result)} />
-
-      <StartHere
-        meta={meta}
-        guides={guides}
-        os={os}
-        way={installWay(install, os)}
-        steps={steps.length}
-        onGo={(m, id) => {
-          onMode(m);
-          requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }));
-        }}
-      />
-
       <section className={`fit fit-${fit.status}`} aria-labelledby="fit-h">
         <div className="fit-stamp" aria-hidden="true">
           {fit.status === "yes" ? "✓" : fit.status === "maybe" ? "?" : "✕"}
         </div>
         <div className="fit-body">
-          <p className="eyebrow">Will it work on my device?</p>
+          <p className="eyebrow">Will it work on {OS_LABEL[os]}?</p>
           <h2 id="fit-h">{fit.headline}</h2>
           <ul>
             {fit.reasons.map((r) => (
@@ -528,7 +515,7 @@ function Report({
           )}
         </div>
         <div className="fit-device">
-          <span className="eyebrow">Checking for</span>
+          <span className="eyebrow">Your system</span>
           <div className="seg" role="radiogroup" aria-label="Operating system">
             {OS_LIST.map((o) => (
               // Real links, so search engines find each system's page; clicking just switches in place.
@@ -573,6 +560,20 @@ function Report({
         </aside>
       )}
 
+      <StartHere
+        meta={meta}
+        guides={guides}
+        os={os}
+        way={installWay(install, os)}
+        steps={steps.length}
+        analysis={a}
+        onGo={(id, m) => {
+          if (m) onMode(m);
+          requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }}
+      />
+      {/* <FlowMap flow={flow} onJump={...} /> — the route diagram, see the note on `flow` above. */}
+
       <div className="sheet">
         <div className="sheet-main">
           <div className="tabs" role="tablist" aria-label="How to set it up" id="main-tabs">
@@ -590,6 +591,7 @@ function Report({
             <InstallPanel install={install} os={os} onSource={() => onMode("source")} />
           ) : (
             <>
+              <RepoScript meta={meta} guides={guides} os={os} />
               {guides.doc && (
                 <details className="panel guide-doc" id="maintainer-guide" open={steps.length <= 3}>
                   <summary>
@@ -720,7 +722,7 @@ function Report({
         </div>
 
         <aside className="sheet-side">
-          <div className="parts">
+          <div className="parts" id="parts">
             <h2 className="parts-h">Parts list</h2>
             {parts.length === 0 ? (
               <p className="empty">Nothing extra to install.</p>
@@ -755,36 +757,33 @@ function Report({
             )}
           </div>
 
-          {!priv && picks.length > 0 && (
-            <div className="side-card">
-              <h3>Featured in {curator}</h3>
-              {picks.slice(0, 2).map((p) => (
-                <a className="featured" key={p.url} href={p.url} target="_blank" rel="noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- small thumbnail of an already-sized poster */}
-                  <img src={p.image} alt="" width={76} height={76} loading="lazy" />
-                  <span>
-                    <b>{p.kind === "reel" ? "▶ Watch the Reel" : "See the poster"} ↗</b>
-                    {p.caption ? p.caption.split(/\r?\n/)[0].slice(0, 90) : "On Facebook"}
-                  </span>
-                </a>
-              ))}
-            </div>
-          )}
-
           {!priv && (
-          <div className="side-card">
-            <h3>Share this manual</h3>
-            <div className="share-btns">
-              <CopyButton text={typeof window === "undefined" ? `/${meta.fullName}` : `${window.location.origin}/${meta.fullName}`} className="btn btn-sm" label="Copy the link" />
-              <a className="btn btn-sm" href={`/${meta.fullName}/poster?download=1`} download>
-                Download a 1080×1080 poster
-              </a>
+            <div className="side-card">
+              <h3>Share this manual</h3>
+              <div className="share-btns">
+                <CopyButton text={typeof window === "undefined" ? `/${meta.fullName}` : `${window.location.origin}/${meta.fullName}`} className="btn btn-sm" label="Copy the link" />
+                <a className="btn btn-sm" href={`/${meta.fullName}/poster?download=1`} download>
+                  Download a 1080×1080 poster
+                </a>
+              </div>
+              {picks.length > 0 && (
+                <div className="side-sub">
+                  <h4>Featured in {curator}</h4>
+                  {picks.slice(0, 2).map((p) => (
+                    <a className="featured" key={p.url} href={p.url} target="_blank" rel="noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- small thumbnail of an already-sized poster */}
+                      <img src={p.image} alt="" width={76} height={76} loading="lazy" />
+                      <span>
+                        <b>{p.kind === "reel" ? "▶ Watch the Reel" : "See the poster"} ↗</b>
+                        {p.caption ? p.caption.split(/\r?\n/)[0].slice(0, 90) : "On Facebook"}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
+              <BadgeCard fullName={meta.fullName} />
             </div>
-          </div>
-
           )}
-
-          {!priv && <BadgeCard fullName={meta.fullName} />}
 
           {(a.hints.length > 0 || a.otherManifests.length > 0) && (
             <div className="side-card">
@@ -805,37 +804,53 @@ function Report({
             </div>
           )}
 
-          {a.scripts.length > 0 && (
-            <details className="side-card">
-              <summary>
-                <h3>package.json scripts ({a.scripts.length})</h3>
-              </summary>
-              <ul className="scripts">
-                {a.scripts.slice(0, 25).map((s) => (
-                  <li key={s.name}>
-                    <code>{s.name}</code>
-                    <span>{s.command}</span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-
           <details className="side-card">
             <summary>
-              <h3>Files we read ({Object.keys(files).length})</h3>
+              <h3>Details</h3>
             </summary>
-            <div className="files">
-              {Object.keys(files)
-                .sort()
-                .map((f) => (
-                  <div key={f}>{f}</div>
-                ))}
+            <dl className="side-facts">
+              <div>
+                <dt>License</dt>
+                <dd>{meta.license && meta.license !== "NOASSERTION" ? meta.license : "Not detected"}</dd>
+              </div>
+              <div>
+                <dt>Open issues</dt>
+                <dd className="num">{meta.openIssues.toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt>Branch</dt>
+                <dd>
+                  <code>{meta.branch}</code>
+                </dd>
+              </div>
+            </dl>
+            {a.scripts.length > 0 && (
+              <div className="side-sub">
+                <h4>package.json scripts ({a.scripts.length})</h4>
+                <ul className="scripts">
+                  {a.scripts.slice(0, 25).map((s) => (
+                    <li key={s.name}>
+                      <code>{s.name}</code>
+                      <span>{s.command}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="side-sub">
+              <h4>Files we read ({Object.keys(files).length})</h4>
+              <div className="files">
+                {Object.keys(files)
+                  .sort()
+                  .map((f) => (
+                    <div key={f}>{f}</div>
+                  ))}
+              </div>
+              <p className="note">
+                {meta.fileCount.toLocaleString()} files in the repo
+                {meta.treeTruncated ? " (large repo, list truncated)" : ""}
+              </p>
             </div>
-            <p className="note">
-              Branch <code>{meta.branch}</code> · {meta.fileCount.toLocaleString()} files in the repo
-              {meta.treeTruncated ? " (large repo, list truncated)" : ""}
-            </p>
           </details>
         </aside>
       </div>
@@ -983,7 +998,7 @@ function installWay(install: InstallOptions, os: OS): InstallWay | null {
   if (install.release?.assets.some((a) => a.os === os)) return { tag: "Download", title: "Get the ready-made app", sub: `Built for ${label}. No code needed.` };
   if (install.downloadPage?.platforms.includes(os))
     return { tag: "Download", title: "Get the ready-made app", sub: `From ${install.downloadPage.host}, for ${label}. No code needed.` };
-  if (app) return { tag: "Install", title: `Install it with ${app.method}`, sub: `One command on ${label}.` };
+  if (app) return { tag: "Install", title: /script/i.test(app.method) ? "Run the install script" : `Install it with ${app.method}`, sub: `One command on ${label}.` };
   if (install.release?.deviceAssets.length)
     return { tag: "Device app", title: "Install it on your device", sub: "An Android / TV app (.apk), installed from this computer." };
   if (cmds.some((c) => c.kind === "docker")) return { tag: "Docker", title: "Run it with Docker", sub: "Self-hosted: it opens in your browser." };
@@ -1066,12 +1081,15 @@ function BeforeYouStart({ facts }: { facts: Fact[] }) {
   );
 }
 
+type Door = { id: string; tag: string; title: string; sub: string; go?: () => void; href?: string };
+
 function StartHere({
   meta,
   guides,
   os,
   way,
   steps,
+  analysis: a,
   onGo,
 }: {
   meta: Result["meta"];
@@ -1079,78 +1097,122 @@ function StartHere({
   os: OS;
   way: InstallWay | null;
   steps: number;
-  onGo: (mode: Mode, id: string) => void;
+  analysis: Analysis;
+  onGo: (id: string, mode?: Mode) => void;
 }) {
   // Our steps are thin when we found little more than "clone it"; the project's own site is the better start then.
   // The maintainers' own guide or docs site beats our generated steps when there's no one-step install.
   const best = way ? "install" : guides.doc ? "guide" : guides.docs ? "docs" : guides.website && (steps <= 2 || /^https?:\/\/docs\./.test(guides.website)) ? "website" : "steps";
-  const scripts = guides.scripts.filter((s) => s.windows === (os === "windows")).concat(guides.scripts.filter((s) => s.windows !== (os === "windows")));
+  const all: Door[] = [
+    ...(way ? [{ id: "install", ...way, go: () => onGo("main-tabs", "install") }] : []),
+    ...(guides.doc
+      ? [{ id: "guide", tag: "Setup guide", title: `Read the maintainers' ${guides.doc.label.toLowerCase()}`, sub: guides.doc.path, go: () => onGo("maintainer-guide", "source") }]
+      : []),
+    { id: "steps", tag: "Steps", title: `Follow our ${steps} steps`, sub: `Copy-paste commands for ${OS_LABEL[os]}.`, go: () => onGo("our-steps", "source") },
+    ...(guides.website ? [{ id: "website", tag: "Website ↗", title: host(guides.website), sub: "The project's own site.", href: guides.website }] : []),
+    ...(guides.docs ? [{ id: "docs", tag: "Docs ↗", title: host(guides.docs), sub: "Linked from the README.", href: guides.docs }] : []),
+    ...(guides.devcontainer
+      ? [{ id: "codespaces", tag: "In the browser ↗", title: "Open in GitHub Codespaces", sub: "Nothing to install.", href: `https://codespaces.new/${meta.fullName}` }]
+      : []),
+  ];
+  // One quick choice: the best start first, then up to two more, and the project's website always (as on the live
+  // site); docs and Codespaces beyond that as plain links.
+  const ordered = [...all.filter((d) => d.id === best), ...all.filter((d) => d.id !== best)];
+  const doors = ordered.filter((d, i) => i < 3 || d.id === "website");
+  const more = ordered.filter((d) => !doors.includes(d));
+  // The one thing the doors can't show: what else has to be running or filled in before it works.
+  const secrets = a.envVars.filter((e) => e.secret && !e.optional).length;
+  const extras = [
+    ...a.services.map((x) => x.name),
+    ...(a.envVars.length ? [`${a.envVars.length} ${a.envVars.length === 1 ? "setting" : "settings"} in .env${secrets ? ` (${secrets} secret)` : ""}`] : []),
+  ];
+  // A single door ("Follow our steps") is no choice at all; the steps right below say the same.
+  if (doors.length <= 1 && !extras.length) return null;
   return (
     <section className="start" aria-labelledby="start-h">
       <h2 id="start-h" className="start-h">
         Start here
       </h2>
       <div className="start-grid">
-        {way && (
-          <button className={`door${best === "install" ? " best" : ""}`} onClick={() => onGo("install", "main-tabs")}>
-            <span className="door-tag">{way.tag}</span>
-            <b>{way.title}</b>
-            <span className="door-sub">{way.sub}</span>
-          </button>
-        )}
-        {guides.doc && (
-          <button className={`door${best === "guide" ? " best" : ""}`} onClick={() => onGo("source", "maintainer-guide")}>
-            <span className="door-tag">Setup guide</span>
-            <b>Read the maintainers&apos; {guides.doc.label.toLowerCase()}</b>
-            <span className="door-sub" translate="no">
-              {guides.doc.path}
-              {guides.otherDocs.length > 0 && ` + ${guides.otherDocs.length} more`}
-            </span>
-          </button>
-        )}
-        <button className={`door${best === "steps" ? " best" : ""}`} onClick={() => onGo("source", "our-steps")}>
-          <span className="door-tag">Steps</span>
-          <b>Follow our {steps} steps</b>
-          <span className="door-sub">Copy-paste commands for {OS_LABEL[os]}.</span>
-        </button>
-        {guides.website && (
-          <a className={`door${best === "website" ? " best" : ""}`} href={guides.website} target="_blank" rel="noreferrer">
-            <span className="door-tag">Website ↗</span>
-            <b translate="no">{host(guides.website)}</b>
-            <span className="door-sub">The project&apos;s own site.</span>
-          </a>
-        )}
-        {guides.docs && (
-          <a className={`door${best === "docs" ? " best" : ""}`} href={guides.docs} target="_blank" rel="noreferrer">
-            <span className="door-tag">Docs ↗</span>
-            <b translate="no">{host(guides.docs)}</b>
-            <span className="door-sub">Linked from the README.</span>
-          </a>
-        )}
-        {guides.devcontainer && (
-          <a className="door" href={`https://codespaces.new/${meta.fullName}`} target="_blank" rel="noreferrer">
-            <span className="door-tag">In the browser ↗</span>
-            <b>Open in GitHub Codespaces</b>
-            <span className="door-sub">The repo ships a dev container, so nothing to install.</span>
-          </a>
-        )}
-      </div>
-      {scripts.length > 0 && (
-        <div className="start-script">
-          <span className="door-tag">{/^(start|run|launch|webui)/i.test(scripts[0].path.split("/").pop()!) ? "Launch script in the repo" : "Setup script in the repo"}</span>
-          <p className="note">
-            The maintainers included <code>{scripts[0].path}</code>.{" "}
-            {scripts[0].run ? "Run it from the cloned folder after " : "Open it to see how it's meant to be run: "}
-            <a href={`${meta.htmlUrl}/blob/${meta.branch}/${scripts[0].path}`} target="_blank" rel="noreferrer">
-              {scripts[0].run ? "reading it" : `${scripts[0].path} on GitHub`}
+        {doors.map((d) => {
+          const body = (
+            <>
+              <span className="door-tag">{d.tag}</span>
+              <b translate={d.href ? "no" : undefined}>{d.title}</b>
+              <span className="door-sub" translate={d.id === "guide" ? "no" : undefined}>
+                {d.sub}
+              </span>
+            </>
+          );
+          const cls = `door${d.id === best ? " best" : ""}`;
+          return d.href ? (
+            <a key={d.id} className={cls} href={d.href} target="_blank" rel="noreferrer">
+              {body}
             </a>
-            .
-          </p>
-          {scripts[0].run && <CodeBlock text={scripts[0].run} />}
-          {scripts.length > 1 && <p className="note">Also: {scripts.slice(1).map((s) => s.path).join(", ")}</p>}
-        </div>
+          ) : (
+            <button key={d.id} className={cls} onClick={d.go}>
+              {body}
+            </button>
+          );
+        })}
+      </div>
+      {more.length > 0 && (
+        <p className="start-more">
+          Also:{" "}
+          {more.map((d, i) => (
+            <span key={d.id}>
+              {i > 0 && " · "}
+              {d.href ? (
+                <a href={d.href} target="_blank" rel="noreferrer">
+                  {d.tag.replace(" ↗", "")} ↗
+                </a>
+              ) : (
+                <button className="link" onClick={d.go}>
+                  {d.title}
+                </button>
+              )}
+            </span>
+          ))}
+        </p>
+      )}
+      {extras.length > 0 && (
+        <p className="start-heads">
+          <span className="start-heads-tag">Heads-up</span>
+          {way || guides.doc ? "Building it yourself? It also needs " : "It also needs "}
+          {extras.map((x, i) => (
+            <span key={x}>
+              {i > 0 && (i === extras.length - 1 ? " and " : ", ")}
+              <b>{x}</b>
+            </span>
+          ))}
+          .{" "}
+          <button className="link" onClick={() => onGo("parts")}>
+            See the parts
+          </button>
+        </p>
       )}
     </section>
+  );
+}
+
+// The setup or launch script the maintainers ship, at the top of "Build from source", where it gets used.
+function RepoScript({ meta, guides, os }: { meta: Result["meta"]; guides: Guides; os: OS }) {
+  const scripts = guides.scripts.filter((s) => s.windows === (os === "windows")).concat(guides.scripts.filter((s) => s.windows !== (os === "windows")));
+  if (!scripts.length) return null;
+  return (
+    <div className="start-script">
+      <span className="door-tag">{/^(start|run|launch|webui)/i.test(scripts[0].path.split("/").pop()!) ? "Launch script in the repo" : "Setup script in the repo"}</span>
+      <p className="note">
+        The maintainers included <code>{scripts[0].path}</code>.{" "}
+        {scripts[0].run ? "Run it from the cloned folder after " : "Open it to see how it's meant to be run: "}
+        <a href={`${meta.htmlUrl}/blob/${meta.branch}/${scripts[0].path}`} target="_blank" rel="noreferrer">
+          {scripts[0].run ? "reading it" : `${scripts[0].path} on GitHub`}
+        </a>
+        .
+      </p>
+      {scripts[0].run && <CodeBlock text={scripts[0].run} />}
+      {scripts.length > 1 && <p className="note">Also: {scripts.slice(1).map((s) => s.path).join(", ")}</p>}
+    </div>
   );
 }
 
@@ -1203,8 +1265,8 @@ function BadgeCard({ fullName }: { fullName: string }) {
   const site = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
   const markdown = `[![Setup manual](${site}/${fullName}/badge.svg)](${site}/${fullName})`;
   return (
-    <div className="side-card">
-      <h3>Is this your repo?</h3>
+    <div className="side-sub">
+      <h4>Is this your repo?</h4>
       <p className="badge-note">Add a badge to your README so newcomers find these steps.</p>
       {/* eslint-disable-next-line @next/next/no-img-element -- a tiny SVG badge */}
       <img className="badge-preview" src={`/${fullName}/badge.svg`} alt="Setup manual badge" height={20} />

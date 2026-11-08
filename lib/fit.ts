@@ -43,7 +43,7 @@ export function fitCheck(a: Analysis, install: InstallOptions, os: OS, arch: Arc
   const cmds = install.commands.filter((c) => c.os.includes(os));
   const app = cmds.find((c) => c.kind === "app");
   if (forArch.length || app) {
-    reasons.push(forArch.length ? `A ready-made ${name} download is in the latest release.` : `The README gives a ${app!.method} install for ${name}.`);
+    reasons.push(forArch.length ? `A ready-made ${name} download is in the latest release.` : readmeInstall(app!.method, name));
     if (forArch.length && !native && !app) {
       reasons.push(os === "mac" ? "The download is built for Intel Macs; it runs on Apple Silicon through Rosetta 2." : "The download is the 32-bit build; it runs fine on 64-bit Windows.");
     }
@@ -112,4 +112,10 @@ export function freshness(pushedAt: string): { label: string; tone: "yes" | "may
   if (days < 30) return { label: "Updated this month", tone: "yes" };
   if (days < 365) return { label: `Updated ${Math.round(days / 30)} months ago`, tone: "yes" };
   return { label: `Quiet for ${(days / 365).toFixed(1)} years`, tone: "maybe" };
+}
+
+// "The README gives an install script for macOS", "…a Homebrew install…", "…an apt install…"
+function readmeInstall(method: string, os: string): string {
+  const what = /script/i.test(method) ? method : `${method} install`;
+  return `The README gives ${/^[aeiou]/i.test(what) ? "an" : "a"} ${what} for ${os}.`;
 }
