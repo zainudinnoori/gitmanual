@@ -6,7 +6,7 @@ import { alternativesFor, getVotes, type Alternative } from "@/lib/db";
 import { answered, asked, beforeYouStart } from "@/lib/facts";
 import { facetsOf, hasDownload, topicsOf } from "@/lib/facets";
 import { GitHubError } from "@/lib/github";
-import { fitCheck } from "@/lib/fit";
+import { fitCheck, setupTime } from "@/lib/fit";
 import { OS_LABEL, OS_LIST, OS_SLUG, osFromSlug, type OS } from "@/lib/os";
 import { PICKS, picksFor } from "@/lib/picks";
 import { analyzeGate } from "@/lib/limit";
@@ -54,20 +54,30 @@ function summary(d: ReportData): string {
   return sentences.join(" ").slice(0, 300);
 }
 
-// "How to install Ollama on Windows: it works on Windows. Ready-made Windows download. 4 steps with copy-paste PowerShell commands…"
+// The search snippet, answer first: "Install ollama on macOS in about 5 min: a ready-made download, or 5 copy-paste
+// Terminal steps. Open source (MIT)." When it doesn't run there, it says so and what the page explains instead.
 function osSummary(d: ReportData, os: OS): string {
   const { meta, analysis: a, install } = d;
   const name = OS_LABEL[os];
+  const app = meta.fullName.split("/")[1];
   const fit = fitCheck(a, install, os, null, meta.archived);
-  const verdict = { yes: `it works on ${name}`, maybe: `it may work on ${name}`, no: `it doesn't support ${name}` }[fit.status];
   const steps = a.steps[os].length;
   const shell = os === "windows" ? "PowerShell" : os === "mac" ? "Terminal" : "bash";
+  const download = hasDownload(install, os);
+  const how = [download ? "a ready-made download" : null, steps ? `${steps} copy-paste ${shell} ${steps === 1 ? "step" : "steps"}` : null]
+    .filter(Boolean)
+    .join(", or ");
+  const time = setupTime(a.difficulty.score); // "about 5 min" or "30 min or more"
+  const lead = {
+    yes: `Install ${app} on ${name} ${time.startsWith("about") ? `in ${time}` : `(takes ${time})`}${how ? `: ${how}` : ""}.`,
+    maybe: `${app} may work on ${name}${how ? `. Try it with ${how}` : ""}.`,
+    no: `${app} doesn't run on ${name}. See why, and the systems it does run on.`,
+  }[fit.status];
   const sentences = [
-    `How to install ${meta.fullName.split("/")[1]} on ${name}: ${verdict}.`,
-    hasDownload(install, os) ? `Ready-made ${name} download available.` : null,
+    lead,
     // With a download, the runtimes only matter for building from source.
-    a.runtimes.length && !hasDownload(install, os) ? `Needs ${a.runtimes.slice(0, 3).map((r) => r.name).join(", ")}.` : null,
-    steps ? `${steps} steps with copy-paste ${shell} commands and a setup script.` : null,
+    fit.status !== "no" && a.runtimes.length && !download ? `Needs ${a.runtimes.slice(0, 3).map((r) => r.name).join(", ")}.` : null,
+    meta.license && !/^(NOASSERTION|other)$/i.test(meta.license) ? `Open source (${meta.license}).` : null,
   ].filter(Boolean);
   return sentences.join(" ").slice(0, 300);
 }
@@ -89,8 +99,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     title,
     description,
     alternates: { canonical },
-    openGraph: { title, description, type: "article", url: canonical },
-    twitter: { card: "summary_large_image", title, description },
+    // Named here because the per-system pages have no image file of their own, and this openGraph would hide the repo's.
+    openGraph: { title, description, type: "article", url: canonical, images: [{ url: `/${meta.fullName}/opengraph-image`, width: 1200, height: 630, alt: `Setup manual for ${meta.fullName}` }] },
+    twitter: { card: "summary_large_image", title, description, images: [`/${meta.fullName}/opengraph-image`] },
     // Branch views (?ref=) are variants of the main page.
     robots: ref ? { index: false, follow: true } : undefined,
   };
@@ -149,14 +160,28 @@ function JsonLd({ data, os, osPage }: { data: ReportData; os: OS; osPage: OS | n
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const home = `${site}/${meta.fullName}`;
   const url = osPage ? `${home}/${OS_SLUG[osPage]}` : home;
+  const name = meta.fullName.split("/")[1];
   const graph = [
+    // This page, and how fresh it is: the setup was last read from the repo at analyzedAt.
+    {
+      "@type": "WebPage",
+      "@id": url,
+      url,
+      dateModified: new Date(data.analyzedAt).toISOString(),
+      about: { "@id": `${home}#software` },
+      isPartOf: { "@type": "WebSite", "@id": `${site}/#website`, name: "gitmanual", url: `${site}/` },
+    },
     {
       "@type": "SoftwareSourceCode",
-      name: meta.fullName.split("/")[1],
+      "@id": `${home}#software`,
+      name,
       description: meta.description ?? undefined,
       codeRepository: meta.htmlUrl,
       programmingLanguage: meta.language ?? undefined,
       license: meta.license && meta.license !== "NOASSERTION" ? `https://spdx.org/licenses/${meta.license}` : undefined,
+      keywords: meta.topics.length ? meta.topics.join(", ") : undefined,
+      // Not SoftwareApplication: Google would then expect ratings and flag every manual in Search Console without them.
+      dateModified: meta.pushedAt,
     },
     {
       "@type": "HowTo",

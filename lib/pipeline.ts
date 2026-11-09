@@ -2,6 +2,7 @@ import { analyze, presentPaths, selectFiles, type Analysis } from "./detect";
 import { CACHE_MS, countView, getCached, repoKey, saveRepo } from "./db";
 import { getFiles, getLatestRelease, getRepoMeta, getTree, GitHubError, type RepoMeta, type RepoRef } from "./github";
 import { findDocsLink, findDownloadPage, findSetupDocs, findSetupScripts, type Guides, type SetupDoc } from "./guides";
+import { announceRepo } from "./indexnow";
 import { parseRelease, readmeInstallCommands, type InstallOptions } from "./install";
 import { OS_LIST } from "./os";
 import { declaredPlatforms, mentions } from "./platforms";
@@ -44,6 +45,8 @@ export async function loadRepo(ref: RepoRef, opts: { fresh?: boolean; view?: boo
       { fullName: meta.fullName, description: meta.description, stars: meta.stars, language: meta.language, difficulty: analysis.difficulty.label },
       data,
     );
+    // A repo new to gitmanual (main branch only; branch views aren't indexed): tell search engines about its pages.
+    if (!saved && !ref.ref) announceRepo(meta.fullName);
     if (opts.view) await countView(key);
     return { key, data, analyzedAt, cached: false };
   } catch (err) {

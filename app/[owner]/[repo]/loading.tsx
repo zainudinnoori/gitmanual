@@ -8,7 +8,8 @@ export default function Loading() {
         <span />
       </div>
       <p className="eyebrow">Reading the repo</p>
-      <h1 className="display-md">Opening the box…</h1>
+      {/* Not an h1: this is sent first, and crawlers that read the raw page would take it for the page's headline. */}
+      <p className="display-md">Opening the box…</p>
     </div>
   );
 }
