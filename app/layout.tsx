@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { PICKS, sortedPicks } from "@/lib/picks";
-import { ContactButton, Logo, NavLinks } from "./ui";
+import { ContactButton, LaunchBanner, Logo, NavLinks } from "./ui";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display" });
@@ -31,6 +31,8 @@ const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL || null;
 // Optional: the browser extension's store page, linked from the footer and the home page.
 const EXTENSION_URL = process.env.NEXT_CHROME_EXTENSION_URL || null;
 // Optional: a ShareText form for "Contact" in the footer (only https links are used).
+// Optional: the Product Hunt launch page, shown in a strip above the menu while it's set (only producthunt.com links).
+const LAUNCH_URL = /^https:\/\/(www\.)?producthunt\.com\/[^\s"]+$/.test(process.env.PRODUCT_HUNT_URL ?? "") ? process.env.PRODUCT_HUNT_URL! : null;
 const CONTACT_FORM = /^https:\/\/[^\s"]+$/.test(process.env.CONTACT_FORM_URL ?? "") ? process.env.CONTACT_FORM_URL! : null;
 
 async function repoStars(): Promise<number | null> {
@@ -56,6 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <a className="skip" href="#main">
           Skip to content
         </a>
+        {LAUNCH_URL && <LaunchBanner url={LAUNCH_URL} />}
         <header className="nav">
           <div className="wrap nav-inner">
             <Link className="wordmark" href="/">

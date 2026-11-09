@@ -310,3 +310,35 @@ export function ContactButton({ form }: { form: string }) {
     </>
   );
 }
+
+// A one-line "live on Product Hunt" strip above the menu while PRODUCT_HUNT_URL is set. Closing it hides it for this
+// launch on this browser (a new launch link shows it again).
+export function LaunchBanner({ url }: { url: string }) {
+  const key = `gitmanual-launch-closed:${url}`;
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(key)) setClosed(true);
+    } catch {}
+  }, [key]);
+  if (closed) return null;
+  return (
+    <div className="launch" role="region" aria-label="Product Hunt launch">
+      <a href={url} target="_blank" rel="noreferrer">
+        <b>We&apos;re live on Product Hunt today.</b> Come say hi and tell us what you think&nbsp;→
+      </a>
+      <button
+        className="launch-x"
+        aria-label="Close"
+        onClick={() => {
+          setClosed(true);
+          try {
+            localStorage.setItem(key, "1");
+          } catch {}
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
