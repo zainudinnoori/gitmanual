@@ -87,10 +87,10 @@ export function RepoForm({ initial = "", size = "lg", autoFocus }: { initial?: s
   );
 }
 
-export function Logo() {
+export function Logo({ size = 26 }: { size?: number }) {
   // A flat-pack box with a prompt on the side: open source, some assembly required.
   return (
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 26 26" fill="none" aria-hidden="true">
       <path d="M13 2l10 5v12l-10 5-10-5V7z" fill="var(--wrench)" stroke="var(--ink)" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M3 7l10 5 10-5M13 12v12" stroke="var(--ink)" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M6 13l2.4 1.8L6 17.6" stroke="var(--ink)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
