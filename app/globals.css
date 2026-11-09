@@ -75,6 +75,12 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .ad-placeholder { display: grid; place-content: center; gap: 4px; text-align: center; border: 2px dashed var(--line-strong); border-radius: 12px; background: var(--sheet); color: var(--pencil); font-size: var(--fs-small); }
 .ad-placeholder span { font-weight: 600; color: var(--ink); }
 .ad-head { max-width: none; }
+.ad[hidden] { display: none; }
+.ad-fallback { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 24px; border: 1.5px solid var(--ink); border-radius: 14px; background: var(--sheet); font-size: var(--fs-small); color: var(--pencil); }
+.ad-fallback p { margin: 0; }
+.ad-fallback-h { font: 700 var(--fs-title)/1.25 var(--display); color: var(--ink); }
+.ad-fallback-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ad-fallback-links .btn { text-decoration: none; }
 .api-top { display: grid; grid-template-columns: minmax(0, 760px) 330px; justify-content: space-between; gap: 40px; align-items: start; }
 .nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
 .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
