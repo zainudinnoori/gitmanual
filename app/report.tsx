@@ -15,6 +15,7 @@ import { OS_LABEL, OS_LIST, OS_SLUG, type OS } from "@/lib/os";
 import { buildScript } from "@/lib/script";
 // import { FlowMap } from "./flow"; — the route diagram, off the page for now
 import { disconnect, fetchPrivate, PrivateAccess } from "./private";
+import { CarbonAd } from "./carbon";
 import { CodeBlock, CopyButton, RepoForm, Wrenches, detectArch, detectOS } from "./ui";
 
 type Result = {
@@ -433,6 +434,7 @@ function Report({
               </span>
             ))}
           </div>
+          <BeforeYouStart facts={beforeYouStart(result)} />
         </div>
         <div className="head-side">
           <dl className="spec">
@@ -466,7 +468,7 @@ function Report({
               </div>
             )}
           </dl>
-          <BeforeYouStart facts={beforeYouStart(result)} />
+          {!priv && <CarbonAd className="ad-head" />}
         </div>
       </header>
 

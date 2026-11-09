@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { browseRepos, SHELF_PAGE, type ShelfQuery } from "@/lib/db";
 import { ShelfCard } from "../cards";
+import { CarbonAd } from "../carbon";
 import { ShelfFilters } from "./filters";
 
 const DESCRIPTION = "Browse the open-source repos people have set up with gitmanual, by stars, language and difficulty.";
@@ -67,18 +68,19 @@ export default async function ShelfPage({ searchParams }: { searchParams: Promis
           <p className="lead">
             Every repo looked up here. Open one for its manual, or browse the <Link href="/lists">lists</Link>.
           </p>
+          {/* Hidden when nothing is rising, unless that view is open (so it can be switched back). */}
+          {(rising > 0 || query.rising) && (
+            <nav className="view-switch" aria-label="Show">
+              <Link href={viewHref(false)} aria-current={!query.rising ? "page" : undefined} scroll={false}>
+                All repos <span className="count">{all.toLocaleString()}</span>
+              </Link>
+              <Link href={viewHref(true)} aria-current={query.rising ? "page" : undefined} scroll={false}>
+                Rising this week <span className="count">{rising}</span>
+              </Link>
+            </nav>
+          )}
         </div>
-        {/* Hidden when nothing is rising, unless that view is open (so it can be switched back). */}
-        {(rising > 0 || query.rising) && (
-          <nav className="view-switch" aria-label="Show">
-            <Link href={viewHref(false)} aria-current={!query.rising ? "page" : undefined} scroll={false}>
-              All repos <span className="count">{all.toLocaleString()}</span>
-            </Link>
-            <Link href={viewHref(true)} aria-current={query.rising ? "page" : undefined} scroll={false}>
-              Rising this week <span className="count">{rising}</span>
-            </Link>
-          </nav>
-        )}
+        <CarbonAd />
       </header>
 
       <ShelfFilters query={query} languages={languages} />

@@ -6,6 +6,7 @@ import { githubApp } from "@/lib/session";
 import { CodeBlock, CopyButton } from "../ui";
 import { ENDPOINTS, ERRORS, MCP_TOOLS, type Endpoint } from "./endpoints";
 import { KeyPanel } from "./key";
+import { CarbonAd } from "../carbon";
 import { TryIt } from "./try";
 
 export const metadata: Metadata = {
@@ -151,36 +152,39 @@ export default function Developers() {
       </nav>
 
       <article className="api-main">
-        <header className="doc-head" id="overview">
-          <p className="eyebrow">API and MCP</p>
-          <h1 className="display-md">gitmanual for code and AI agents</h1>
-          <p className="lead">
-            The same setup manuals as the website, plus search, lists and alternatives, as JSON, Markdown or MCP tools. It works without a
-            key; a free key raises the limits and opens private repos.
-          </p>
-          <dl className="api-facts">
-            <div>
-              <dt>Base URL</dt>
-              <dd>
-                <code>{SITE}/api/v1</code>
-              </dd>
-            </div>
-            <div>
-              <dt>MCP</dt>
-              <dd>
-                <code>{SITE}/mcp</code>
-              </dd>
-            </div>
-            <div>
-              <dt>Format</dt>
-              <dd>JSON (manuals also as Markdown)</dd>
-            </div>
-            <div>
-              <dt>Cost</dt>
-              <dd>Free</dd>
-            </div>
-          </dl>
-        </header>
+        <div className="api-top">
+          <header className="doc-head" id="overview">
+            <p className="eyebrow">API and MCP</p>
+            <h1 className="display-md">gitmanual for code and AI agents</h1>
+            <p className="lead">
+              The same setup manuals as the website, plus search, lists and alternatives, as JSON, Markdown or MCP tools. It works without a
+              key; a free key raises the limits and opens private repos.
+            </p>
+            <dl className="api-facts">
+              <div>
+                <dt>Base URL</dt>
+                <dd>
+                  <code>{SITE}/api/v1</code>
+                </dd>
+              </div>
+              <div>
+                <dt>MCP</dt>
+                <dd>
+                  <code>{SITE}/mcp</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Format</dt>
+                <dd>JSON (manuals also as Markdown)</dd>
+              </div>
+              <div>
+                <dt>Cost</dt>
+                <dd>Free</dd>
+              </div>
+            </dl>
+          </header>
+          <CarbonAd />
+        </div>
 
         <section id="key" className="api-section">
           <h2>Your API key</h2>

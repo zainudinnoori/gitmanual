@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { OS_LABEL, OS_LIST } from "@/lib/os";
 import { OsIcon, ThemeIcon } from "../icons";
+import { CarbonAd } from "../carbon";
 import { isPublished, loadLists } from "./data";
 
 export const revalidate = 3600;
@@ -22,6 +23,7 @@ export default async function ListsPage() {
           <h1 className="display-md">Find something that runs on your computer</h1>
           <p className="lead">Open-source projects grouped by what they do, checked against each system.</p>
         </div>
+        <CarbonAd />
       </header>
       {lists.length ? (
         OS_LIST.map((os) => {

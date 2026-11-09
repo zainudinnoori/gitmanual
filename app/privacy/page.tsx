@@ -17,8 +17,8 @@ export default function Privacy() {
     <DocPage
       eyebrow="Privacy"
       title="Privacy policy"
-      lead="Short version: no accounts, no ads, no tracking cookies, and nothing that identifies you is stored unless you make an API key."
-      updated="7 November 2026"
+      lead="Short version: no accounts, no tracking cookies from gitmanual, and nothing that identifies you is stored unless you make an API key. Some pages show one ad from Carbon."
+      updated="9 November 2026"
     >
       <h2>What gitmanual stores</h2>
       <ul>
@@ -68,6 +68,11 @@ export default function Privacy() {
           <strong>Vercel</strong> hosts the site. Like any web host, it handles requests (including your IP address and browser type) and
           keeps short-lived logs for security and operations. Page views are counted with Vercel Web Analytics, which uses no cookies and
           reports only totals, such as how many people opened a page.
+        </li>
+        <li>
+          <strong>Carbon</strong> (carbonads.net) shows one ad on manual pages of public repos, the shelf, the lists and the API
+          page. Your browser loads it from Carbon, which receives your IP address and browser type, under Carbon&apos;s privacy policy.
+          Manual pages of private repos never load it.
         </li>
         <li>
           <strong>Turso</strong> hosts the database that holds what&apos;s listed above.
