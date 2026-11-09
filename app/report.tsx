@@ -150,9 +150,12 @@ export function ReportView({
   aiGuide = false,
   osPage = null,
   alternatives = {},
+  related = {},
 }: {
   // Similar repos that run on the systems this one doesn't (see manual.tsx).
   alternatives?: Partial<Record<OS, Alternative[]>>;
+  // Similar repos that run on each system, shown on every manual (see manual.tsx).
+  related?: Partial<Record<OS, Alternative[]>>;
   // Set on /owner/repo/windows etc.: that system is the page's subject, so it isn't swapped for the visitor's.
   osPage?: OS | null;
   picks?: Pick[];
@@ -331,6 +334,7 @@ export function ReportView({
       aiGuide={aiGuide}
       osPage={Boolean(osPage)}
       alternatives={alternatives}
+      related={related}
       onRefresh={() => setRefresh((n) => n + 1)}
       onDisconnect={async () => {
         await disconnect();
@@ -362,8 +366,10 @@ function Report({
   aiGuide,
   osPage,
   alternatives,
+  related,
 }: {
   alternatives: Partial<Record<OS, Alternative[]>>;
+  related: Partial<Record<OS, Alternative[]>>;
   picks: Pick[];
   curator: string;
   aiGuide: boolean;
@@ -388,6 +394,9 @@ function Report({
   const steps = a.steps[os];
   const myArch = os === detectedOs ? arch : null;
   const fit = fitCheck(a, install, os, myArch, meta.archived);
+  // "More like this" leaves out what the alternatives box above already shows.
+  const altsShown = fit.status !== "yes" ? (alternatives[os] ?? []).map((r) => r.fullName) : [];
+  const moreLike = (related[os] ?? []).filter((r) => !altsShown.includes(r.fullName));
   // The route diagram ("How it fits together", app/flow.tsx) is off the page for now: it made the page heavier
   // than the three answers people come for. Its Mermaid still goes out with the API, Markdown and MCP.
   // const flow = setupFlow(a, install, os);
@@ -546,19 +555,7 @@ function Report({
           <h3 id="alts-h">
             {fit.status === "no" ? `Doesn't run on ${OS_LABEL[os]}? These similar projects do.` : `Prefer one that's sure to run on ${OS_LABEL[os]}? These similar projects do.`}
           </h3>
-          <ul>
-            {alternatives[os]!.map((r) => (
-              <li key={r.fullName}>
-                <a href={`/${r.fullName}/${OS_SLUG[os]}`}>
-                  <span className="alt-name" translate="no">
-                    {r.fullName.split("/")[1]}
-                    <span className="num">★ {compactCount(r.stars)}</span>
-                  </span>
-                  {r.description && <span className="alt-desc">{r.description.replace(/:[a-z0-9_+-]+:\s*/g, "")}</span>}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <AltCards list={alternatives[os]!} os={os} />
         </aside>
       )}
 
@@ -721,6 +718,8 @@ function Report({
             </div>
           )}
           {(!aiGuide || priv) && <AskAi prompt={askPrompt(result, os, myArch)} os={os} />}
+
+          <Related list={moreLike} name={meta.fullName.split("/")[1]} os={os} />
         </div>
 
         <aside className="sheet-side">
@@ -1084,6 +1083,38 @@ function BeforeYouStart({ facts }: { facts: Fact[] }) {
 }
 
 type Door = { id: string; tag: string; title: string; sub: string; go?: () => void; href?: string };
+
+// Similar repos as small cards, each opening its manual on the same system.
+function AltCards({ list, os }: { list: Alternative[]; os: OS }) {
+  return (
+    <ul>
+      {list.map((r) => (
+        <li key={r.fullName}>
+          <a href={`/${r.fullName}/${OS_SLUG[os]}`}>
+            <span className="alt-name" translate="no">
+              {r.fullName.split("/")[1]}
+              <span className="num">★ {compactCount(r.stars)}</span>
+            </span>
+            {r.description && <span className="alt-desc">{r.description.replace(/:[a-z0-9_+-]+:\s*/g, "")}</span>}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// "More like ollama that run on macOS": the end of every manual, so there's always somewhere to go next.
+function Related({ list, name, os }: { list: Alternative[]; name: string; os: OS }) {
+  if (!list.length) return null;
+  return (
+    <section className="alts related" aria-labelledby="related-h">
+      <h2 id="related-h">
+        More like <span translate="no">{name}</span> that run on {OS_LABEL[os]}
+      </h2>
+      <AltCards list={list} os={os} />
+    </section>
+  );
+}
 
 function StartHere({
   meta,

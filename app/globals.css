@@ -713,7 +713,8 @@ code.flow-label { font: 600 var(--fs-meta)/1.4 var(--mono); background: none; bo
 
 /* "Doesn't run on Windows? These do." under the verdict */
 .alts { margin: -8px 0 24px; padding: 14px 18px; border: 1.5px dashed var(--line-strong); border-radius: 14px; }
-.alts h3 { font: 700 var(--fs-body) var(--display); margin-bottom: 8px; }
+.alts h3, .alts h2 { font: 700 var(--fs-body) var(--display); margin-bottom: 8px; }
+.related { margin: 32px 0 0; border-style: solid; border-color: var(--line); }
 .alts ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .alts a { display: block; text-decoration: none; padding: 8px 10px; border-radius: 10px; background: var(--sheet); border: 1px solid var(--line); height: 100%; }
 .alts a:hover { border-color: var(--ink); }

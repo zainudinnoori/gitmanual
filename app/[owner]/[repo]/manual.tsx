@@ -141,6 +141,7 @@ export async function RepoManual({ params, searchParams }: Props) {
         curator={PICKS.curator}
         aiGuide={Boolean(process.env.ANTHROPIC_API_KEY)}
         alternatives={"data" in r ? await alternatives(r.data) : {}}
+        related={"data" in r ? await related(r.data) : {}}
       />
     </>
   );
@@ -152,6 +153,14 @@ async function alternatives(d: ReportData): Promise<Partial<Record<OS, Alternati
   const missing = OS_LIST.filter((os) => fitCheck(d.analysis, d.install, os, null, d.meta.archived).status !== "yes");
   const found = await Promise.all(missing.map((os) => alternativesFor(d.meta.fullName.toLowerCase(), os, topics)));
   return Object.fromEntries(missing.map((os, i) => [os, found[i]]).filter(([, alts]) => alts.length));
+}
+
+// Up to 6 similar repos (by GitHub topics) that run on each system, for "More like this" at the end of every manual:
+// a reader's next stop, and the links that lead search engines from one manual to the next.
+async function related(d: ReportData): Promise<Partial<Record<OS, Alternative[]>>> {
+  const topics = topicsOf(facetsOf(d));
+  const found = await Promise.all(OS_LIST.map((os) => alternativesFor(d.meta.fullName.toLowerCase(), os, topics, 6)));
+  return Object.fromEntries(OS_LIST.map((os, i) => [os, found[i]]).filter(([, list]) => list.length));
 }
 
 // Structured data: what the software is, the setup as a HowTo, and where the page sits on the site.
