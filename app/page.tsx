@@ -6,6 +6,7 @@ import { Landing, type SystemLists } from "./hero";
 
 // Cached and rebuilt at most every 5 minutes: the shelf and rising lists don't need to be fresher than that.
 export const revalidate = 300;
+const HOME_LISTS = 6; // per system card; the rest are on /lists
 
 export default async function Home() {
   const [recent, popular, rising, risingTotal, counts] = await Promise.all([
@@ -15,13 +16,14 @@ export default async function Home() {
     countRising(),
     facetCounts([...OS_LIST.map((os) => ({ all: [`os:${os}`] })), ...LISTS]),
   ]);
-  // One card per system: how many repos run on it, and its lists that have enough in them to show.
+  // One card per system: how many repos run on it, and its biggest lists that have enough in them to show.
   const systems: SystemLists[] = OS_LIST.map((os, i) => ({
     os,
     total: counts[i],
-    lists: LISTS.map((l, j) => ({ slug: l.slug, theme: l.theme, short: l.short, os: l.os, count: counts[OS_LIST.length + j] })).filter(
-      (l) => l.os === os && l.count >= MIN_LIST,
-    ),
+    lists: LISTS.map((l, j) => ({ slug: l.slug, theme: l.theme, short: l.short, os: l.os, count: counts[OS_LIST.length + j] }))
+      .filter((l) => l.os === os && l.count >= MIN_LIST)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, HOME_LISTS),
   })).filter((s) => s.lists.length > 0);
   // A repo shows in one place: "Rising this week" keeps its own, and the shelf section fills up with others.
   const shown = new Set(rising.map((r) => r.fullName));

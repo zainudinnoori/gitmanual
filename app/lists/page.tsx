@@ -9,7 +9,7 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Lists: open-source apps by what they do and where they run",
-  description: "Self-hosted apps, AI tools, command-line tools and MCP servers that run on macOS, Windows or Linux, each with a setup manual.",
+  description: "Self-hosted apps, AI tools, local LLMs, developer tools, note-taking apps and more that run on macOS, Windows or Linux, each with a setup manual.",
   alternates: { canonical: "/lists" },
 };
 

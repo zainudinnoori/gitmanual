@@ -68,6 +68,79 @@ const THEME_PATHS: Record<string, ReactNode> = {
       <path d="M12 17v4" />
     </>
   ),
+  // a chip
+  "local-llms": (
+    <>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <path d="M10 10h4v4h-4zM9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5" />
+    </>
+  ),
+  // code brackets with a spark
+  "ai-coding-tools": (
+    <>
+      <path d="M8 7l-5 5 5 5M16 7l5 5-5 5" />
+      <path d="M12 8.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" />
+    </>
+  ),
+  // a picture
+  "image-generation": (
+    <>
+      <rect x="3" y="3.5" width="18" height="17" rx="2.5" />
+      <circle cx="9" cy="9.5" r="1.8" />
+      <path d="M21 16l-5-5-9 9.5" />
+    </>
+  ),
+  // a microphone
+  "speech-and-voice": (
+    <>
+      <rect x="9" y="2.5" width="6" height="12" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4M8.5 21.5h7" />
+    </>
+  ),
+  // a wrench
+  "developer-tools": <path d="M14.7 6.3a4 4 0 0 0 5 5L21 10a5.5 5.5 0 0 1-7-7l-1.3 1.3a4 4 0 0 0 2 2zM13.5 8.5l-9.5 9.5a2 2 0 0 0 2.8 2.8l9.5-9.5" />,
+  // a database cylinder
+  databases: (
+    <>
+      <ellipse cx="12" cy="5.5" rx="8" ry="3" />
+      <path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </>
+  ),
+  // a spider web
+  "web-scraping-tools": (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9M12 3c-2.5 2.5-3.8 5.5-3.8 9s1.3 6.5 3.8 9" />
+    </>
+  ),
+  // a notebook
+  "note-taking-apps": (
+    <>
+      <rect x="5" y="2.5" width="14" height="19" rx="2" />
+      <path d="M9 7.5h6M9 11.5h6M9 15.5h3M3 7h2M3 12h2M3 17h2" />
+    </>
+  ),
+  // a play button
+  "video-and-audio-tools": (
+    <>
+      <rect x="2.5" y="4.5" width="19" height="15" rx="3" />
+      <path d="M10 9l5 3-5 3z" />
+    </>
+  ),
+  // a shield
+  "privacy-and-security": (
+    <>
+      <path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z" />
+      <path d="M8.5 12l2.5 2.5 4.5-4.5" />
+    </>
+  ),
+  // stacked pages
+  "static-site-generators": (
+    <>
+      <path d="M12 3l9 4.5-9 4.5-9-4.5z" />
+      <path d="M3 12l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5" />
+    </>
+  ),
   // a PC with a download arrow
   "apps-with-a-download": (
     <>

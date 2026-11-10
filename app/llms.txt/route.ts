@@ -10,7 +10,7 @@ export function GET() {
 
 - Manual page: ${SITE}/{owner}/{repo} (the same path as github.com, with "hub" swapped for "manual")
 - One system: ${SITE}/{owner}/{repo}/macos, /windows or /linux
-- Lists by what repos do and where they run (self-hosted apps, AI tools, CLI tools, MCP servers, apps with a download): ${SITE}/lists
+- Lists by what repos do and where they run (self-hosted apps, AI tools, local LLMs, CLI and developer tools, MCP servers, databases, note-taking apps, apps with a download and more): ${SITE}/lists
 - Facts as JSON: ${SITE}/api/v1/manual?repo={owner}/{repo} (add &os=mac|windows|linux, &arch=arm64|x64)
 - Every manual (page, JSON, Markdown, MCP) also answers: is it free (its license), does it use paid AI APIs, is it still maintained, and its track record (stars, age, owner). Field: beforeYouStart
 - Facts as Markdown: ${SITE}/api/v1/manual?repo={owner}/{repo}&os=linux&format=md
