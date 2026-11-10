@@ -15,6 +15,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.producthunt.com/products/gitmanual?launch=gitmanual"><img src="https://img.shields.io/badge/Product%20Hunt-upvote%20us-da552f?logo=producthunt&logoColor=white" alt="gitmanual on Product Hunt" /></a>
   <a href="https://gitmanual.com/zainudinnoori/gitmanual"><img src="https://gitmanual.com/zainudinnoori/gitmanual/badge.svg" alt="Setup manual" /></a>
   <a href="https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn"><img src="https://img.shields.io/badge/Chrome-extension-15161a?logo=googlechrome&logoColor=white" alt="Chrome extension" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ff6b2c" alt="MIT license" /></a>
