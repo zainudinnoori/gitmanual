@@ -19,10 +19,6 @@
   <a href="https://gitmanual.com/zainudinnoori/gitmanual"><img src="https://gitmanual.com/zainudinnoori/gitmanual/badge.svg" alt="Setup manual" /></a>
   <a href="https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn"><img src="https://img.shields.io/badge/Chrome-extension-15161a?logo=googlechrome&logoColor=white" alt="Chrome extension" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ff6b2c" alt="MIT license" /></a>
-  <a href="https://github.com/sponsors/zainudinnoori"><img src="https://img.shields.io/badge/sponsor-%E2%99%A5-ea4aaa?logo=githubsponsors&logoColor=white" alt="Sponsor" /></a>
-  <img src="https://img.shields.io/badge/Next.js-16-15161a" alt="Next.js 16" />
-  <img src="https://img.shields.io/badge/TypeScript-strict-3178c6" alt="TypeScript" />
-  <a href="https://vercel.com/new/clone?repository-url=https://github.com/zainudinnoori/gitmanual&env=GITHUB_TOKEN,TURSO_DATABASE_URL,TURSO_AUTH_TOKEN,NEXT_PUBLIC_SITE_URL&envDescription=See%20docs%2Fself-hosting.md&project-name=gitmanual"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="20" /></a>
 </p>
 
 ![Changing github.com/ollama/ollama to gitmanual.com/ollama/ollama opens its setup manual](docs/demo.gif)
@@ -150,6 +146,8 @@ curl -H "Authorization: Bearer $GITMANUAL_KEY" -H "X-GitHub-Token: $GITHUB_TOKEN
 ## Deploy
 
 The quickest route is **Vercel + Turso** (both have free tiers): create a Turso database, add the variables above, and deploy. The step-by-step version is in [docs/self-hosting.md](docs/self-hosting.md).
+
+<a href="https://vercel.com/new/clone?repository-url=https://github.com/zainudinnoori/gitmanual&env=GITHUB_TOKEN,TURSO_DATABASE_URL,TURSO_AUTH_TOKEN,NEXT_PUBLIC_SITE_URL&envDescription=See%20docs%2Fself-hosting.md&project-name=gitmanual"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="20" /></a>
 
 ## Project structure
 
