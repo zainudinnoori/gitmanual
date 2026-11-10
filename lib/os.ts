@@ -133,6 +133,14 @@ export function miseInstall(os: OS): string[] {
   return [os === "mac" ? "brew install mise" : os === "windows" ? "winget install jdx.mise" : "curl https://mise.run | sh", "mise install"];
 }
 
+export function taskInstall(os: OS): string {
+  return os === "mac"
+    ? "brew install go-task/tap/go-task"
+    : os === "windows"
+      ? "winget install Task.Task"
+      : 'sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin';
+}
+
 export function dockerInstall(os: OS): string {
   return os === "mac"
     ? "brew install --cask docker  # Docker Desktop"

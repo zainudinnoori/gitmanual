@@ -1,6 +1,7 @@
 {
   "_about": "Repos the setup-script checks always cover, by kind. `run` lists the systems where CI really runs the script (.github/workflows/setup-scripts.yml), built from the branch's own code.",
   "repos": [
+    { "repo": "randyzwitch/streamlit-folium", "kind": "Python package (Streamlit component)" },
     { "repo": "github/github-mcp-server", "kind": "MCP server (Go)", "run": ["linux", "mac", "windows"] },
     { "repo": "microsoft/playwright-mcp", "kind": "MCP server (Node)", "run": ["linux", "mac", "windows"] },
     { "repo": "upstash/context7", "kind": "MCP server (Node)" },

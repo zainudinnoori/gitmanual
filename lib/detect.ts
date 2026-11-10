@@ -1,6 +1,7 @@
 import type { TreeEntry } from "./github";
 import { OS_LIST, adaptCommand, dockerInstall, miseInstall, runtimeInstall, type OS } from "./os";
 import { COMPAT_SECTIONS, UNDO_SECTIONS, extractReadmeSection, tipsFor, toolsFor, type ReadmeSection } from "./readme";
+import { taskNames } from "./taskfile";
 
 export type Item = { name: string; detail?: string; source: string };
 export type EnvVar = { name: string; example: string; secret: boolean; optional?: boolean; source: string };
@@ -93,6 +94,8 @@ const ROOT_FILES = new Set([
   "compose.yaml",
   "Makefile",
   "justfile",
+  "Taskfile.yml",
+  "Taskfile.yaml",
   "Procfile",
   ".devcontainer/devcontainer.json",
   ".devcontainer.json",
@@ -661,6 +664,19 @@ export function analyze(
     hints.push(`Setup script found: \`${s}\`.`);
   }
   if (files["justfile"]) hints.push("justfile found — run `just --list` to see available tasks.");
+  const taskfilePaths = ["Taskfile.yml", "Taskfile.yaml"].filter((p) => files[p] !== undefined);
+  const taskfileNames =
+    taskfilePaths.length === 1
+      ? taskNames(files[taskfilePaths[0]])
+      : taskfilePaths.length === 2 && files[taskfilePaths[0]] === files[taskfilePaths[1]]
+        ? taskNames(files[taskfilePaths[0]])
+        : [];
+  if (taskfileNames.length) {
+    const shownTasks = taskfileNames.slice(0, 8).map((name) => `\`${name}\``).join(", ");
+    const moreTasks = taskfileNames.length > 8 ? `, and ${taskfileNames.length - 8} more` : "";
+    hints.push(`Taskfile has tasks ${shownTasks}${moreTasks} — run \`task --list\` to see available tasks.`);
+  }
+  const taskfileSetupCommands = ["setup", "build"].filter((name) => taskfileNames.includes(name)).map((name) => `task ${name}`);
 
   // ---------- README usage & tools ----------
   const readmeText = Object.entries(files).find(([p]) => /^readme(\.\w+)?$/i.test(p))?.[1];
@@ -668,7 +684,7 @@ export function analyze(
   // Our clone step already covers cloning, so drop it from the README's commands.
   const readmeCmds = (readme?.commands ?? []).filter((c) => !/^git clone\b/.test(c) && !/^cd \S+$/.test(c));
   const runtimeNames = new Set(runtimes.map((r) => r.name));
-  const tools = toolsFor(readme?.commands ?? []).filter(
+  const tools = toolsFor([...(readme?.commands ?? []), ...(taskfileNames.length ? ["task --list"] : [])]).filter(
     (t) => !(t.name === "Node.js" && runtimeNames.has("Node.js")) && !(t.name === "Python 3" && runtimeNames.has("Python")),
   );
   const shellScripts = allPaths.filter((p) => /\.sh$/.test(p) && !p.includes("node_modules"));
@@ -755,6 +771,9 @@ export function analyze(
     }
     if (installCmds.length) steps.push({ title: "Install dependencies", commands: adapt(installCmds) });
     if (dbCmds.length) steps.push({ title: "Set up the database / app", commands: adapt(dbCmds) });
+    if (taskfileSetupCommands.length) {
+      steps.push({ title: "Set up / build with Task", commands: taskfileSetupCommands });
+    }
     if (runCmds.length) {
       steps.push({ title: "Run it", commands: adapt(runCmds), note: runCmds.length > 1 ? "Run each command in its own terminal." : undefined });
     }

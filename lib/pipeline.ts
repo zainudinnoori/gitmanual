@@ -8,7 +8,7 @@ import { OS_LIST } from "./os";
 import { declaredPlatforms, mentions } from "./platforms";
 
 // Bump when the analysis output changes shape or rules, so saved copies are re-analyzed instead of shown.
-const VERSION = 12;
+const VERSION = 13;
 
 export type RepoData = {
   version: number;
