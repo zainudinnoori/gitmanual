@@ -1,4 +1,4 @@
-import type { OS } from "./os";
+import { taskInstall, type OS } from "./os";
 
 export type ReadmeSection = { heading: string; markdown: string; commands: string[] };
 
@@ -114,6 +114,11 @@ const TOOLS: Tool[] = [
     name: "make",
     match: /^make\b/,
     install: { mac: "xcode-select --install", windows: "winget install GnuWin32.Make  # or use WSL", linux: "sudo apt install make" },
+  },
+  {
+    name: "Task (go-task)",
+    match: /^task\b/,
+    install: { mac: taskInstall("mac"), windows: taskInstall("windows"), linux: taskInstall("linux") },
   },
   {
     name: "jq",
