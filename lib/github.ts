@@ -115,6 +115,64 @@ export async function getTree({ owner, repo }: RepoRef, ref: string, token?: str
   return { entries, truncated: Boolean(t.truncated) };
 }
 
+// The commit a branch points at right now. A chat is pinned to it, so everything it reads comes from one commit.
+export async function getHeadSha({ owner, repo }: RepoRef, branch: string): Promise<string> {
+  const r = await gh<any>(`/repos/${owner}/${repo}/git/ref/heads/${branch.split("/").map(encodeURIComponent).join("/")}`);
+  const sha = r?.object?.sha;
+  if (typeof sha !== "string" || !/^[0-9a-f]{40}$/.test(sha)) throw new GitHubError(`Couldn't find the latest commit on ${branch}.`, 502);
+  return sha;
+}
+
+// Paths of ordinary files at a commit (no symlinks, no submodules), for a chat to know what it can ask to read.
+export async function listPaths({ owner, repo }: RepoRef, sha: string): Promise<{ paths: string[]; truncated: boolean }> {
+  const t = await gh<any>(`/repos/${owner}/${repo}/git/trees/${sha}?recursive=1`);
+  const paths: string[] = (t.tree ?? []).filter((e: any) => e.type === "blob" && (e.mode === "100644" || e.mode === "100755")).map((e: any) => e.path);
+  return { paths, truncated: Boolean(t.truncated) };
+}
+
+export type RepoFile =
+  | { kind: "file"; text: string }
+  | { kind: "missing" | "not-a-file" | "too-large" | "binary" };
+
+// One file at a pinned commit, for chat's read_repo_file tool. Always with the site's token, so it can only see
+// public repos. The download itself is capped, not just the size GitHub reports, and a path that GitHub resolves to
+// somewhere else (a symlink) or to a directory or submodule is refused.
+export async function getRepoFile({ owner, repo }: RepoRef, sha: string, path: string, maxBytes: number): Promise<RepoFile> {
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  const res = await fetchRetry(`https://api.github.com/repos/${owner}/${repo}/contents/${encoded}?ref=${sha}`, { headers: headers(), cache: "no-store" });
+  if (res.status === 404) return { kind: "missing" };
+  if (!res.ok) throw new GitHubError(`GitHub API error ${res.status}`, res.status);
+
+  // The JSON wraps the file in base64, about 4/3 of its size, plus a little metadata.
+  const body = await readCapped(res, Math.ceil(maxBytes * 1.4) + 4096);
+  if (body === null) return { kind: "too-large" };
+  const j = JSON.parse(body);
+  if (Array.isArray(j) || j.type !== "file" || j.path !== path) return { kind: "not-a-file" };
+  if (j.size > maxBytes || j.encoding !== "base64" || typeof j.content !== "string") return { kind: "too-large" };
+  const text = Buffer.from(j.content, "base64").toString("utf8");
+  if (text.includes("\u0000")) return { kind: "binary" };
+  return { kind: "file", text };
+}
+
+// Reads a response body, giving up (null) once it passes `limit` bytes instead of downloading the rest.
+async function readCapped(res: Response, limit: number): Promise<string | null> {
+  const reader = res.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 // raw.githubusercontent.com does not count against the REST API rate limit. Private repos (with a visitor's token)
 // are read through the API instead, which every kind of GitHub token can use.
 export async function getFiles(
