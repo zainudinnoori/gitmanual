@@ -1,6 +1,6 @@
 #gitmanual-open, #gitmanual-ask { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; text-decoration: none; }
 #gitmanual-open svg, #gitmanual-ask svg { flex: none; }
-#gitmanual-ask { margin-left: 8px; }
+#gitmanual-ask:not(.gitmanual-float) { margin-left: 0; }
 #gitmanual-open.gitmanual-float, #gitmanual-ask.gitmanual-float { position: fixed; right: 20px; bottom: 20px; z-index: 100; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
 #gitmanual-ask.gitmanual-float-ask { right: 20px; bottom: 64px; margin: 0; }
 @media print { #gitmanual-open, #gitmanual-ask { display: none; } }

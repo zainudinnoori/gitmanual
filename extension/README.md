@@ -4,7 +4,7 @@
 
 Adds **Setup manual** and **Ask** buttons to GitHub repos. On a repo's home page they sit next to Notifications, Fork and Star; on its other pages (issues, folders…) they're small buttons in the corner. **Ask**, or the toolbar icon, opens the side panel: GitManual AI Agent answers setup questions about the repo in the current tab, from the repo's own files, on the same `/api/chat` as the site (same sign-in, limits and checks). In Firefox, the panel is in the sidebar, and **Ask** opens the chat on the repo's page.
 
-![The Setup manual button on a GitHub repo opens its manual in a new tab](../docs/extension-demo.gif)
+![Ask AI on a GitHub repo opens the side panel, where GitManual AI Agent answers how to install it on macOS and flags the risky command](../docs/extension-demo.gif)
 
 **Privacy:** the extension reads the repo's name from the GitHub page and links to `gitmanual.com/owner/repo`. The content script on GitHub makes no requests. The side panel, when you ask something, sends the repo's name and your question to gitmanual.com with your gitmanual sign-in cookie; it keeps the chat on your device for an hour (`storage`) and nothing else.
 

@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { REPO_URL } from "@/lib/site";
-import { Logo } from "./ui";
+import { Logo, OPEN_CONTACT } from "./ui";
 
 // One Carbon ad (cover format) where it's placed: manual pages of public repos, the shelf, lists and /developers.
 // Live only in production with NEXT_PUBLIC_CARBON_SERVE and NEXT_PUBLIC_CARBON_PLACEMENT set (so self-hosted copies
@@ -84,6 +84,9 @@ export function CarbonAd({ className }: { className?: string }) {
 
 // In-house, text links only (Carbon allows that), and only while no Carbon ad is showing. The box hops in once.
 function AdFallback({ className }: { className: string }) {
+  // "Advertise here" opens the site's contact form, so it shows only where that form is set up.
+  const [contact, setContact] = useState(false);
+  useEffect(() => setContact(Boolean(document.querySelector(".contact-open"))), []);
   return (
     <aside className={`${className} ad-fallback`} aria-label="Support gitmanual">
       <span className="ad-fallback-tag">No ad today</span>
@@ -104,6 +107,11 @@ function AdFallback({ className }: { className: string }) {
           </a>
         )}
       </div>
+      {contact && (
+        <button type="button" className="ad-advertise" onClick={() => window.dispatchEvent(new Event(OPEN_CONTACT))}>
+          Want to advertise here?
+        </button>
+      )}
     </aside>
   );
 }

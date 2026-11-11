@@ -66,9 +66,9 @@ Plenty of people find a great project on GitHub and don't know how to run it. RE
 
 The same facts are available as JSON at `/api/v1/manual?repo=owner/repo` (`&os=`, `&arch=`, `&format=md`), and [`/llms.txt`](https://gitmanual.com/llms.txt) describes it all.
 
-**Browser extension:** a **Setup manual** button on every GitHub repo, next to Star and Fork. [Add it to Chrome](https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn) (works in Edge and Brave too); the code is in [`extension/`](extension/README.md).
+**Browser extension:** **Setup manual** and **Ask AI** buttons on every GitHub repo, next to Star and Fork. Ask AI opens GitManual AI Agent in the side panel, to answer setup questions from the repo's own files. [Add it to Chrome](https://chromewebstore.google.com/detail/gitmanual-setup-manual-fo/pligngoaodepejbdcdanjakbnejbmdkn) (works in Edge and Brave too); the code is in [`extension/`](extension/README.md).
 
-![The Setup manual button on a GitHub repo opens its manual in a new tab](docs/extension-demo.gif)
+![Ask AI on a GitHub repo opens the side panel, where GitManual AI Agent answers how to install it on macOS and flags the risky command](docs/extension-demo.gif)
 
 Plus **the shelf** (`/shelf`): every repo people have looked up, with search and filters for stars, language and difficulty. Every repo also gets a share image and a 1080×1080 poster.
 

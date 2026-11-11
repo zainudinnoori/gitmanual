@@ -89,7 +89,7 @@ mock.module("@anthropic-ai/sdk", { defaultExport: FakeAnthropic });
 
 const route = await import("../app/api/chat/route");
 const { strictly } = await import("../lib/db");
-const { worstCase } = await import("../lib/budget");
+const { worstCase, chatStats, POOLS } = await import("../lib/budget");
 
 let n = 0;
 const fresh = () => `request-${++n}-${Date.now()}`;
@@ -271,4 +271,21 @@ test("off unless CHAT_ENABLED=on", async () => {
   } finally {
     process.env.CHAT_ENABLED = "on";
   }
+});
+
+test("admin stats count today's answers, people and spend, and who used all their answers", async () => {
+  as(901);
+  for (let i = 0; i < POOLS.user.answersPerDay; i++) await (await post({})).text();
+  const stats = await chatStats();
+  const today = stats.days.find((d) => d.day === new Date().toISOString().slice(0, 10))!;
+  const rows = await strictly(async (c) => (await c.execute("SELECT COUNT(*) AS n, COUNT(DISTINCT account) AS p FROM chat_spend")).rows[0]);
+  assert.equal(today.answers, Number(rows.n));
+  assert.equal(today.people, Number(rows.p));
+  assert.ok(today.spent > 0);
+  assert.deepEqual(
+    stats.atLimit.map((a) => [a.account, a.answers]),
+    [["901", POOLS.user.answersPerDay]],
+  );
+  assert.equal(today.atLimit, 1);
+  assert.ok(stats.live.chats > 0);
 });

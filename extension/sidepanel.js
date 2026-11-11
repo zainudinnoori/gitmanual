@@ -180,6 +180,12 @@ function render() {
   $("repo").textContent = repo ?? "No repo open";
   $("repo").title = repo ?? "";
   $("os").value = os;
+  // Answers left today, shared with the site: the server counts them per GitHub account.
+  const left = status?.signedIn && status.allowance ? status.allowance.limit - status.allowance.used : null;
+  $("left").hidden = left === null;
+  $("left").textContent = left === null ? "" : `${left}/${status.allowance.limit} left today`;
+  $("left").title = "Answers left today, on gitmanual.com and here together. They come back at midnight UTC.";
+  $("left").classList.toggle("low", left !== null && left <= 3);
   $("new-chat").hidden = !(repo && status?.signedIn && chat().turns.length);
   $("new-chat").disabled = busy;
   renderLog();
@@ -227,7 +233,8 @@ function emptyState() {
           onclick: () => {
             question = q;
             const box = foot.querySelector("textarea");
-            if (box) (box.value = q), box.focus();
+            // Through the input event, so the Ask button enables as if it had been typed.
+            if (box) (box.value = q), box.dispatchEvent(new Event("input")), box.focus();
           },
         }),
       ),
@@ -325,7 +332,8 @@ function inline(text) {
 // half-written can be copied.
 function codeView(code, risks = [], ready) {
   const box = el("div", { className: `code${risks.length ? " risky" : ""}` });
-  if (risks.length) box.append(el("p", { className: "risk" }, el("strong", {}, "Check before running: "), risks.map((r) => r.label).join(" · ")));
+  const warning = risks.length ? el("p", { className: "risk" }, el("span", {}, el("strong", {}, "Check before running: "), risks.map((r) => r.label).join(" · "))) : null;
+  if (warning) box.append(warning);
   const inner = el("div", { className: "code-box" }, el("pre", { translate: false }, code));
   if (ready) {
     const label = risks.length ? "Copy anyway" : "Copy";
@@ -336,7 +344,8 @@ function codeView(code, risks = [], ready) {
       copy.classList.add("done");
       setTimeout(() => ((copy.textContent = label), copy.classList.remove("done")), 1500);
     };
-    inner.append(copy);
+    // "Copy anyway" sits in the warning bar, so it's read with the warning and never covers the command.
+    (warning ?? inner).append(copy);
   }
   box.append(inner);
   return box;
@@ -416,7 +425,6 @@ function renderFoot() {
     if (focused || (!busy && status.signedIn)) textarea.focus({ preventScroll: true });
   }
   if (!status.signedIn) foot.append(el("p", { className: "left" }, `Free with GitHub sign-in · ${DAILY} answers a day · we see your username, not your repos`));
-  else if (left !== null && left > 0) foot.append(el("p", { className: "left" }, `${left} of ${status.allowance.limit} answers left today`));
   foot.append(links());
 }
 
@@ -459,7 +467,9 @@ $("new-chat").addEventListener("click", () => {
 
 // The panel follows the tab: switching tabs, a page finishing loading, or GitHub's in-page navigation (the
 // content script says when the repo changes).
-chrome.tabs.onActivated.addListener(refreshRepo);
+// Answers asked on the site count too, so the count is checked again on the way back to the panel.
+chrome.tabs.onActivated.addListener(() => (refreshRepo(), busy || refreshStatus()));
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && !busy && refreshStatus());
 chrome.tabs.onUpdated.addListener((_id, change, tab) => tab.active && change.status === "complete" && refreshRepo());
 chrome.runtime.onMessage.addListener((m, sender) => {
   if (m?.type === "gitmanual-repo-changed" && sender.tab?.active) refreshRepo();
