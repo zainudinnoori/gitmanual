@@ -233,7 +233,8 @@ function emptyState() {
           onclick: () => {
             question = q;
             const box = foot.querySelector("textarea");
-            if (box) (box.value = q), box.focus();
+            // Through the input event, so the Ask button enables as if it had been typed.
+            if (box) (box.value = q), box.dispatchEvent(new Event("input")), box.focus();
           },
         }),
       ),
@@ -331,7 +332,8 @@ function inline(text) {
 // half-written can be copied.
 function codeView(code, risks = [], ready) {
   const box = el("div", { className: `code${risks.length ? " risky" : ""}` });
-  if (risks.length) box.append(el("p", { className: "risk" }, el("strong", {}, "Check before running: "), risks.map((r) => r.label).join(" · ")));
+  const warning = risks.length ? el("p", { className: "risk" }, el("span", {}, el("strong", {}, "Check before running: "), risks.map((r) => r.label).join(" · "))) : null;
+  if (warning) box.append(warning);
   const inner = el("div", { className: "code-box" }, el("pre", { translate: false }, code));
   if (ready) {
     const label = risks.length ? "Copy anyway" : "Copy";
@@ -342,7 +344,8 @@ function codeView(code, risks = [], ready) {
       copy.classList.add("done");
       setTimeout(() => ((copy.textContent = label), copy.classList.remove("done")), 1500);
     };
-    inner.append(copy);
+    // "Copy anyway" sits in the warning bar, so it's read with the warning and never covers the command.
+    (warning ?? inner).append(copy);
   }
   box.append(inner);
   return box;

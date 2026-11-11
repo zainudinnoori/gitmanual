@@ -76,10 +76,12 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--paper); bo
 .notice { margin: 8px 0 0; color: var(--pencil); font-size: 12.5px; }
 .error { margin: 8px 0 0; color: #a33a0b; font-size: 13px; }
 .code { margin: 10px 0; }
-.risk { margin: 0; padding: 7px 10px; border: 1.5px solid var(--ink); border-bottom: 0; border-radius: 10px 10px 0 0; background: var(--maybe); font-size: 12.5px; }
+.risk { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; padding: 7px 7px 7px 10px; border: 1.5px solid var(--ink); border-bottom: 0; border-radius: 10px 10px 0 0; background: var(--maybe); font-size: 12.5px; }
 .code-box { position: relative; background: var(--ink); color: #f4f5f7; border-radius: 10px; }
 .risky .code-box { border-radius: 0 0 10px 10px; }
 .code-box pre { margin: 0; padding: 11px 12px; padding-right: 64px; overflow-x: auto; font: 12.5px/1.55 var(--mono); white-space: pre; }
+.risky .code-box pre { padding-right: 12px; }
+.risk .copy { position: static; flex: none; border-color: var(--ink); }
 .copy { position: absolute; top: 7px; right: 7px; border: 1.5px solid #f4f5f7; background: var(--ink); color: #f4f5f7; border-radius: 7px; padding: 3px 8px; font: 600 11.5px var(--sans); cursor: pointer; }
 .copy.done { background: var(--yes); color: var(--ink); border-color: var(--ink); }
 .cite { margin-top: 10px; padding: 7px 11px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); font-size: 12px; color: var(--pencil); }
