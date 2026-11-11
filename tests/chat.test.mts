@@ -60,7 +60,8 @@ const run = (client: any, readFile: (p: string) => Promise<RepoFile>, extra: Par
 
 test("README and the setup guide come first; a file that doesn't fit is cut and marked", () => {
   const big = "x".repeat(CHAT.fileChars + 500);
-  const ctx = buildContext(repo({ ".github/workflows/ci.yml": "ci", "package.json": big, "README.md": "readme", "docs/setup.md": "setup" }, "docs/setup.md"), SHA, ["README.md"], false);
+  const { text: ctx, files } = buildContext(repo({ ".github/workflows/ci.yml": "ci", "package.json": big, "README.md": "readme", "docs/setup.md": "setup" }, "docs/setup.md"), SHA, ["README.md"], false);
+  assert.deepEqual(files, ["README.md", "docs/setup.md", "package.json", ".github/workflows/ci.yml"]);
   const order = [...ctx.matchAll(/<file path="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(order, ["README.md", "docs/setup.md", "package.json", ".github/workflows/ci.yml"]);
   assert.match(ctx, /<file path="package.json" truncated="true" total_chars="15500">/);
@@ -69,7 +70,7 @@ test("README and the setup guide come first; a file that doesn't fit is cut and 
 
 test("the files stay inside the context budget", () => {
   const files = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`file${String(i).padStart(2, "0")}.json`, "y".repeat(CHAT.fileChars)]));
-  const ctx = buildContext(repo(files), SHA, [], false);
+  const ctx = buildContext(repo(files), SHA, [], false).text;
   const fileChars = [...ctx.matchAll(/<file [^>]*>\n([\s\S]*?)\n<\/file>/g)].reduce((n, m) => n + m[1].length, 0);
   assert.ok(fileChars <= CHAT.contextChars);
   assert.match(ctx, /<not_included>/);
@@ -104,6 +105,7 @@ test("a tool read in the middle of an answer is answered, and every call is coun
   const result = await done;
   assert.equal(result.stop, "done");
   assert.deepEqual(read, ["docs/install.md"]);
+  assert.deepEqual(result.read, ["docs/install.md"]);
   assert.equal(progress.started, 2);
   assert.equal(result.usages.length, 2);
   // The history alternates correctly: question, tool call, tool result, answer.

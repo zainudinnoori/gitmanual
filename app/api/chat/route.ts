@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { allowance, ANSWER, BudgetError, PRICES, release, reserve, settle, type ChatModel, type Usage } from "@/lib/budget";
-import { answer, buildContext, CHAT, type ChatEvent } from "@/lib/chat";
+import { answer, buildContext, CHAT, readInHistory, type ChatEvent } from "@/lib/chat";
+import { checkCitations } from "@/lib/checks";
 import { createConversation, getConversation, saveConversation } from "@/lib/db";
 import { getHeadSha, getRepoFile, getRepoMeta, GitHubError, listPaths, parseRepoUrl } from "@/lib/github";
 import { analyzeGate } from "@/lib/limit";
@@ -26,6 +27,16 @@ const chatModel = (): ChatModel => {
 };
 
 const BUDGET_STATUS = { busy: 409, answers: 429, site: 429, unavailable: 503 } as const;
+
+// For the chat box: whether chat is on here, whether this visitor is signed in, and how many answers they have left.
+export async function GET() {
+  if (process.env.CHAT_ENABLED !== "on" || !process.env.ANTHROPIC_API_KEY) return NextResponse.json({ enabled: false }, { headers: NO_STORE });
+  const { user, settle: settleCookies } = await viewer();
+  const left = user ? await allowance("user", String(user.id)) : null;
+  return settleCookies(
+    NextResponse.json({ enabled: true, signedIn: Boolean(user), login: user?.login ?? null, allowance: left }, { headers: NO_STORE }),
+  );
+}
 
 export async function POST(req: Request) {
   if (process.env.CHAT_ENABLED !== "on" || !process.env.ANTHROPIC_API_KEY) return fail("Chat isn't available on this site.", 404);
@@ -70,7 +81,7 @@ export async function POST(req: Request) {
 
   const [owner, name] = convo.repo.split("/");
   const ref = { owner, repo: name, ref: convo.sha };
-  let context: string;
+  let context: { text: string; files: string[] };
   try {
     // Pinned: the analysis and files come from the chat's commit (cached for 12 hours per commit).
     const { data } = await loadRepo(ref, { gate: analyzeGate(req.headers) });
@@ -97,7 +108,9 @@ export async function POST(req: Request) {
     async start(controller) {
       // The browser may leave mid-answer; the answer still finishes and is paid for, so writes just stop.
       let open = true;
+      let written = "";
       const send = (e: ChatEvent | Record<string, unknown>) => {
+        if (e.type === "text") written += (e as { text: string }).text;
         if (!open) return;
         try {
           controller.enqueue(encoder.encode(`${JSON.stringify(e)}\n`));
@@ -113,7 +126,7 @@ export async function POST(req: Request) {
         const result = await answer({
           client: new Anthropic(),
           model,
-          context,
+          context: context.text,
           history: conversation.messages as Anthropic.MessageParam[],
           question,
           os,
@@ -124,6 +137,9 @@ export async function POST(req: Request) {
         });
         finished = true;
         await saveConversation(conversation.id, result.messages, conversation.answers + 1).catch((e) => console.error("chat:", e));
+        // Which named files Claude really had: the context, this answer's reads and earlier ones in the chat.
+        const had = [...context.files, ...readInHistory(result.messages)];
+        send({ type: "checks", citations: checkCitations(written, had, conversation.paths) });
         send({ type: "done", stop: result.stop });
       } catch (e) {
         console.error("chat:", e);

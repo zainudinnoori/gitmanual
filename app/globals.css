@@ -393,6 +393,28 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 details[open].panel > summary h3::after { content: " −"; }
 .steps + .panel, .steps ~ details.panel { margin-top: 22px; }
 .panel.ai { margin-top: 28px; border: 1.5px dashed var(--line-strong); background: transparent; }
+.panel.chat { margin-top: 28px; }
+.panel.chat > .btn { display: inline-block; margin-top: 12px; text-decoration: none; }
+.chat-log { display: grid; gap: 14px; margin: 14px 0; max-height: 640px; overflow-y: auto; }
+.chat-q { justify-self: end; max-width: 85%; margin: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 12px 12px 4px 12px; padding: 8px 12px; font-size: var(--fs-small); white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-a { min-width: 0; }
+.chat-a .prose { margin-top: 4px; }
+.chat-reading { margin: 0 0 4px; color: var(--pencil); font: 500 var(--fs-meta) var(--mono); display: flex; align-items: center; gap: 8px; }
+.chat-reading code { font-size: inherit; }
+.chat-notice { margin: 8px 0 0; color: var(--pencil); font-size: var(--fs-meta); }
+.chat-error { margin: 8px 0 0; color: #a33a0b; font-size: var(--fs-small); }
+.chat-code { margin: 12px 0; }
+.chat-code .code { margin-top: 0; }
+.chat-code.risky .code { border-radius: 0 0 12px 12px; }
+.chat-code .code pre { font-size: var(--fs-meta); }
+.risk { margin: 0; padding: 7px 12px; border-radius: 12px 12px 0 0; background: color-mix(in srgb, var(--maybe) 30%, var(--sheet)); border: 1px solid color-mix(in srgb, var(--maybe) 70%, var(--ink)); border-bottom: 0; font-size: var(--fs-meta); }
+.chat-cite { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); font-size: var(--fs-meta); color: var(--pencil); }
+.chat-cite p { margin: 0; }
+.chat-cite p + p { margin-top: 4px; }
+.chat-form { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
+.chat-form textarea { flex: 1; min-width: 0; resize: vertical; font: var(--fs-small)/1.5 var(--sans); padding: 9px 12px; border: 1.5px solid var(--line-strong); border-radius: 10px; background: var(--sheet); color: inherit; }
+.chat-form textarea:focus { outline: 2px solid var(--wrench); outline-offset: 1px; }
+.chat-left { margin: 6px 0 0; color: var(--pencil); font: 500 var(--fs-label) var(--mono); }
 .ask-ai { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .release { font: 500 var(--fs-meta) var(--mono); color: var(--pencil); text-decoration: none; }
 .release:hover { color: var(--ink); }
