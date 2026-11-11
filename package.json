@@ -28,10 +28,12 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-test-module-mocks --import tsx --test tests/*.test.mts",
     "db:push": "node scripts/push-to-turso.mjs",
     "check:scripts": "node --env-file-if-exists=.env.local --import tsx scripts/check-setup-scripts.ts",
     "setup-script": "node --env-file-if-exists=.env.local --import tsx scripts/print-setup-script.ts",
-    "extension:zip": "cd extension && rm -f ../gitmanual-extension.zip && zip -qr ../gitmanual-extension.zip manifest.json background.js content.js content.css icons",
+    "extension:zip": "cd extension && rm -f ../gitmanual-extension.zip && zip -qr ../gitmanual-extension.zip manifest.json background.js content.js content.css sidepanel.html sidepanel.css sidepanel.js icons",
+    "chat:eval": "node --env-file-if-exists=.env.local --import tsx scripts/chat-eval.ts",
     "accuracy:sample": "node --import tsx scripts/make-accuracy-sample.ts"
   },
   "dependencies": {

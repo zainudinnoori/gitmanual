@@ -16,6 +16,7 @@ import { buildScript } from "@/lib/script";
 // import { FlowMap } from "./flow"; — the route diagram, off the page for now
 import { disconnect, fetchPrivate, PrivateAccess } from "./private";
 import { CarbonAd } from "./carbon";
+import { Chat } from "./chat";
 import { CodeBlock, CopyButton, RepoForm, Wrenches, detectArch, detectOS } from "./ui";
 
 type Result = {
@@ -148,6 +149,7 @@ export function ReportView({
   picks = [],
   curator = "",
   aiGuide = false,
+  chat = false,
   osPage = null,
   alternatives = {},
   related = {},
@@ -162,6 +164,8 @@ export function ReportView({
   curator?: string;
   // "Write my guide" only shows when the server has an Anthropic key.
   aiGuide?: boolean;
+  // "Ask about this repo" only shows when chat is on for this site (app/chat.tsx).
+  chat?: boolean;
   owner: string;
   repo: string;
   gitRef?: string;
@@ -332,6 +336,8 @@ export function ReportView({
       picks={picks}
       curator={curator}
       aiGuide={aiGuide}
+      // Chat always reads the default branch, so it isn't offered on a branch's page.
+      chat={chat && !gitRef}
       osPage={Boolean(osPage)}
       alternatives={alternatives}
       related={related}
@@ -364,6 +370,7 @@ function Report({
   picks,
   curator,
   aiGuide,
+  chat,
   osPage,
   alternatives,
   related,
@@ -373,6 +380,7 @@ function Report({
   picks: Pick[];
   curator: string;
   aiGuide: boolean;
+  chat: boolean;
   osPage: boolean;
   result: Result;
   os: OS;
@@ -692,13 +700,15 @@ function Report({
 
           {!priv && <DidItWork repo={meta.fullName} os={os} votes={result.votes} onVotes={onVotes} />}
 
+          {chat && !priv && <Chat repo={meta.fullName} os={os} />}
+
           {aiGuide && !priv && (
             <div className="panel ai">
               <div className="panel-head">
                 <div>
                   <h3>Still stuck? Get a written guide</h3>
                   <p className="note">
-                    Claude reads the {Object.keys(files).length} key files and writes a step-by-step guide for {OS_LABEL[os]}. Once written, it&apos;s saved for everyone.
+                    GitManual AI Agent reads the {Object.keys(files).length} key files and writes a step-by-step guide for {OS_LABEL[os]}. Once written, it&apos;s saved for everyone.
                   </p>
                 </div>
                 <button className="btn btn-sm btn-go" onClick={onGuide} disabled={guideLoading || Boolean(guide)}>

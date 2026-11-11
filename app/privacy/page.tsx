@@ -4,6 +4,7 @@ import { CONTACT_FORM, REPO_URL, SITE_HOST } from "@/lib/site";
 import { DocPage } from "../doc";
 
 const AI_GUIDES = Boolean(process.env.ANTHROPIC_API_KEY);
+const CHAT = AI_GUIDES && process.env.CHAT_ENABLED === "on";
 
 export const metadata: Metadata = {
   title: "Privacy",
@@ -99,16 +100,26 @@ export default function Privacy() {
         </li>
         {AI_GUIDES && (
           <li>
-            <strong>Anthropic</strong>: the optional &ldquo;Write my guide&rdquo; button sends the repo&apos;s public files to Anthropic&apos;s
-            Claude to write the guide. Nothing about you is sent with them.
+            <strong>GitManual AI Agent</strong>: the optional &ldquo;Write my guide&rdquo; button sends the repo&apos;s public files to
+            Anthropic, whose Claude models write the guide. Nothing about you is sent with them.
+          </li>
+        )}
+        {CHAT && (
+          <li>
+            <strong>GitManual AI Agent</strong>: questions you ask in &ldquo;Ask about this repo&rdquo; are sent with the repo&apos;s public
+            files to Anthropic, whose Claude models write the answers, under Anthropic&apos;s API terms. We keep the conversation for an hour
+            so you can ask follow-ups; after that it&apos;s deleted as new chats start. Longer term we keep only what each answer cost, under
+            your GitHub user id. Don&apos;t put passwords or keys in a question.
           </li>
         )}
       </ul>
 
       <h2>The browser extension, API and MCP server</h2>
       <p>
-        The browser extension reads only the name of the GitHub repo you&apos;re viewing and links to its manual. It makes no requests of its
-        own and collects nothing. The API and the MCP server work like the website: the same rate-limit counters, and nothing else about
+        The browser extension reads only the name of the GitHub repo you&apos;re viewing, and its buttons link to that repo&apos;s manual. Its
+        side panel, once you open it and ask, sends the repo&apos;s name and your question to gitmanual.com under your GitHub sign-in, and
+        they&apos;re handled exactly like chat on the site (above). The panel keeps your chat on your device for the same hour, and remembers
+        the system you picked. The API and the MCP server work like the website: the same rate-limit counters, and nothing else about
         the caller.
       </p>
 

@@ -140,6 +140,7 @@ export async function RepoManual({ params, searchParams }: Props) {
         picks={"data" in r ? await picksFor(r.data.meta.fullName) : []}
         curator={PICKS.curator}
         aiGuide={Boolean(process.env.ANTHROPIC_API_KEY)}
+        chat={process.env.CHAT_ENABLED === "on" && Boolean(process.env.ANTHROPIC_API_KEY)}
         alternatives={"data" in r ? await alternatives(r.data) : {}}
         related={"data" in r ? await related(r.data) : {}}
       />

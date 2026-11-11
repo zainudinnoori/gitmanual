@@ -73,6 +73,31 @@ const SCHEMA = `
     count INTEGER NOT NULL,
     reset_at INTEGER NOT NULL       -- when the window ends and counting starts over
   );
+  CREATE TABLE IF NOT EXISTS chat_spend (
+    key TEXT PRIMARY KEY,           -- account + the question's idempotency key, so a resend isn't charged twice
+    pool TEXT NOT NULL,             -- whose budget it comes from, e.g. "user" (signed in)
+    account TEXT NOT NULL,          -- GitHub user id for signed-in chat
+    day TEXT NOT NULL,              -- UTC date, YYYY-MM-DD
+    reserved INTEGER NOT NULL,      -- worst-case cost held before the model is called, in millionths of a dollar
+    cost INTEGER,                   -- actual cost once settled, in millionths of a dollar
+    status TEXT NOT NULL,           -- reserved | settled
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,    -- a reservation never settled stops counting as "in progress" here, but keeps its full cost
+    settled_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS chat_spend_account ON chat_spend (account, day);
+  CREATE INDEX IF NOT EXISTS chat_spend_pool ON chat_spend (pool, day);
+  CREATE TABLE IF NOT EXISTS chat_conversations (
+    id TEXT PRIMARY KEY,            -- random, given to the browser; the history itself never leaves the server
+    account TEXT NOT NULL,          -- GitHub user id; only this account can continue it
+    repo TEXT NOT NULL,             -- owner/repo
+    sha TEXT NOT NULL,              -- the commit every file in the chat is read from
+    paths TEXT NOT NULL,            -- JSON: file paths at that commit, as a hint for what can be read
+    messages TEXT NOT NULL,         -- JSON: the Claude messages so far, kept exactly as sent and received
+    answers INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL     -- deleted after this; nothing about a chat is kept longer
+  );
 `;
 
 // One connection per server process. Kept on globalThis because dev hot reloads re-run this module,
@@ -132,6 +157,65 @@ function db(): Promise<Client | null> {
     return null;
   });
   return store.gitmanualDb;
+}
+
+// For what must not happen without the database, like spending on chat (lib/budget.ts): it throws instead of
+// falling back, so a missing or failing database stops the action rather than letting it through unrecorded.
+export async function strictly<T>(fn: (c: Client) => Promise<T>): Promise<T> {
+  const c = await db();
+  if (!c) throw new Error("The database is not available.");
+  return fn(c);
+}
+
+export type Conversation = {
+  id: string;
+  account: string;
+  repo: string;
+  sha: string;
+  paths: string[];
+  messages: unknown[];
+  answers: number;
+  expiresAt: number;
+};
+
+// Starts a chat and clears out expired ones, so no history outlives its hour.
+export async function createConversation(c: Omit<Conversation, "messages" | "answers">, now = Date.now()): Promise<void> {
+  await strictly(async (db) => {
+    await db.execute({ sql: "DELETE FROM chat_conversations WHERE expires_at < ?", args: [now] });
+    await db.execute({
+      sql: `INSERT INTO chat_conversations (id, account, repo, sha, paths, messages, answers, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, '[]', 0, ?, ?)`,
+      args: [c.id, c.account, c.repo, c.sha, JSON.stringify(c.paths), now, c.expiresAt],
+    });
+  });
+}
+
+// Only the account that started it, and only before it expires.
+export async function getConversation(id: string, account: string, now = Date.now()): Promise<Conversation | null> {
+  return strictly(async (db) => {
+    const { rows } = await db.execute({
+      sql: "SELECT * FROM chat_conversations WHERE id = ? AND account = ? AND expires_at >= ?",
+      args: [id, account, now],
+    });
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      id: String(r.id),
+      account: String(r.account),
+      repo: String(r.repo),
+      sha: String(r.sha),
+      paths: JSON.parse(String(r.paths)),
+      messages: JSON.parse(String(r.messages)),
+      answers: Number(r.answers),
+      expiresAt: Number(r.expires_at),
+    };
+  });
+}
+
+export async function saveConversation(id: string, messages: unknown[], answers: number): Promise<void> {
+  await strictly((db) =>
+    db.execute({ sql: "UPDATE chat_conversations SET messages = ?, answers = ? WHERE id = ?", args: [JSON.stringify(messages), answers, id] }),
+  );
 }
 
 // The database is a cache and a counter: if it fails, the request should still succeed.

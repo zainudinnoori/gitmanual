@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ask about this repo</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="head">
+      <h1>
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6.5 1.5l1.3 3.7 3.7 1.3-3.7 1.3-1.3 3.7-1.3-3.7L1.5 6.5l3.7-1.3z" fill="currentColor" />
+          <path d="M12.5 9.5l.65 1.85 1.85.65-1.85.65-.65 1.85-.65-1.85L10 12l1.85-.65z" fill="currentColor" />
+        </svg>
+        Ask about this repo
+      </h1>
+      <button type="button" id="new-chat" class="btn btn-sm" hidden>New chat</button>
+    </header>
+    <div class="repo-bar">
+      <span id="repo" class="repo">No repo</span>
+      <select id="os" aria-label="Your system">
+        <option value="mac">macOS</option>
+        <option value="windows">Windows</option>
+        <option value="linux">Linux</option>
+      </select>
+    </div>
+    <main id="log" class="log" aria-live="polite"></main>
+    <footer id="foot" class="foot"></footer>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
