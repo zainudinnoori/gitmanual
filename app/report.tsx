@@ -708,7 +708,7 @@ function Report({
                 <div>
                   <h3>Still stuck? Get a written guide</h3>
                   <p className="note">
-                    Claude reads the {Object.keys(files).length} key files and writes a step-by-step guide for {OS_LABEL[os]}. Once written, it&apos;s saved for everyone.
+                    GitManual AI Agent reads the {Object.keys(files).length} key files and writes a step-by-step guide for {OS_LABEL[os]}. Once written, it&apos;s saved for everyone.
                   </p>
                 </div>
                 <button className="btn btn-sm btn-go" onClick={onGuide} disabled={guideLoading || Boolean(guide)}>

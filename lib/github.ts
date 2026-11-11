@@ -135,8 +135,9 @@ export type RepoFile =
   | { kind: "missing" | "not-a-file" | "too-large" | "binary" };
 
 // One file at a pinned commit, for chat's read_repo_file tool. Always with the site's token, so it can only see
-// public repos. The download itself is capped, not just the size GitHub reports, and a path that GitHub resolves to
-// somewhere else (a symlink) or to a directory or submodule is refused.
+// public repos. The download itself is capped, not just the size GitHub reports, and a directory, submodule or
+// symlink is refused. GitHub answers a symlink to a file with the target's content but the link's own blob sha,
+// so content that doesn't hash to the sha GitHub gave isn't the file at that path.
 export async function getRepoFile({ owner, repo }: RepoRef, sha: string, path: string, maxBytes: number): Promise<RepoFile> {
   const encoded = path.split("/").map(encodeURIComponent).join("/");
   const res = await fetchRetry(`https://api.github.com/repos/${owner}/${repo}/contents/${encoded}?ref=${sha}`, { headers: headers(), cache: "no-store" });
@@ -149,9 +150,17 @@ export async function getRepoFile({ owner, repo }: RepoRef, sha: string, path: s
   const j = JSON.parse(body);
   if (Array.isArray(j) || j.type !== "file" || j.path !== path) return { kind: "not-a-file" };
   if (j.size > maxBytes || j.encoding !== "base64" || typeof j.content !== "string") return { kind: "too-large" };
-  const text = Buffer.from(j.content, "base64").toString("utf8");
+  const bytes = Buffer.from(j.content, "base64");
+  if ((await gitBlobSha(bytes)) !== j.sha) return { kind: "not-a-file" };
+  const text = bytes.toString("utf8");
   if (text.includes("\u0000")) return { kind: "binary" };
   return { kind: "file", text };
+}
+
+// The id git gives a file's content, the same one GitHub reports as its sha.
+async function gitBlobSha(bytes: Buffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-1", Buffer.concat([Buffer.from(`blob ${bytes.length}\0`), bytes]));
+  return Buffer.from(digest).toString("hex");
 }
 
 // Reads a response body, giving up (null) once it passes `limit` bytes instead of downloading the rest.

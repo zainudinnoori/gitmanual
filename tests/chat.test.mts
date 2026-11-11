@@ -38,7 +38,10 @@ function fakeClient(script: { content: any[]; stop_reason: string }[]) {
 }
 
 const text = (t: string) => ({ content: [{ type: "text", text: t }], stop_reason: "end_turn" });
-const toolUse = (id: string, path: string) => ({ content: [{ type: "tool_use", id, name: "read_repo_file", input: { path } }], stop_reason: "tool_use" });
+const toolUse = (id: string, path: string, start?: number) => ({
+  content: [{ type: "tool_use", id, name: "read_repo_file", input: start === undefined ? { path } : { path, start } }],
+  stop_reason: "tool_use",
+});
 const run = (client: any, readFile: (p: string) => Promise<RepoFile>, extra: Partial<Parameters<typeof answer>[0]> = {}) => {
   const events: any[] = [];
   const progress = { started: 0, usages: [] as any[] };
@@ -64,7 +67,7 @@ test("README and the setup guide come first; a file that doesn't fit is cut and 
   assert.deepEqual(files, ["README.md", "docs/setup.md", "package.json", ".github/workflows/ci.yml"]);
   const order = [...ctx.matchAll(/<file path="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(order, ["README.md", "docs/setup.md", "package.json", ".github/workflows/ci.yml"]);
-  assert.match(ctx, /<file path="package.json" truncated="true" total_chars="15500">/);
+  assert.match(ctx, /<file path="package.json" truncated="true" shown_chars="15000" total_chars="15500">/);
   assert.match(ctx, new RegExp(`commit="${SHA}"`));
 });
 
@@ -74,6 +77,16 @@ test("the files stay inside the context budget", () => {
   const fileChars = [...ctx.matchAll(/<file [^>]*>\n([\s\S]*?)\n<\/file>/g)].reduce((n, m) => n + m[1].length, 0);
   assert.ok(fileChars <= CHAT.contextChars);
   assert.match(ctx, /<not_included>/);
+});
+
+test("in a big repo, the paths setup questions lead to are listed first", () => {
+  // As in ollama/ollama: hundreds of source files sort before docs/.
+  const source = Array.from({ length: CHAT.pathsListed + 100 }, (_, i) => `api/pkg${String(i).padStart(3, "0")}/main.go`);
+  const paths = [...source, "Dockerfile", "README.md", "docs/faq.mdx", "docs/linux.mdx", "scripts/install.sh"].sort();
+  const listed = buildContext(repo({}), SHA, paths, false).text.match(/<paths partial="true">\n([\s\S]*?)\n<\/paths>/)![1].split("\n");
+  assert.equal(listed.length, CHAT.pathsListed);
+  for (const p of ["Dockerfile", "README.md", "docs/faq.mdx", "docs/linux.mdx", "scripts/install.sh"]) assert.ok(listed.includes(p), p);
+  assert.deepEqual(listed, [...listed].sort()); // still in the repo's order
 });
 
 test("likely secrets are masked; placeholders and plain words are not", () => {
@@ -115,6 +128,25 @@ test("a tool read in the middle of an answer is answered, and every call is coun
   assert.ok(events.some((e) => e.type === "text"));
   // The repo context is the cached part of every call.
   assert.deepEqual(calls[0].system[1].cache_control, { type: "ephemeral" });
+  // So is the conversation, up to the newest message of each call...
+  const newest = (c: any) => c.messages.at(-1).content.at(-1);
+  assert.deepEqual(newest(calls[0]).cache_control, { type: "ephemeral" });
+  assert.equal(newest(calls[1]).type, "tool_result");
+  assert.deepEqual(newest(calls[1]).cache_control, { type: "ephemeral" });
+  // ...with one mark per call, never left in the history that's stored.
+  assert.equal(JSON.stringify(calls[1].messages).split("cache_control").length - 1, 1);
+  assert.ok(!JSON.stringify(result.messages).includes("cache_control"));
+});
+
+test("a long file is read in parts: each says which part it is and where the next starts", async () => {
+  const long = `${"a".repeat(CHAT.toolResultChars)}${"b".repeat(CHAT.toolResultChars)}tail`;
+  const total = long.length;
+  const { client } = fakeClient([toolUse("t1", "README.md", 0), toolUse("t2", "README.md", CHAT.toolResultChars), toolUse("t3", "README.md", total + 5), text("Done.")]);
+  const result = await run(client, async () => ({ kind: "file", text: long })).done;
+  const results = result.messages.filter((m) => m.role === "user" && Array.isArray(m.content)).map((m) => (m.content as any[])[0]);
+  assert.match(results[0].content, new RegExp(`^\\[characters 0–${CHAT.toolResultChars} of ${total}; read on with start=${CHAT.toolResultChars}\\]\\na`));
+  assert.match(results[1].content, new RegExp(`^\\[characters ${CHAT.toolResultChars}–${2 * CHAT.toolResultChars} of ${total}; read on with start=${2 * CHAT.toolResultChars}\\]\\nb`));
+  assert.equal(results[2].is_error, true);
 });
 
 test("an answer can't make more model calls than the budget reserved for", async () => {

@@ -28,6 +28,23 @@ test("other risky commands are flagged", () => {
   assert.deepEqual(kinds("sudo dd if=image.iso of=/dev/disk4"), ["sudo", "disk"]);
 });
 
+test("commands that turn off system protection are flagged", () => {
+  for (const cmd of [
+    "Set-MpPreference -DisableRealtimeMonitoring $true",
+    "netsh advfirewall set allprofiles state off",
+    "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False",
+    "ufw disable",
+    "systemctl disable firewalld",
+    "setenforce 0",
+    "spctl --master-disable",
+    "csrutil disable",
+  ])
+    assert.ok(kinds(cmd).includes("protection"), cmd);
+  // Turning protection on, or allowing one program through, isn't flagged.
+  for (const cmd of ["ufw enable", "ufw allow 8080/tcp", "Set-MpPreference -DisableRealtimeMonitoring $false", "netsh advfirewall set allprofiles state on"])
+    assert.deepEqual(kinds(cmd), [], cmd);
+});
+
 test("ordinary setup commands aren't flagged", () => {
   for (const cmd of [
     "npm install",
@@ -71,6 +88,20 @@ test("files that setup creates aren't reported missing", () => {
 test("a folder the answer's own commands create isn't reported missing", () => {
   const md = "Run `rustlings init`, which makes `rustlings/`.\n\n```sh\nrustlings init\ncd rustlings/\n```";
   assert.deepEqual(checkCitations(md, [], []).missing, []);
+});
+
+test("a path inside the cloned folder counts; one outside the repo isn't a citation", () => {
+  const md = "Put checkpoints in `ComfyUI/models/checkpoints`, see `ComfyUI/README.md`. I didn't read `../../../etc/passwd`.";
+  const c = checkCitations(md, ["README.md"], ["README.md", "models/checkpoints/put_checkpoints_here"]);
+  assert.deepEqual(c, { verified: ["ComfyUI/README.md"], notRead: ["ComfyUI/models/checkpoints"], missing: [] });
+});
+
+test("image names, platforms, extensions and build output aren't reported missing; made-up docs are", () => {
+  const md =
+    "Use `rocm/dev-almalinux-8` for `linux/amd64`, set `Etc/UTC`, allow `10.0.0.0/8`, put `.ckpt` files in, read `process.env`. " +
+    "The build lands in `Jellyfin.Server/bin/Debug/net10.0` and `excalidraw-app/build`. See `ollama/ollama` and `docs/linux.md`.";
+  const paths = ["Jellyfin.Server/Program.cs", "excalidraw-app/index.html", "docs/linux.mdx"];
+  assert.deepEqual(checkCitations(md, [], paths).missing, ["docs/linux.md"]);
 });
 
 test("a bare file name that matches two files Claude read isn't counted as verified", () => {

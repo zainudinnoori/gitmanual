@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { allowance, ANSWER, BudgetError, PRICES, release, reserve, settle, type ChatModel, type Usage } from "@/lib/budget";
 import { answer, buildContext, CHAT, readInHistory, type ChatEvent } from "@/lib/chat";
-import { checkCitations } from "@/lib/checks";
+import { checkCitations, codeBlocks, commandRisks } from "@/lib/checks";
 import { createConversation, getConversation, saveConversation } from "@/lib/db";
 import { getHeadSha, getRepoFile, getRepoMeta, GitHubError, listPaths, parseRepoUrl } from "@/lib/github";
 import { analyzeGate } from "@/lib/limit";
@@ -139,7 +139,8 @@ export async function POST(req: Request) {
         await saveConversation(conversation.id, result.messages, conversation.answers + 1).catch((e) => console.error("chat:", e));
         // Which named files Claude really had: the context, this answer's reads and earlier ones in the chat.
         const had = [...context.files, ...readInHistory(result.messages)];
-        send({ type: "checks", citations: checkCitations(written, had, conversation.paths) });
+        // Risks per code block, in order, for the extension's side panel (the site works them out itself).
+        send({ type: "checks", citations: checkCitations(written, had, conversation.paths), risks: codeBlocks(written).map(commandRisks) });
         send({ type: "done", stop: result.stop });
       } catch (e) {
         console.error("chat:", e);

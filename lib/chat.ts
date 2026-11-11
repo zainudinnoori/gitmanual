@@ -23,7 +23,7 @@ export const CHAT = {
 // tokenizers both count more tokens per character.
 const CHARS_PER_TOKEN = 3;
 
-export const RULES = `You help people set up, run and troubleshoot one GitHub repository. Its files, gitmanual's analysis of them, and a list of its file paths are in <repo>, all from one pinned commit.
+export const RULES = `You are GitManual AI Agent, on gitmanual.com. You help people set up, run and troubleshoot one GitHub repository. Its files, gitmanual's analysis of them, and a list of its file paths are in <repo>, all from one pinned commit.
 
 - Repository-specific facts (versions, install methods, commands, scripts, settings, environment variables) come only from the files in <repo>. Name the file each one comes from, like \`package.json\`. The analysis is gitmanual's reading of those files, so cite the file behind it, never "the analysis". If the files don't say, say so and say where to look, or read the file with read_repo_file.
 - General troubleshooting (a common operating system, permissions, PATH or port error) is welcome, but start it with "General advice:" and keep it apart from the project's own instructions.
@@ -31,18 +31,22 @@ export const RULES = `You help people set up, run and troubleshoot one GitHub re
 - Never invent commands, versions, flags, URLs or environment variables.
 - Before any command that pipes a download into a shell, uses sudo, deletes files, or edits shell startup files, say plainly what it does.
 - Only this repository. Decline anything unrelated in one sentence.
-- read_repo_file takes an exact path from <paths> or one named in the files. Use it only when the answer needs a file you don't have.
+- read_repo_file takes an exact path from <paths> or one named in the files. Use it only when the answer needs a file you don't have, or the rest of one that was cut short: pass start as the character where your part ends (shown_chars for a file in <repo>).
 - Each question says the person's operating system. Write commands for it.
-- Short, skimmable Markdown. Commands in fenced code blocks.`;
+- Be brief and direct: answer what was asked, then stop. Lead with the answer or the first command. No introductions, no restating the question, no summaries or offers at the end. Explain a step only when the command doesn't make it obvious, in one line. Most answers fit in about 120 words; go longer only for setups that truly have many steps, and still keep each step to its command and a few words.
+- Markdown with numbered steps where there's an order. Commands in fenced code blocks.`;
 
 export const READ_FILE_TOOL: Anthropic.Tool = {
   name: "read_repo_file",
   description:
-    "Read one file of this repository at the pinned commit. Pass an exact path from <paths> or one named in the files. Returns up to 12,000 characters.",
+    "Read one file of this repository at the pinned commit. Pass an exact path from <paths> or one named in the files. Returns up to 12,000 characters from start.",
   input_schema: {
     type: "object",
-    properties: { path: { type: "string", description: "Exact path, e.g. docs/install.md" } },
-    required: ["path"],
+    properties: {
+      path: { type: "string", description: "Exact path, e.g. docs/install.md" },
+      start: { type: "integer", description: "Character to start from: 0 for the beginning, or where a part you already have ends" },
+    },
+    required: ["path", "start"],
     additionalProperties: false,
   },
   strict: true,
@@ -98,6 +102,24 @@ function rank(path: string, setupDoc: string | undefined): number {
   return 2; // manifests and version pins
 }
 
+// The paths Claude is shown, when a big repo has more than fit: the ones setup questions lead to first (top-level
+// files, then docs and install folders, shallowest first), the rest after in their usual order.
+function pathsWorthListing(paths: string[]): string[] {
+  if (paths.length <= CHAT.pathsListed) return paths;
+  const weight = (p: string) => {
+    const depth = p.split("/").length - 1;
+    if (depth === 0) return 0;
+    if (/^(docs?|documentation|install|setup|deploy|scripts|\.devcontainer|docker)\//i.test(p)) return depth;
+    return 10 + depth;
+  };
+  return paths
+    .map((p, i) => ({ p, i, w: weight(p) }))
+    .sort((a, b) => a.w - b.w || a.i - b.i)
+    .slice(0, CHAT.pathsListed)
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.p);
+}
+
 // What Claude knows about the repo: the setup files under one size budget, gitmanual's analysis, and the file
 // paths. A file that doesn't fit whole is cut and marked, so Claude knows to read the rest with the tool.
 export function buildContext(data: RepoData, sha: string, paths: string[], pathsTruncated: boolean): { text: string; files: string[] } {
@@ -115,12 +137,12 @@ export function buildContext(data: RepoData, sha: string, paths: string[], paths
     const text = maskSecrets(raw);
     const cut = text.length > share;
     const body = cut ? text.slice(0, share) : text;
-    blocks.push(`<file path="${path}"${cut ? ` truncated="true" total_chars="${text.length}"` : ""}>\n${body}\n</file>`);
+    blocks.push(`<file path="${path}"${cut ? ` truncated="true" shown_chars="${body.length}" total_chars="${text.length}"` : ""}>\n${body}\n</file>`);
     left -= body.length;
   }
 
   const analysis = JSON.stringify(data.analysis);
-  const listed = paths.slice(0, CHAT.pathsListed);
+  const listed = pathsWorthListing(paths);
   const text = [
     `<repo name="${data.meta.fullName}" commit="${sha}">`,
     data.meta.description ? `<description>${data.meta.description}</description>` : "",
@@ -199,7 +221,7 @@ export async function answer(o: {
         tools: [READ_FILE_TOOL],
         // The last allowed call has to answer with what it has.
         ...(last ? { tool_choice: { type: "none" as const } } : {}),
-        messages,
+        messages: cacheConversation(messages),
       },
       { signal: AbortSignal.timeout(remaining) },
     );
@@ -209,7 +231,7 @@ export async function answer(o: {
     messages.push({ role: "assistant", content: final.content });
 
     if (final.stop_reason === "refusal") {
-      o.emit({ type: "notice", message: "Claude declined to answer that." });
+      o.emit({ type: "notice", message: "GitManual AI Agent declined to answer that." });
       return { messages, usages, read, stop: "refusal" };
     }
     if (final.stop_reason === "max_tokens") {
@@ -222,8 +244,10 @@ export async function answer(o: {
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const block of final.content) {
       if (block.type !== "tool_use") continue;
-      const path = typeof (block.input as { path?: unknown })?.path === "string" ? (block.input as { path: string }).path : "";
-      const result = await readForTool(path, o);
+      const input = (block.input ?? {}) as { path?: unknown; start?: unknown };
+      const path = typeof input.path === "string" ? input.path : "";
+      const start = Number.isInteger(input.start) && (input.start as number) > 0 ? (input.start as number) : 0;
+      const result = await readForTool(path, start, o);
       if (!result.is_error) read.push(path);
       results.push({ type: "tool_result", tool_use_id: block.id, ...result });
     }
@@ -233,8 +257,19 @@ export async function answer(o: {
   return { messages, usages, read, stop: "calls" };
 }
 
+// The conversation so far is cached too, up to its newest message, so a follow-up question or the call after a
+// file read pays a tenth for everything before it. The mark goes on a copy: the stored history never carries one,
+// so the API's limit of four marks per request is never reached as a chat grows.
+function cacheConversation(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  const newest = messages[messages.length - 1];
+  const blocks = typeof newest.content === "string" ? [{ type: "text" as const, text: newest.content }] : newest.content;
+  const marked = blocks.map((b, i) => (i === blocks.length - 1 ? { ...b, cache_control: { type: "ephemeral" as const } } : b));
+  return [...messages.slice(0, -1), { ...newest, content: marked } as Anthropic.MessageParam];
+}
+
 async function readForTool(
   path: string,
+  start: number,
   o: { readFile: (path: string) => Promise<RepoFile>; emit: (e: ChatEvent) => void },
 ): Promise<{ content: string; is_error?: boolean }> {
   if (!readablePath(path)) return { content: "Refused: that path can't be read.", is_error: true };
@@ -243,12 +278,11 @@ async function readForTool(
   if (!file) return { content: "Couldn't read that file right now.", is_error: true };
   if (file.kind !== "file") return { content: `Not readable: ${file.kind.replace("-", " ")}.`, is_error: true };
   const text = maskSecrets(file.text);
-  return {
-    content:
-      text.length > CHAT.toolResultChars
-        ? `${text.slice(0, CHAT.toolResultChars)}\n…[truncated: ${text.length} characters in total]`
-        : text,
-  };
+  if (start >= text.length) return { content: `Nothing from character ${start}: the file has ${text.length}.`, is_error: true };
+  const end = Math.min(text.length, start + CHAT.toolResultChars);
+  const part = text.slice(start, end);
+  // Whenever this isn't the whole file, say which part it is and where the next one starts.
+  return { content: start === 0 && end === text.length ? part : `[characters ${start}–${end} of ${text.length}${end < text.length ? `; read on with start=${end}` : ""}]\n${part}` };
 }
 
 // Files read with the tool earlier in a conversation: Claude still has them in its history, so they count as
