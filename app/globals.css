@@ -93,6 +93,8 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .ad-fallback-h { font: 700 var(--fs-h3)/1.2 var(--display); color: var(--ink); }
 .ad-fallback-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .ad-fallback-links .btn { color: var(--ink); text-decoration: none; }
+.ad-advertise { margin-top: 2px; padding: 0; border: 0; background: none; color: var(--pencil); font: 500 var(--fs-meta) var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ad-advertise:hover { color: var(--ink); }
 .ad-heart { display: inline-block; }
 .ad-sponsor:hover .ad-heart { animation: beat 0.8s ease-in-out infinite; }
 @keyframes beat { 15%, 45% { scale: 1.3; } 30%, 60% { scale: 1; } }

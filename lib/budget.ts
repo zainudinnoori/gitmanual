@@ -209,3 +209,49 @@ export async function allowance(
     return null;
   }
 }
+
+export type ChatStats = {
+  days: { day: string; answers: number; people: number; spent: number; avg: number | null; atLimit: number }[];
+  atLimit: { day: string; account: string; answers: number }[];
+  live: { chats: number; repos: { repo: string; chats: number }[] };
+  limits: { answersPerDay: number; dailyUsd: number };
+};
+
+// For the admin page (app/admin/chat): answers, people and spend per day, who used all their answers, and the
+// chats open right now. Spend counts unsettled reservations at their worst case, as the daily cap does.
+export async function chatStats(days = 14, now = Date.now()): Promise<ChatStats> {
+  const since = utcDay(now - (days - 1) * DAY);
+  const { answersPerDay, dailyUsd } = POOLS.user;
+  return strictly(async (c) => {
+    const perDay = await c.execute({
+      sql: `SELECT day, COUNT(*) AS answers, COUNT(DISTINCT account) AS people,
+              SUM(CASE WHEN status = 'settled' THEN cost ELSE reserved END) AS spent,
+              AVG(CASE WHEN status = 'settled' THEN cost END) AS avg
+            FROM chat_spend WHERE pool = 'user' AND day >= ? GROUP BY day ORDER BY day DESC`,
+      args: [since],
+    });
+    const full = await c.execute({
+      sql: `SELECT day, account, COUNT(*) AS answers FROM chat_spend WHERE pool = 'user' AND day >= ?
+            GROUP BY day, account HAVING COUNT(*) >= ? ORDER BY day DESC, answers DESC`,
+      args: [since, answersPerDay],
+    });
+    const live = await c.execute({
+      sql: "SELECT repo, COUNT(*) AS chats FROM chat_conversations WHERE expires_at > ? GROUP BY repo ORDER BY chats DESC",
+      args: [now],
+    });
+    const atLimit = full.rows.map((r) => ({ day: String(r.day), account: String(r.account), answers: Number(r.answers) }));
+    return {
+      days: perDay.rows.map((r) => ({
+        day: String(r.day),
+        answers: Number(r.answers),
+        people: Number(r.people),
+        spent: Number(r.spent ?? 0) / 1e6,
+        avg: r.avg === null ? null : Number(r.avg) / 1e6,
+        atLimit: atLimit.filter((a) => a.day === String(r.day)).length,
+      })),
+      atLimit,
+      live: { chats: live.rows.reduce((n, r) => n + Number(r.chats), 0), repos: live.rows.slice(0, 10).map((r) => ({ repo: String(r.repo), chats: Number(r.chats) })) },
+      limits: { answersPerDay, dailyUsd },
+    };
+  });
+}

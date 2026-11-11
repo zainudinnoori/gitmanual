@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { compactCount } from "@/lib/format";
 import { parseRepoUrl } from "@/lib/github";
 import type { Arch } from "@/lib/install";
@@ -266,11 +266,13 @@ function NavSearch() {
 // "Contact": our own dialog around the site owner's ShareText form (CONTACT_FORM_URL).
 // The form stays in its iframe, so what people type never touches this page. Nothing loads from
 // sharetext.net until the dialog opens; their small script then sizes the frame to the form.
+export const OPEN_CONTACT = "gitmanual:contact";
+
 export function ContactButton({ form }: { form: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [opened, setOpened] = useState(false);
 
-  const open = () => {
+  const open = useCallback(() => {
     setOpened(true);
     dialog.current?.showModal();
     if (!document.querySelector("script[data-sharetext-resize]")) {
@@ -280,7 +282,13 @@ export function ContactButton({ form }: { form: string }) {
       script.dataset.sharetextResize = "";
       document.head.append(script);
     }
-  };
+  }, [form]);
+
+  // Other parts of the page (the "Advertise here" link in the ad box) open this same form.
+  useEffect(() => {
+    window.addEventListener(OPEN_CONTACT, open);
+    return () => window.removeEventListener(OPEN_CONTACT, open);
+  }, [open]);
 
   return (
     <>
