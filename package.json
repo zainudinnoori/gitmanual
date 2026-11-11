@@ -28,6 +28,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.mts",
     "db:push": "node scripts/push-to-turso.mjs",
     "check:scripts": "node --env-file-if-exists=.env.local --import tsx scripts/check-setup-scripts.ts",
     "setup-script": "node --env-file-if-exists=.env.local --import tsx scripts/print-setup-script.ts",

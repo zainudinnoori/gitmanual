@@ -73,6 +73,20 @@ const SCHEMA = `
     count INTEGER NOT NULL,
     reset_at INTEGER NOT NULL       -- when the window ends and counting starts over
   );
+  CREATE TABLE IF NOT EXISTS chat_spend (
+    key TEXT PRIMARY KEY,           -- account + the question's idempotency key, so a resend isn't charged twice
+    pool TEXT NOT NULL,             -- whose budget it comes from, e.g. "user" (signed in)
+    account TEXT NOT NULL,          -- GitHub user id for signed-in chat
+    day TEXT NOT NULL,              -- UTC date, YYYY-MM-DD
+    reserved INTEGER NOT NULL,      -- worst-case cost held before the model is called, in millionths of a dollar
+    cost INTEGER,                   -- actual cost once settled, in millionths of a dollar
+    status TEXT NOT NULL,           -- reserved | settled
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,    -- a reservation never settled stops counting as "in progress" here, but keeps its full cost
+    settled_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS chat_spend_account ON chat_spend (account, day);
+  CREATE INDEX IF NOT EXISTS chat_spend_pool ON chat_spend (pool, day);
 `;
 
 // One connection per server process. Kept on globalThis because dev hot reloads re-run this module,
@@ -132,6 +146,14 @@ function db(): Promise<Client | null> {
     return null;
   });
   return store.gitmanualDb;
+}
+
+// For what must not happen without the database, like spending on chat (lib/budget.ts): it throws instead of
+// falling back, so a missing or failing database stops the action rather than letting it through unrecorded.
+export async function strictly<T>(fn: (c: Client) => Promise<T>): Promise<T> {
+  const c = await db();
+  if (!c) throw new Error("The database is not available.");
+  return fn(c);
 }
 
 // The database is a cache and a counter: if it fails, the request should still succeed.
