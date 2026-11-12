@@ -38,7 +38,8 @@ export function ChatAdmin() {
     <>
       <p>
         Last 14 days: <strong>{total.answers.toLocaleString()}</strong> answers, <strong>{usd(total.spent)}</strong> spent. Limits:{" "}
-        {answersPerDay} answers a day per person, {usd(dailyUsd)} a day for the site. Days are UTC.
+        {answersPerDay} answers a day per person, {usd(dailyUsd)} a day for the site. Days are UTC. <a href="/admin/users">Users</a> ·{" "}
+        <a href="/admin/keys">API keys</a>
       </p>
       <p>
         Open now: <strong>{stats.live.chats}</strong> {stats.live.chats === 1 ? "chat" : "chats"}
@@ -79,6 +80,34 @@ export function ChatAdmin() {
         </div>
       ) : (
         <p>No answers yet.</p>
+      )}
+
+      <h2>Top repos</h2>
+      {stats.topRepos.length ? (
+        <div className="doc-table-wrap">
+          <table className="doc-table">
+            <thead>
+              <tr>
+                <th scope="col">Repo</th>
+                <th scope="col">Answers</th>
+                <th scope="col">People</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.topRepos.map((r) => (
+                <tr key={r.repo}>
+                  <th scope="row">
+                    <a href={`/${r.repo}`}>{r.repo}</a>
+                  </th>
+                  <td className="num">{r.answers.toLocaleString()}</td>
+                  <td className="num">{r.people.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p>No repos yet. Many questions on one repo usually means its manual leaves people stuck.</p>
       )}
 
       <h2>Used all {answersPerDay} answers</h2>

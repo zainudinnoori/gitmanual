@@ -18,8 +18,8 @@ export default function Privacy() {
     <DocPage
       eyebrow="Privacy"
       title="Privacy policy"
-      lead="Short version: no accounts, no tracking cookies from gitmanual, and nothing that identifies you is stored unless you make an API key. Some pages show one ad from Carbon."
-      updated="9 November 2026"
+      lead="Short version: no passwords or profiles, no tracking cookies from gitmanual, and nothing that identifies you is stored unless you sign in with GitHub. Some pages show one ad from Carbon."
+      updated="11 November 2026"
     >
       <h2>What gitmanual stores</h2>
       <ul>
@@ -54,6 +54,15 @@ export default function Privacy() {
         number, when the key was made and last used, and how many requests it has made, so you (and we) can see its use and turn it off
         if it&apos;s misused. The key itself is stored only as a fingerprint (a hash). Signing in for a key gives gitmanual no access to
         your repos. Delete the key on that page any time, and its record goes with it.
+      </p>
+
+      <h2>Signing in with GitHub</h2>
+      <p>
+        Signing in is optional: it&apos;s needed only for chat, an API key or your private repos. When you sign in, gitmanual keeps your
+        GitHub username and account number, when you first and last signed in or used chat, and how many times you&apos;ve signed in. For
+        each chat answer it keeps the day, what it cost and which public repo it was about, but not your question or its answer, which are
+        deleted after an hour. Nothing else: no email address, and signing in gives gitmanual no access to your repos. To have your record deleted,
+        ask through the contact form.
       </p>
 
       <h2>What stays in your browser</h2>
@@ -108,8 +117,8 @@ export default function Privacy() {
           <li>
             <strong>GitManual AI Agent</strong>: questions you ask in &ldquo;Ask about this repo&rdquo; are sent with the repo&apos;s public
             files to Anthropic, whose Claude models write the answers, under Anthropic&apos;s API terms. We keep the conversation for an hour
-            so you can ask follow-ups; after that it&apos;s deleted as new chats start. Longer term we keep only what each answer cost, under
-            your GitHub user id. Don&apos;t put passwords or keys in a question.
+            so you can ask follow-ups; after that it&apos;s deleted as new chats start. Longer term we keep only what each answer cost and which
+            public repo it was about, under your GitHub user id (see Signing in with GitHub above). Don&apos;t put passwords or keys in a question.
           </li>
         )}
       </ul>
@@ -124,7 +133,7 @@ export default function Privacy() {
       </p>
 
       <h2>What gitmanual doesn&apos;t do</h2>
-      <p>No accounts (an API key is the one exception, and it&apos;s optional), no advertising, no tracking across sites, and no selling or sharing of personal data.</p>
+      <p>No passwords or profiles (signing in with GitHub is optional), no ads beyond one Carbon ad on some pages, no tracking across sites, and no selling or sharing of personal data.</p>
 
       <h2>Your choices</h2>
       <p>

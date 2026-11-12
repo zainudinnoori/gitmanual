@@ -87,6 +87,7 @@ export async function reserve(opts: {
   account: string;
   requestId: string; // made by the browser once per question, so a resend carries the same one
   model: ChatModel;
+  repo?: string; // owner/repo the question is about, kept (lower-case) for the admin stats
   now?: number;
   limits?: Pool; // tests only; the pool's own limits otherwise
 }): Promise<Reservation> {
@@ -104,8 +105,8 @@ export async function reserve(opts: {
       // One statement: the checks and the insert can't be split by a parallel request. An expired reservation still
       // counts toward the day's answers and spend, just not toward "in progress".
       const inserted = await c.execute({
-        sql: `INSERT INTO chat_spend (key, pool, account, day, reserved, status, created_at, expires_at)
-          SELECT :key, :pool, :account, :day, :amount, 'reserved', :now, :expires
+        sql: `INSERT INTO chat_spend (key, pool, account, day, reserved, status, created_at, expires_at, repo)
+          SELECT :key, :pool, :account, :day, :amount, 'reserved', :now, :expires, :repo
           WHERE (SELECT COUNT(*) FROM chat_spend WHERE pool = :pool AND account = :account AND day = :day) < :answers
             AND (SELECT COUNT(*) FROM chat_spend WHERE pool = :pool AND account = :account AND status = 'reserved' AND expires_at > :now) < :inProgress
             AND (SELECT COALESCE(SUM(COALESCE(cost, reserved)), 0) FROM chat_spend WHERE pool = :pool AND day = :day) + :amount <= :cap
@@ -118,6 +119,7 @@ export async function reserve(opts: {
           amount,
           now,
           expires: now + EXPIRES_MS,
+          repo: opts.repo?.toLowerCase() ?? null,
           answers: limits.answersPerDay,
           inProgress: limits.inProgress,
           cap: Math.round(limits.dailyUsd * 1_000_000),
@@ -214,6 +216,7 @@ export type ChatStats = {
   days: { day: string; answers: number; people: number; spent: number; avg: number | null; atLimit: number }[];
   atLimit: { day: string; account: string; answers: number }[];
   live: { chats: number; repos: { repo: string; chats: number }[] };
+  topRepos: { repo: string; answers: number; people: number }[];
   limits: { answersPerDay: number; dailyUsd: number };
 };
 
@@ -239,6 +242,11 @@ export async function chatStats(days = 14, now = Date.now()): Promise<ChatStats>
       sql: "SELECT repo, COUNT(*) AS chats FROM chat_conversations WHERE expires_at > ? GROUP BY repo ORDER BY chats DESC",
       args: [now],
     });
+    const top = await c.execute({
+      sql: `SELECT repo, COUNT(*) AS answers, COUNT(DISTINCT account) AS people FROM chat_spend
+            WHERE pool = 'user' AND day >= ? AND repo IS NOT NULL GROUP BY repo ORDER BY answers DESC LIMIT 20`,
+      args: [since],
+    });
     const atLimit = full.rows.map((r) => ({ day: String(r.day), account: String(r.account), answers: Number(r.answers) }));
     return {
       days: perDay.rows.map((r) => ({
@@ -251,6 +259,7 @@ export async function chatStats(days = 14, now = Date.now()): Promise<ChatStats>
       })),
       atLimit,
       live: { chats: live.rows.reduce((n, r) => n + Number(r.chats), 0), repos: live.rows.slice(0, 10).map((r) => ({ repo: String(r.repo), chats: Number(r.chats) })) },
+      topRepos: top.rows.map((r) => ({ repo: String(r.repo), answers: Number(r.answers), people: Number(r.people) })),
       limits: { answersPerDay, dailyUsd },
     };
   });
