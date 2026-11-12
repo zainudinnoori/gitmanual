@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { allowance, ANSWER, BudgetError, PRICES, release, reserve, settle, type ChatModel, type Usage } from "@/lib/budget";
 import { answer, buildContext, CHAT, readInHistory, type ChatEvent } from "@/lib/chat";
 import { checkCitations, codeBlocks, commandRisks } from "@/lib/checks";
-import { createConversation, getConversation, saveConversation } from "@/lib/db";
+import { createConversation, getConversation, saveConversation, seeUser } from "@/lib/db";
 import { getHeadSha, getRepoFile, getRepoMeta, GitHubError, listPaths, parseRepoUrl } from "@/lib/github";
 import { analyzeGate } from "@/lib/limit";
 import { OS_LIST, type OS } from "@/lib/os";
@@ -94,12 +94,14 @@ export async function POST(req: Request) {
   const model = chatModel();
   let reservation;
   try {
-    reservation = await reserve({ pool: "user", account, requestId: body.requestId, model });
+    reservation = await reserve({ pool: "user", account, requestId: body.requestId, model, repo: convo.repo });
   } catch (e) {
     if (e instanceof BudgetError) return fail(e.message, BUDGET_STATUS[e.reason], { reason: e.reason }, { "Retry-After": String(e.retryAfter) });
     throw e;
   }
   if (reservation.duplicate) return fail("This question is already being answered.", 409, { reason: "duplicate" });
+  // A sign-in can last weeks, so asking counts as being seen (it's how /admin/users knows who's active).
+  await seeUser(user.id, user.login, false);
   const key = reservation.key;
   const conversation = convo;
 

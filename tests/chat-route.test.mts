@@ -88,7 +88,7 @@ class FakeAnthropic {
 mock.module("@anthropic-ai/sdk", { defaultExport: FakeAnthropic });
 
 const route = await import("../app/api/chat/route");
-const { strictly } = await import("../lib/db");
+const { strictly, seeUser, listUsers } = await import("../lib/db");
 const { worstCase, chatStats, POOLS } = await import("../lib/budget");
 
 let n = 0;
@@ -288,4 +288,29 @@ test("admin stats count today's answers, people and spend, and who used all thei
   );
   assert.equal(today.atLimit, 1);
   assert.ok(stats.live.chats > 0);
+});
+
+test("users: a sign-in adds or updates the user, and chat answers show with their repo", async () => {
+  as(1001);
+  await seeUser(1001, "old-name", true, 1_000);
+  await seeUser(1001, "user1001", true, 2_000);
+  await (await post({ repo: "Owner/Name" })).text();
+  const u = (await listUsers()).find((x) => x.githubId === 1001)!;
+  assert.equal(u.login, "user1001"); // the latest username
+  assert.equal(u.firstSeen, 1_000);
+  assert.equal(u.signIns, 2); // asking doesn't count as a sign-in...
+  assert.ok(u.lastSeen > 2_000); // ...but does count as being seen
+  assert.equal(u.answers, 1);
+  assert.deepEqual(u.repos, ["owner/name"]);
+  assert.equal(u.apiKey, false);
+  const stats = await chatStats();
+  assert.ok(stats.topRepos.some((r) => r.repo === "owner/name" && r.answers > 0));
+});
+
+test("the admin pages' data is for admins only", async () => {
+  as(1101);
+  for (const path of ["../app/api/admin/users/route", "../app/api/admin/chat/route"]) {
+    const res = await (await import(path)).GET();
+    assert.equal(res.status, 403);
+  }
 });

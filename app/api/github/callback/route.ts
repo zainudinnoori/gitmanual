@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { seeUser } from "@/lib/db";
 import { cookieOptions, exchangeCode, githubApp, safeBack, seal, SESSION_COOKIE, STATE_COOKIE } from "@/lib/session";
 
 // GitHub comes back here after the visitor installs the app or changes its repos (the app's Callback and Setup URL).
@@ -25,6 +26,7 @@ export async function GET(req: Request) {
 
   try {
     const session = await exchangeCode(app, code);
+    await recordSignIn(session.token);
     const res = home();
     res.cookies.set(SESSION_COOKIE, seal(session), cookieOptions());
     res.cookies.delete({ name: STATE_COOKIE, path: "/api" });
@@ -32,4 +34,15 @@ export async function GET(req: Request) {
   } catch {
     return home("failed");
   }
+}
+
+// Who just signed in, for the users list (/admin/users). Never stops the sign-in if GitHub or the database is slow.
+async function recordSignIn(token: string): Promise<void> {
+  const r = await fetch("https://api.github.com/user", {
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "gitmanual", Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(3000),
+  }).catch(() => null);
+  const u = r?.ok ? ((await r.json()) as { id?: number; login?: string }) : null;
+  if (typeof u?.id === "number" && typeof u.login === "string") await seeUser(u.id, u.login, true);
 }

@@ -87,6 +87,13 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS chat_spend_account ON chat_spend (account, day);
   CREATE INDEX IF NOT EXISTS chat_spend_pool ON chat_spend (pool, day);
+  CREATE TABLE IF NOT EXISTS users (
+    github_id INTEGER PRIMARY KEY,  -- who signed in with GitHub (for chat, an API key or private repos)
+    login TEXT NOT NULL,            -- GitHub username, updated at each sign-in
+    first_seen INTEGER NOT NULL,
+    last_seen INTEGER NOT NULL,     -- the last sign-in or chat answer
+    sign_ins INTEGER NOT NULL DEFAULT 0 -- 0 for API key owners from before sign-ins were recorded
+  );
   CREATE TABLE IF NOT EXISTS chat_conversations (
     id TEXT PRIMARY KEY,            -- random, given to the browser; the history itself never leaves the server
     account TEXT NOT NULL,          -- GitHub user id; only this account can continue it
@@ -124,6 +131,7 @@ function db(): Promise<Client | null> {
         "ALTER TABLE fb_posts ADD COLUMN video_id TEXT",
         "ALTER TABLE repos ADD COLUMN rising_at INTEGER", // when the daily trending job last found it rising
         "ALTER TABLE repos ADD COLUMN facets TEXT", // searchable facts for lists and suggestions (lib/facets.ts)
+        "ALTER TABLE chat_spend ADD COLUMN repo TEXT", // lower-case owner/repo the answer was about (public repos only)
       ])
         await client.execute(sql).catch(() => {});
       // "Got it running" counts kept on the repo, so lists and the shelf don't join and group the votes table.
@@ -137,6 +145,13 @@ function db(): Promise<Client | null> {
         await client.execute(`UPDATE repos SET
           worked = (SELECT COALESCE(SUM(worked), 0) FROM votes WHERE votes.key = repos.key),
           stuck = (SELECT COUNT(*) - COALESCE(SUM(worked), 0) FROM votes WHERE votes.key = repos.key)`);
+      // API key owners signed in before sign-ins were recorded: they're users too. Checked first, so a normal start
+      // only reads; the write happens once, when someone's missing.
+      const missing = await client.execute("SELECT 1 FROM api_keys WHERE github_id NOT IN (SELECT github_id FROM users) LIMIT 1");
+      if (missing.rows.length)
+        await client.execute(
+          "INSERT OR IGNORE INTO users (github_id, login, first_seen, last_seen, sign_ins) SELECT github_id, login, created_at, COALESCE(last_used, created_at), 0 FROM api_keys",
+        );
       // Indexes for the sort orders, so a page of results reads that page instead of the whole table.
       await client.executeMultiple(`
         CREATE INDEX IF NOT EXISTS repos_stars ON repos (stars);
@@ -721,4 +736,54 @@ export async function listKeys(): Promise<ApiKey[]> {
 
 export async function blockKey(githubId: number, blocked: boolean): Promise<void> {
   await safely(null, (c) => c.execute({ sql: "UPDATE api_keys SET blocked = ? WHERE github_id = ?", args: [blocked ? 1 : 0, githubId] }));
+}
+
+// Someone signed in with GitHub (app/api/github/callback), or used chat while signed in (sign_ins unchanged).
+// Their GitHub id, username and when: nothing else is kept about them here.
+export async function seeUser(githubId: number, login: string, signIn: boolean, now = Date.now()): Promise<void> {
+  await safely(null, (c) =>
+    c.execute({
+      sql: `INSERT INTO users (github_id, login, first_seen, last_seen, sign_ins) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT (github_id) DO UPDATE SET login = excluded.login, last_seen = excluded.last_seen, sign_ins = sign_ins + excluded.sign_ins`,
+      args: [githubId, login, now, now, signIn ? 1 : 0],
+    }),
+  );
+}
+
+export type UserRow = {
+  githubId: number;
+  login: string;
+  firstSeen: number;
+  lastSeen: number;
+  signIns: number;
+  answers: number; // chat answers in the last 14 days
+  repos: string[]; // the repos those answers were about, most asked first
+  apiKey: boolean;
+};
+
+// For /admin/users: everyone who signed in, newest first, with their recent chat use and whether they have an API key.
+export async function listUsers(now = Date.now()): Promise<UserRow[]> {
+  return strictly(async (c) => {
+    const since = new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { rows } = await c.execute({
+      sql: `SELECT u.github_id, u.login, u.first_seen, u.last_seen, u.sign_ins,
+              (SELECT COUNT(*) FROM chat_spend s WHERE s.pool = 'user' AND s.account = CAST(u.github_id AS TEXT) AND s.day >= ?) AS answers,
+              (SELECT GROUP_CONCAT(repo, ' ') FROM (SELECT repo, COUNT(*) AS n FROM chat_spend s
+                 WHERE s.pool = 'user' AND s.account = CAST(u.github_id AS TEXT) AND s.day >= ? AND repo IS NOT NULL
+                 GROUP BY repo ORDER BY n DESC LIMIT 5)) AS repos,
+              EXISTS (SELECT 1 FROM api_keys k WHERE k.github_id = u.github_id) AS api_key
+            FROM users u ORDER BY u.first_seen DESC LIMIT 1000`,
+      args: [since, since],
+    });
+    return rows.map((r) => ({
+      githubId: Number(r.github_id),
+      login: String(r.login),
+      firstSeen: Number(r.first_seen),
+      lastSeen: Number(r.last_seen),
+      signIns: Number(r.sign_ins),
+      answers: Number(r.answers),
+      repos: r.repos ? String(r.repos).split(" ") : [],
+      apiKey: Boolean(Number(r.api_key)),
+    }));
+  });
 }
