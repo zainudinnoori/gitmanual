@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { ChatStats } from "@/lib/budget";
+import type { InterestStats } from "@/lib/db";
 
-type Stats = ChatStats & { logins: Record<string, string | null> };
+type Stats = ChatStats & { logins: Record<string, string | null>; pdfInterest: InterestStats };
 
 const usd = (n: number, digits = 2) => `$${n.toFixed(digits)}`;
 const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
@@ -45,6 +46,26 @@ export function ChatAdmin() {
         Open now: <strong>{stats.live.chats}</strong> {stats.live.chats === 1 ? "chat" : "chats"}
         {stats.live.repos.length > 0 && <> ({stats.live.repos.map((r) => `${r.repo}${r.chats > 1 ? ` ×${r.chats}` : ""}`).join(", ")})</>}. Today:{" "}
         {today && today.day === new Date().toISOString().slice(0, 10) ? `${usd(today.spent)} of ${usd(dailyUsd)}` : "nothing yet"}.
+      </p>
+
+      <h2>Demand: PDF manual</h2>
+      <p>
+        The &ldquo;Download PDF&rdquo; button on manuals only says &ldquo;coming soon&rdquo;; each visitor counts once per repo a day. Last
+        30 days: <strong>{stats.pdfInterest.total.toLocaleString()}</strong>
+        {stats.pdfInterest.days.length > 0 && <> ({stats.pdfInterest.days.slice(0, 7).map((d) => `${day(d.day)}: ${d.clicks}`).join(", ")})</>}.
+        {stats.pdfInterest.repos.length > 0 && (
+          <>
+            {" "}
+            Top repos:{" "}
+            {stats.pdfInterest.repos.map((r, i) => (
+              <span key={r.repo}>
+                {i > 0 && ", "}
+                <a href={`/${r.repo}`}>{r.repo}</a> ({r.clicks})
+              </span>
+            ))}
+            .
+          </>
+        )}
       </p>
 
       <h2>By day</h2>

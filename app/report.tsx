@@ -452,6 +452,7 @@ function Report({
             ))}
           </div>
           <BeforeYouStart facts={beforeYouStart(result)} />
+          {!priv && <PdfSoon repo={meta.fullName} />}
         </div>
         <div className="head-side">
           <dl className="spec">
@@ -1041,6 +1042,39 @@ function AssetRow({ asset, os, primary }: { asset: Asset; os: OS; primary?: bool
       {asset.note && <div className="note">{asset.note}</div>}
       <CodeBlock text={asset.commands.join("\n")} />
     </div>
+  );
+}
+
+// Demand test for the PDF manual (not built yet): a button under "Before you start" that says
+// it's coming and counts the press (app/api/interest), so we can see whether people want it before building it.
+// The answer replaces the button at the same height, so the page doesn't jump.
+function PdfSoon({ repo }: { repo: string }) {
+  const [pressed, setPressed] = useState(false);
+  if (pressed)
+    return (
+      <p className="pdf-soon pdf-note" role="status">
+        <strong>Coming soon.</strong> Thank you!
+      </p>
+    );
+  return (
+    <button
+      type="button"
+      className="btn pdf-soon"
+      onClick={() => {
+        setPressed(true);
+        fetch("/api/interest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ feature: "pdf", repo }) }).catch(() => {});
+      }}
+    >
+      <DownloadIcon /> Download PDF manual
+    </button>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10" />
+    </svg>
   );
 }
 

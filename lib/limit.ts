@@ -23,6 +23,7 @@ const RULES = {
     message: "That's the limit of new AI guides for today. Guides that are already written still open, and the steps above don't need one.",
   },
   vote: { visitor: [30, HOUR], message: "Thanks! That's a lot of votes for one hour; try again later." },
+  interest: { visitor: [30, HOUR], message: "Thanks, noted." },
   // The JSON API and MCP server (lib/apikeys.ts). Every request counts toward the first pair; repos read from GitHub
   // for the first time also count toward the second. Answers served from the shared cache never reach the server.
   apiAnonCalls: {

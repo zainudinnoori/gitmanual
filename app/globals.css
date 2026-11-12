@@ -1210,3 +1210,9 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .endpoint { padding: 16px; gap: 18px; }
 }
 .endpoint .doc-table tbody th { width: 34%; }
+
+/* "Download PDF manual" demand test, under "Before you start" (app/report.tsx PdfSoon) */
+.pdf-soon { min-height: 40px; margin: 14px 0 0; border-radius: 10px; }
+button.pdf-soon { gap: 9px; }
+p.pdf-soon { display: inline-flex; }
+.pdf-note { display: flex; align-items: center; flex-wrap: wrap; gap: 0 5px; padding: 8px 14px; border: 1.5px dashed var(--ink); background: var(--sheet); font-size: var(--fs-meta); line-height: 1.4; }

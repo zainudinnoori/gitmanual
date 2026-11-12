@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { chatStats } from "@/lib/budget";
+import { interestStats } from "@/lib/db";
 import { isAdmin, viewer } from "@/lib/viewer";
 
 // For site admins (ADMIN_GITHUB_LOGINS): chat use and spend (lib/budget.ts chatStats), with the GitHub logins of
@@ -17,10 +18,10 @@ export async function GET() {
   const { user } = await viewer();
   if (!user || !isAdmin(user.login)) return NextResponse.json({ error: "Admins only." }, { status: 403, headers: NO_STORE });
   try {
-    const stats = await chatStats();
+    const [stats, pdfInterest] = await Promise.all([chatStats(), interestStats("pdf")]);
     const ids = [...new Set(stats.atLimit.map((a) => a.account))].slice(0, 30);
     const logins = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await login(id)] as const)));
-    return NextResponse.json({ ...stats, logins }, { headers: NO_STORE });
+    return NextResponse.json({ ...stats, logins, pdfInterest }, { headers: NO_STORE });
   } catch {
     return NextResponse.json({ error: "The database isn't reachable right now." }, { status: 503, headers: NO_STORE });
   }

@@ -94,6 +94,13 @@ const SCHEMA = `
     last_seen INTEGER NOT NULL,     -- the last sign-in or chat answer
     sign_ins INTEGER NOT NULL DEFAULT 0 -- 0 for API key owners from before sign-ins were recorded
   );
+  CREATE TABLE IF NOT EXISTS interest (
+    feature TEXT NOT NULL,          -- a feature not built yet, e.g. "pdf", whose button only says "coming soon"
+    day TEXT NOT NULL,              -- UTC date, YYYY-MM-DD
+    repo TEXT NOT NULL,             -- lower-case owner/repo the button was on
+    clicks INTEGER NOT NULL,        -- different visitors that day (one per visitor, repo and day; lib/limit.ts firstTime)
+    PRIMARY KEY (feature, day, repo)
+  );
   CREATE TABLE IF NOT EXISTS chat_conversations (
     id TEXT PRIMARY KEY,            -- random, given to the browser; the history itself never leaves the server
     account TEXT NOT NULL,          -- GitHub user id; only this account can continue it
@@ -785,5 +792,34 @@ export async function listUsers(now = Date.now()): Promise<UserRow[]> {
       repos: r.repos ? String(r.repos).split(" ") : [],
       apiKey: Boolean(Number(r.api_key)),
     }));
+  });
+}
+
+// Demand tests: a button for a feature that isn't built yet counts who presses it (app/api/interest).
+export function countInterest(feature: string, repo: string, now = Date.now()): Promise<unknown> {
+  return safely(null, (c) =>
+    c.execute({
+      sql: `INSERT INTO interest (feature, day, repo, clicks) VALUES (?, ?, ?, 1)
+        ON CONFLICT (feature, day, repo) DO UPDATE SET clicks = clicks + 1`,
+      args: [feature, new Date(now).toISOString().slice(0, 10), repo.toLowerCase()],
+    }),
+  );
+}
+
+export type InterestStats = { total: number; days: { day: string; clicks: number }[]; repos: { repo: string; clicks: number }[] };
+
+export async function interestStats(feature: string, days = 30, now = Date.now()): Promise<InterestStats> {
+  const since = new Date(now - (days - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return strictly(async (c) => {
+    const byDay = await c.execute({
+      sql: "SELECT day, SUM(clicks) AS clicks FROM interest WHERE feature = ? AND day >= ? GROUP BY day ORDER BY day DESC",
+      args: [feature, since],
+    });
+    const byRepo = await c.execute({
+      sql: "SELECT repo, SUM(clicks) AS clicks FROM interest WHERE feature = ? AND day >= ? GROUP BY repo ORDER BY clicks DESC LIMIT 15",
+      args: [feature, since],
+    });
+    const list = byDay.rows.map((r) => ({ day: String(r.day), clicks: Number(r.clicks) }));
+    return { total: list.reduce((n, d) => n + d.clicks, 0), days: list, repos: byRepo.rows.map((r) => ({ repo: String(r.repo), clicks: Number(r.clicks) })) };
   });
 }
