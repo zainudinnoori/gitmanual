@@ -395,6 +395,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 details[open].panel > summary h3::after { content: " −"; }
 .steps + .panel, .steps ~ details.panel { margin-top: 22px; }
 .panel.ai { margin-top: 28px; border: 1.5px dashed var(--line-strong); background: transparent; }
+.panel.ai .guide-allowance { margin: 2px 0 0; font-size: var(--fs-meta); }
 /* Chat drawer (app/chat.tsx): a floating button opens it; beside the page on wide screens, a sheet on phones. */
 :root { --drawer: 420px; }
 .chat-fab {

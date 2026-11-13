@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { ChatStats } from "@/lib/budget";
 import type { InterestStats } from "@/lib/db";
 
-type Stats = ChatStats & { logins: Record<string, string | null>; pdfInterest: InterestStats; downloads: { md: number; pdf: number }; teamWaitlist: number };
+type Stats = ChatStats & { logins: Record<string, string | null>; pdfInterest: InterestStats; downloads: { md: number; pdf: number }; teamWaitlist: number; guides: { day: string; guides: number; people: number; spent: number }[] };
 
 const usd = (n: number, digits = 2) => `$${n.toFixed(digits)}`;
 const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
@@ -47,6 +47,37 @@ export function ChatAdmin() {
         {stats.live.repos.length > 0 && <> ({stats.live.repos.map((r) => `${r.repo}${r.chats > 1 ? ` ×${r.chats}` : ""}`).join(", ")})</>}. Today:{" "}
         {today && today.day === new Date().toISOString().slice(0, 10) ? `${usd(today.spent)} of ${usd(dailyUsd)}` : "nothing yet"}.
       </p>
+
+      <h2>Written guides</h2>
+      <p>
+        &ldquo;Write my guide&rdquo; on Opus: 1 new guide a day per free account, 20 with Pro; saved guides are free to read and not counted.
+        Last 14 days: <strong>{stats.guides.reduce((n, d) => n + d.guides, 0).toLocaleString()}</strong> guides,{" "}
+        <strong>{usd(stats.guides.reduce((n, d) => n + d.spent, 0))}</strong>.
+      </p>
+      {stats.guides.length > 0 && (
+        <div className="doc-table-wrap">
+          <table className="doc-table">
+            <thead>
+              <tr>
+                <th scope="col">Day</th>
+                <th scope="col">Guides</th>
+                <th scope="col">People</th>
+                <th scope="col">Spent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.guides.map((d) => (
+                <tr key={d.day}>
+                  <th scope="row">{day(d.day)}</th>
+                  <td className="num">{d.guides}</td>
+                  <td className="num">{d.people}</td>
+                  <td className="num">{usd(d.spent)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <h2>Demand: PDF manual</h2>
       <p>

@@ -35,6 +35,10 @@ export type Pool = { answersPerDay: number; inProgress: number; dailyUsd: number
 export const POOLS = {
   user: { answersPerDay: 10, inProgress: 1, dailyUsd: 5 },
   pro: { answersPerDay: 150, inProgress: 1, dailyUsd: 25 },
+  // "Write my guide" (app/api/guide): new written guides, on Opus. Reading a saved guide costs nothing and isn't
+  // counted. Free accounts write one a day, Pro up to 20; each pool has its own daily cap for the whole site.
+  guide: { answersPerDay: 1, inProgress: 1, dailyUsd: 5 },
+  guidePro: { answersPerDay: 20, inProgress: 1, dailyUsd: 10 },
 } satisfies Record<string, Pool>;
 
 export type PoolName = keyof typeof POOLS;
@@ -90,6 +94,7 @@ export async function reserve(opts: {
   requestId: string; // made by the browser once per question, so a resend carries the same one
   model: ChatModel;
   repo?: string; // owner/repo the question is about, kept (lower-case) for the admin stats
+  amount?: number; // worst-case cost to hold, in millionths of a dollar; chat's own worst case otherwise
   now?: number;
   limits?: Pool; // tests only; the pool's own limits otherwise
 }): Promise<Reservation> {
@@ -100,7 +105,7 @@ export async function reserve(opts: {
   const limits = opts.limits ?? POOLS[pool];
   const key = `${pool}:${account}:${requestId}`;
   const day = utcDay(now);
-  const amount = worstCase(model);
+  const amount = opts.amount ?? worstCase(model);
 
   try {
     return await strictly(async (c) => {
@@ -266,5 +271,19 @@ export async function chatStats(days = 14, now = Date.now()): Promise<ChatStats>
       topRepos: top.rows.map((r) => ({ repo: String(r.repo), answers: Number(r.answers), people: Number(r.people) })),
       limits: { answersPerDay, dailyUsd },
     };
+  });
+}
+
+// For the admin page: written guides per day (free and Pro) and what they cost. Unsettled ones count at their
+// worst case, as the daily cap does.
+export async function guideStats(days = 14, now = Date.now()): Promise<{ day: string; guides: number; people: number; spent: number }[]> {
+  const since = utcDay(now - (days - 1) * DAY);
+  return strictly(async (c) => {
+    const { rows } = await c.execute({
+      sql: `SELECT day, COUNT(*) AS guides, COUNT(DISTINCT account) AS people, SUM(CASE WHEN status = 'settled' THEN cost ELSE reserved END) AS spent
+            FROM chat_spend WHERE pool IN ('guide', 'guidePro') AND day >= ? GROUP BY day ORDER BY day DESC`,
+      args: [since],
+    });
+    return rows.map((r) => ({ day: String(r.day), guides: Number(r.guides), people: Number(r.people), spent: Number(r.spent ?? 0) / 1e6 }));
   });
 }

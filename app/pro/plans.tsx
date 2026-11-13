@@ -136,7 +136,7 @@ export function Plans({ prices: saved, free, contact }: { prices: Prices; free: 
               Steps, scripts and lists for any public repo
             </Feature>
             <Feature icon="chat" title={`${free} AI answers a day`}>
-              With GitHub sign-in
+              And 1 new written guide, with GitHub sign-in
             </Feature>
             <Feature icon="plug" title="Extension, API and MCP">
               Use it from GitHub, your code or your AI agent
@@ -168,7 +168,7 @@ export function Plans({ prices: saved, free, contact }: { prices: Prices; free: 
           )}
           <ul className="pro-feats pro-feats-pro">
             <Feature icon="infinity" title="Unlimited AI answers">
-              About any public repo, on the site and in the extension
+              On the site and in the extension, plus 20 written guides a day
             </Feature>
             <Feature icon="file" title="Download any manual">
               A designed PDF to print or share, or Markdown

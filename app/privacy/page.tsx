@@ -61,8 +61,8 @@ export default function Privacy() {
       <p>
         Signing in is optional: it&apos;s needed only for chat, an API key or your private repos. When you sign in, gitmanual keeps your
         GitHub username and account number, when you first and last signed in or used chat, and how many times you&apos;ve signed in. For
-        each chat answer it keeps the day, what it cost and which public repo it was about, but not your question or its answer, which are
-        deleted after an hour. Nothing else: no email address, and signing in gives gitmanual no access to your repos. To have your record deleted,
+        each chat answer and each new written guide it keeps the day, what it cost and which public repo it was about, but not your question
+        or its answer, which are deleted after an hour. Nothing else: no email address, and signing in gives gitmanual no access to your repos. To have your record deleted,
         ask through the contact form.
       </p>
 

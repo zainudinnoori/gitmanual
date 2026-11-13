@@ -183,6 +183,8 @@ export function ReportView({
   const [line, setLine] = useState(0);
   const [guide, setGuide] = useState("");
   const [guideLoading, setGuideLoading] = useState(false);
+  // Whether this repo and system already has a saved guide, and whether this visitor may write a new one.
+  const [guideStatus, setGuideStatus] = useState<GuideStatus | null>(null);
   const [os, setOs] = useState<OS>(initialOs);
   const [detectedOs, setDetectedOs] = useState<OS | null>(null);
   const [arch, setArch] = useState<Arch | null>(null);
@@ -237,6 +239,15 @@ export function ReportView({
 
   // Guides are written per OS.
   useEffect(() => setGuide(""), [os]);
+  useEffect(() => {
+    setGuideStatus(null);
+    if (!aiGuide || !result || result.meta.private) return;
+    const url = `${result.meta.fullName}${gitRef ? `/tree/${gitRef}` : ""}`;
+    fetch(`/api/guide?${new URLSearchParams({ url, os })}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s: GuideStatus | null) => setGuideStatus(s))
+      .catch(() => {});
+  }, [aiGuide, result, gitRef, os]);
 
   // Keep the chosen OS and tab in the URL so a setup can be shared or bookmarked.
   useEffect(() => {
@@ -262,6 +273,8 @@ export function ReportView({
         body: JSON.stringify({ url: `${result.meta.fullName}${gitRef ? `/tree/${gitRef}` : ""}`, os }),
       });
       if (!res.body) throw new Error("No response body");
+      // A new guide was written (not a saved one): one fewer left today.
+      if (!res.headers.get("X-Guide-Cached") && res.ok) setGuideStatus((g) => g && { ...g, saved: true, left: g.left === null ? null : Math.max(0, g.left - 1) });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       for (;;) {
@@ -334,6 +347,7 @@ export function ReportView({
       onMode={setMode}
       guide={guide}
       guideLoading={guideLoading}
+      guideStatus={guideStatus}
       onGuide={generateGuide}
       picks={picks}
       curator={curator}
@@ -365,6 +379,7 @@ function Report({
   onMode,
   guide,
   guideLoading,
+  guideStatus,
   onGuide,
   onRefresh,
   onDisconnect,
@@ -393,6 +408,7 @@ function Report({
   onMode: (m: Mode) => void;
   guide: string;
   guideLoading: boolean;
+  guideStatus: GuideStatus | null;
   onGuide: () => void;
   onRefresh: () => void;
   onDisconnect: () => void;
@@ -721,19 +737,19 @@ function Report({
                     GitManual AI Agent reads the {Object.keys(files).length} key files and writes a step-by-step guide for {OS_LABEL[os]}. Once written, it&apos;s saved for everyone.
                   </p>
                 </div>
-                <button className="btn btn-sm btn-go" onClick={onGuide} disabled={guideLoading || Boolean(guide)}>
-                  {guideLoading ? (
-                    <>
-                      <span className="spinner" />
-                      Writing…
-                    </>
-                  ) : guide ? (
-                    "Written"
-                  ) : (
-                    "Write my guide"
-                  )}
-                </button>
+                <GuideButton status={guideStatus} loading={guideLoading} written={Boolean(guide)} onGuide={onGuide} page={`/${meta.fullName}/${OS_SLUG[os]}`} />
               </div>
+              {guideStatus && !guideStatus.saved && !guide && (
+                <p className="note guide-allowance">
+                  {!guideStatus.signedIn
+                    ? `New guides: 1 a day with GitHub sign-in${guideStatus.proOffer ? ", up to 20 with Pro" : ""}. Saved guides are free to read.`
+                    : guideStatus.left === 0
+                      ? guideStatus.pro
+                        ? "You've written 20 new guides today, the fair-use limit. It resets at midnight UTC."
+                        : `You've written today's free guide. More tomorrow${guideStatus.proOffer ? ", or up to 20 a day with Pro" : ""}.`
+                      : `${guideStatus.left} new ${guideStatus.left === 1 ? "guide" : "guides"} left today${guideStatus.pro ? " (Pro)" : ""}.`}
+                </p>
+              )}
               {guide && <div className="prose">{md(guide)}</div>}
             </div>
           )}
@@ -1097,6 +1113,46 @@ function AssetRow({ asset, os, primary }: { asset: Asset; os: OS; primary?: bool
       {asset.note && <div className="note">{asset.note}</div>}
       <CodeBlock text={asset.commands.join("\n")} />
     </div>
+  );
+}
+
+// "Write my guide" (app/api/guide): reading a saved guide is free; writing a new one needs sign-in and an allowance.
+type GuideStatus = { saved: boolean; signedIn: boolean; pro: boolean; left: number | null; proOffer: boolean };
+
+function GuideButton({ status, loading, written, onGuide, page }: { status: GuideStatus | null; loading: boolean; written: boolean; onGuide: () => void; page: string }) {
+  if (loading)
+    return (
+      <button className="btn btn-sm btn-go" disabled>
+        <span className="spinner" />
+        Writing…
+      </button>
+    );
+  if (written)
+    return (
+      <button className="btn btn-sm btn-go" disabled>
+        Written
+      </button>
+    );
+  if (status && !status.saved && !status.signedIn)
+    return (
+      <a className="btn btn-sm btn-go" href={`/api/github/connect?signin=1&back=${encodeURIComponent(page)}`}>
+        Sign in to write a guide
+      </a>
+    );
+  if (status && !status.saved && status.left === 0)
+    return status.proOffer && !status.pro ? (
+      <a className="btn btn-sm btn-go" href={proUrl(page)}>
+        Get Pro for more guides
+      </a>
+    ) : (
+      <button className="btn btn-sm" disabled>
+        Back tomorrow
+      </button>
+    );
+  return (
+    <button className="btn btn-sm btn-go" onClick={onGuide}>
+      {status?.saved ? "Read the guide" : "Write my guide"}
+    </button>
   );
 }
 

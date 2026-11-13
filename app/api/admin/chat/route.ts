@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { chatStats } from "@/lib/budget";
+import { chatStats, guideStats } from "@/lib/budget";
 import { interestStats } from "@/lib/db";
 import { isAdmin, viewer } from "@/lib/viewer";
 
@@ -25,9 +25,10 @@ export async function GET() {
       interestStats("pdf-download"),
       interestStats("team"),
     ]);
+    const guides = await guideStats();
     const ids = [...new Set(stats.atLimit.map((a) => a.account))].slice(0, 30);
     const logins = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await login(id)] as const)));
-    return NextResponse.json({ ...stats, logins, pdfInterest, downloads: { md: mdDownloads.total, pdf: pdfDownloads.total }, teamWaitlist: team.total }, { headers: NO_STORE });
+    return NextResponse.json({ ...stats, logins, pdfInterest, downloads: { md: mdDownloads.total, pdf: pdfDownloads.total }, teamWaitlist: team.total, guides }, { headers: NO_STORE });
   } catch {
     return NextResponse.json({ error: "The database isn't reachable right now." }, { status: 503, headers: NO_STORE });
   }
