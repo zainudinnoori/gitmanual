@@ -106,9 +106,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .nav-links a { font: var(--ui); font-size: var(--fs-body); white-space: nowrap; text-decoration: none; color: var(--pencil); padding: 8px 13px; border-radius: 10px; }
 .nav-links a:hover { color: var(--ink); background: var(--sheet); }
 .nav-short { display: none; }
-.nav-links a.nav-finds { position: relative; margin-left: 13px; display: inline-flex; align-items: center; padding-inline: 9px; }
-.nav-links a.nav-finds:hover { color: #1877f2; }
-.nav-links a.nav-finds::before { content: ""; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 1.5px; background: var(--line-strong); }
+.nav-links a.nav-ext { position: relative; margin-left: 13px; display: inline-flex; align-items: center; padding-inline: 9px; }
+.nav-links a.nav-ext:hover { color: var(--wrench-2); }
+.nav-links a.nav-ext::before { content: ""; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 1.5px; background: var(--line-strong); }
 .nav-inner { gap: 20px; }
 .nav-search { position: relative; flex: 0 1 340px; margin-left: auto; }
 .nav-search input {
@@ -1046,8 +1046,8 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .how-flow { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .how-flow li::after { display: none; }
   .nav-links a { padding: 7px 9px; font-size: var(--fs-small); }
-  .nav-links a.nav-finds { margin-left: 9px; padding-inline: 6px; }
-  .nav-links a.nav-finds::before { left: -6px; }
+  .nav-links a.nav-ext { margin-left: 9px; padding-inline: 6px; }
+  .nav-links a.nav-ext::before { left: -6px; }
   .nav-full { display: none; }
   .doc-table code { white-space: normal; overflow-wrap: anywhere; }
   .doc-table th, .doc-table td { padding: 9px 11px; }

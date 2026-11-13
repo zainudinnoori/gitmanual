@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
-import { PICKS, sortedPicks } from "@/lib/picks";
 import { ContactButton, LaunchBanner, Logo, NavLinks } from "./ui";
 import "./globals.css";
 
@@ -51,7 +50,6 @@ async function repoStars(): Promise<number | null> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const finds = (await sortedPicks()).length ? PICKS.curator : null;
   const repo = REPO_URL?.replace(/\/$/, "") ?? null;
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
@@ -66,7 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Logo />
               gitmanual
             </Link>
-            <NavLinks repo={REPO_URL} stars={await repoStars()} finds={finds} />
+            <NavLinks repo={REPO_URL} stars={await repoStars()} extension={EXTENSION_URL} />
           </div>
         </header>
         <main id="main">{children}</main>
@@ -91,7 +89,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/how-it-works">How it works</Link>
               <Link href="/developers">API &amp; MCP</Link>
               {PRO && <Link href="/pro">GitManual Pro</Link>}
-              {finds && <Link href="/finds">{finds}</Link>}
               {EXTENSION_URL && (
                 <a href={EXTENSION_URL} target="_blank" rel="noreferrer">
                   Chrome extension&nbsp;↗
