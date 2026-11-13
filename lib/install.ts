@@ -213,7 +213,7 @@ const METHODS: [RegExp, string, OS[], boolean?][] = [
   [/^cargo (install|binstall)\b/, "Cargo", ["mac", "windows", "linux"]],
   [/^(npm (i|install) (-g|--global)|pnpm (add|i|install) -g|yarn global add|bun (add|install|i) -g)\b/, "npm", ["mac", "windows", "linux"]],
   [/^(pipx install|uv tool install|uvx )/, "pipx / uv", ["mac", "windows", "linux"]],
-  [/^pip3? install (?!-r|-e|--editable|\.)["']?[\w\[]/, "pip", ["mac", "windows", "linux"]],
+  [/^pip3? install (?:(?:-U|--upgrade|--user|-q|--quiet|--pre)\s+)*(?!-r|-e|--editable|\.)["']?[\w\[]/, "pip", ["mac", "windows", "linux"]],
   [/^go install\b/, "Go", ["mac", "windows", "linux"]],
   // Frameworks: you start a new project with them rather than install them.
   [/^(npm create|npm init|pnpm create|yarn create|bun create|npx (--yes )?create-|pnpm dlx create-|bunx create-|npx nuxi@?\S* init|npx sv create|composer create-project)\b/, "Start a new project", ["mac", "windows", "linux"]],
@@ -250,10 +250,12 @@ export function readmeInstallCommands(readme: string | undefined, repo: { owner:
       .replace(/&gt;/g, ">")
       .replace(/&lt;/g, "<")
       .trim();
-    if (!command || command.length > 200 || seen.has(command)) continue;
+    // "sudo apt install x" and "apt install x" are the same install.
+    const key = command.replace(/^sudo\s+/, "");
+    if (!command || command.length > 200 || seen.has(key)) continue;
     const hit = METHODS.find(([re]) => re.test(command));
     if (!hit) continue;
-    seen.add(command);
+    seen.add(key);
     const kind: InstallKind =
       hit[1] === "Docker" ? "docker" : hit[1].startsWith("Add to your") ? "library" : hit[1] === "Start a new project" ? "scaffold" : "app";
     // READMEs also install dependencies (brew install ffmpeg, apt install xdotool); only keep commands for this project.
@@ -291,4 +293,203 @@ function installsThisProject(command: string, kind: InstallKind, script: boolean
     .filter((w) => !w.startsWith("-"))
     .map((w) => w.replace(/^["']|["']$/g, "").replace(/[\[@=<>~^].*$/, ""));
   return pkgs.some((p) => matches(p.split("/").pop()!) || (p.startsWith("./") && matches(p)) || matches(p));
+}
+
+// ---------- Choosing between install commands ----------
+// A README often lists several installs one after another (pip install name[all], name[pdf], name-ocr, name[azure]).
+// Read as a list they look like steps to run in turn; they're choices. This sorts them into the one to use, smaller
+// or different installs of the same thing, optional add-ons, and installs into your own code, and says what each needs.
+
+export type InstallRole = "recommended" | "alternative" | "optional" | "library";
+export type InstallChoice = InstallCommand & {
+  role: InstallRole;
+  label: string; // "Recommended: pip", "Smaller install: pdf, docx", "Optional add-on: name-ocr"
+  note?: string;
+  link?: string; // where an add-on explains its own setup
+  needs: string[]; // what has to be installed first for this way, e.g. ["Python 3.10–3.14"]
+  venv: boolean; // a pip install into a project's own environment: create and activate one first
+};
+
+const CLOUD = /\b(az|azure|aws|amazon|bedrock|gcp|google|vertex|openai|anthropic|cohere|cloud)\b/i;
+
+// ">=3.10,<3.15" → "3.10–3.14"; ">=3.9" → "3.9 or newer"; anything else as written.
+export function pythonRange(spec: string | null | undefined): string | null {
+  if (!spec) return null;
+  const min = spec.match(/>=\s*(\d+)\.(\d+)/);
+  const below = spec.match(/<\s*(\d+)\.(\d+)/);
+  if (min && below && below[1] === min[1] && Number(below[2]) > Number(min[2])) return `${min[1]}.${min[2]}–${below[1]}.${Number(below[2]) - 1}`;
+  if (min && !below) return `${min[1]}.${min[2]} or newer`;
+  return spec.replace(/\s+/g, "");
+}
+
+const NEEDS: [RegExp, string][] = [
+  [/^Homebrew$/, "Homebrew"],
+  [/^(npm|Add to your JS project|Start a new project)$/, "Node.js"],
+  [/^pipx \/ uv$/, "pipx or uv"],
+  [/^(pip|Add to your Python project)$/, "Python"],
+  [/^conda$/, "conda"],
+  [/^Cargo$/, "Rust (cargo)"],
+  [/^Go$/, "Go"],
+  [/^RubyGems$/, "Ruby"],
+  [/^\.NET tool$/, ".NET SDK"],
+  [/^Docker$/, "Docker"],
+  [/^Scoop$/, "Scoop"],
+  [/^Chocolatey$/, "Chocolatey"],
+  [/^Nix$/, "Nix"],
+];
+
+// Which Linux a distro package is for, so "Alternative: distro package" says "Gentoo (emerge)".
+const DISTRO: [RegExp, string][] = [
+  [/\b(apt|apt-get) install\b/, "Debian, Ubuntu (apt)"],
+  [/\b(dnf|yum) install\b/, "Fedora (dnf)"],
+  [/\bpacman -S\b/, "Arch (pacman)"],
+  [/^(yay|paru) -S\b/, "Arch, AUR"],
+  [/\bzypper (in|install)\b/, "openSUSE (zypper)"],
+  [/\bapk add\b/, "Alpine (apk)"],
+  [/\bemerge\b/, "Gentoo (emerge)"],
+  [/\bxbps-install\b/, "Void (xbps)"],
+  [/\beopkg it\b/, "Solus (eopkg)"],
+];
+export const methodName = (c: InstallCommand) => DISTRO.find(([re]) => re.test(c.command))?.[1] ?? c.method;
+
+// "pip install 'name[pdf, docx]'" → { pkg: "name", extras: ["pdf", "docx"] }
+function pipSpec(command: string): { pkg: string; extras: string[] } | null {
+  const arg = command.match(/^pip3? install\s+(?:-\S+\s+)*["']?([A-Za-z0-9][\w.-]*)(?:\[([^\]]*)\])?/i);
+  return arg ? { pkg: arg[1].toLowerCase(), extras: (arg[2] ?? "").split(",").map((x) => x.trim()).filter(Boolean) } : null;
+}
+
+export function installChoices(
+  commands: InstallCommand[],
+  repo: { name: string },
+  python?: { requiresPython: string | null; name?: string } | null,
+  // download: a ready-made download exists, so that's the recommended way, not a command.
+  // addons: where each add-on package lives in the repo (name → link), so its setup is one click away.
+  opts: { download?: boolean; addons?: Record<string, string> } = {},
+): InstallChoice[] {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const own = norm(python?.name ?? repo.name);
+  const py = pythonRange(python?.requiresPython);
+  const needsFor = (c: InstallCommand) =>
+    NEEDS.filter(([re]) => re.test(c.method)).map(([, n]) => (n === "Python" ? (py ? `Python ${py}` : "Python 3") : n));
+
+  const choices: InstallChoice[] = commands.map((c) => {
+    const base = { ...c, needs: needsFor(c), venv: false };
+    if (c.kind === "library") return { ...base, role: "library", label: `For your own code: ${c.method.replace(/^Add to your /, "").replace(/ project$/, "")}` };
+    if (c.kind === "scaffold") return { ...base, role: "library", label: "Start a new project" };
+    // Only when the repo is that Python package: "pip install ollama" in a Go app's README is its client library.
+    const spec = c.method === "pip" && python?.name && norm(pipSpec(c.command)?.pkg ?? "").startsWith(own) ? pipSpec(c.command) : null;
+    if (spec) {
+      const venv = true;
+      const pkg = norm(spec.pkg);
+      // A separate package named after the project (name-ocr, name-mcp): an add-on, not the thing itself.
+      if (pkg !== own && pkg.startsWith(own))
+        return {
+          ...base,
+          role: "optional",
+          label: `Optional add-on: ${spec.pkg}`,
+          note: `A separate package that adds a feature on top. Install it in the same environment, after the main install. It may need its own setup or keys, explained ${opts.addons?.[pkg] ? "in its folder" : "in its README"}.`,
+          link: opts.addons?.[pkg],
+        };
+      if (pkg === own && spec.extras.some((e) => CLOUD.test(e) && !/^all$/i.test(e)))
+        return {
+          ...base,
+          role: "optional",
+          label: `Optional: ${spec.extras.join(", ")}`,
+          note: "Adds a cloud feature, in the same environment as the main install. It uses a cloud service that needs an account and may cost money; installing it doesn't set that up.",
+        };
+      if (pkg === own && spec.extras.length && !spec.extras.some((e) => /^all$/i.test(e)))
+        return { ...base, venv, role: "alternative", label: `Smaller install: ${spec.extras.join(", ")}`, note: `Only the parts for ${spec.extras.join(", ")}.` };
+      return {
+        ...base,
+        venv,
+        role: "recommended",
+        label: "Recommended: pip",
+        // [all] installs the package's optional dependencies; it doesn't set up cloud services or add separate add-ons.
+        note: spec.extras.some((e) => /^all$/i.test(e)) ? "Installs all built-in optional features." : undefined,
+      };
+    }
+    return { ...base, role: "alternative", label: `Alternative: ${methodName(c)}` };
+  });
+
+  // One recommended way: the full pip install if there is one, else the README's first install.
+  const firstApp = opts.download ? undefined : (choices.find((c) => c.role === "recommended") ?? choices.find((c) => c.role === "alternative"));
+  for (const c of choices) {
+    if (c === firstApp) {
+      if (c.role !== "recommended") c.label = `Recommended: ${methodName(c)}`;
+      c.role = "recommended";
+    } else if (c.role === "recommended") {
+      c.role = "alternative";
+      c.label = `Alternative: ${methodName(c)}`;
+    }
+  }
+  const order: Record<InstallRole, number> = { recommended: 0, alternative: 1, optional: 2, library: 3 };
+  return choices.map((c, i) => ({ c, i })).sort((a, b) => order[a.c.role] - order[b.c.role] || a.i - b.i).map(({ c }) => c);
+}
+
+// Add-on packages kept in the repo (packages/name-ocr/pyproject.toml): name → its folder on GitHub, where its
+// README explains its setup.
+export function addonLinks(manifests: string[], htmlUrl: string, branch: string): Record<string, string> {
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const out: Record<string, string> = {};
+  for (const p of manifests) {
+    const m = p.match(/^(.*\/)?([^/]+)\/pyproject\.toml$/);
+    if (m) out[norm(m[2])] = `${htmlUrl}/tree/${branch}/${p.replace(/\/pyproject\.toml$/, "")}`;
+  }
+  return out;
+}
+
+// A pip install into a fresh virtual environment, as Python's own docs recommend, so it can't clash with other tools.
+// It lives in its own folder in your home folder (~/name), so it's easy to find and to delete.
+export const venvFolder = (name: string) => name.toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+
+export function withVenv(command: string, os: OS, folder: string): string {
+  return [...enterFolder(os, folder, true), ...activate(os), command].filter(Boolean).join("\n");
+}
+
+const enterFolder = (os: OS, folder: string, create: boolean) =>
+  os === "windows"
+    ? [create ? `mkdir "$HOME\\${folder}" -Force | Out-Null` : "", `cd "$HOME\\${folder}"`]
+    : [create ? `mkdir -p ~/${folder}` : "", `cd ~/${folder}`];
+
+const activate = (os: OS) =>
+  os === "windows" ? ["python -m venv .venv", ".venv\\Scripts\\Activate.ps1"] : ["python3 -m venv .venv", "source .venv/bin/activate"];
+
+// Coming back later: open a terminal, go to the folder and switch the environment back on.
+export function venvAgain(os: OS, folder: string): string {
+  return [...enterFolder(os, folder, false), os === "windows" ? ".venv\\Scripts\\Activate.ps1" : "source .venv/bin/activate"].filter(Boolean).join("\n");
+}
+
+// Keeping it up to date and removing it, for the ways we know how to undo. Null when a way has no standard pair.
+export function maintainCommands(c: InstallCommand, os: OS, folder?: string): { update: string; uninstall: string; note?: string } | null {
+  const cmd = c.command.trim();
+  const words = cmd.split(/\s+/);
+  const args = words.filter((w, i) => i > 1 && !w.startsWith("-"));
+  const pkg = (args[0] ?? "").replace(/^["']|["']$/g, "");
+  if (!pkg) return null;
+  const bare = pkg.replace(/\[.*$/, "");
+  if (c.method === "pip")
+    return {
+      update: `pip install --upgrade ${pkg.includes("[") ? `'${pkg}'` : pkg}`,
+      // Only what these steps made: the .venv environment, not the folder, which may hold the person's own files.
+      uninstall: folder ? (os === "windows" ? `Remove-Item -Recurse -Force "$HOME\\${folder}\\.venv"` : `rm -rf ~/${folder}/.venv`) : `pip uninstall ${bare}`,
+      note: folder
+        ? `Update with the environment switched on (see Next time). Removing deletes only the environment these steps created (.venv) and everything installed into it; other files in ~/${folder} stay. Switch it off first with deactivate.`
+        : undefined,
+    };
+  if (c.method === "Homebrew" && /^brew install\b/.test(cmd)) {
+    const cask = /--cask\b/.test(cmd) ? "--cask " : "";
+    return { update: `brew upgrade ${cask}${bare}`, uninstall: `brew uninstall ${cask}${bare}` };
+  }
+  if (c.method === "npm" && /^npm (i|install) (-g|--global)\b/.test(cmd)) return { update: `npm update -g ${bare}`, uninstall: `npm uninstall -g ${bare}` };
+  if (c.method === "pipx / uv" && /^pipx install\b/.test(cmd)) return { update: `pipx upgrade ${bare}`, uninstall: `pipx uninstall ${bare}` };
+  if (c.method === "pipx / uv" && /^uv tool install\b/.test(cmd)) return { update: `uv tool upgrade ${bare}`, uninstall: `uv tool uninstall ${bare}` };
+  if (c.method === "Cargo" && /^cargo install\b/.test(cmd)) return { update: cmd, uninstall: `cargo uninstall ${bare}`, note: "Updating is the same command again." };
+  if (c.method === "winget") {
+    const id = cmd.match(/--id[ =](\S+)|-e\s+--id\s+(\S+)/)?.slice(1).find(Boolean) ?? pkg;
+    return { update: `winget upgrade --id ${id}`, uninstall: `winget uninstall --id ${id}` };
+  }
+  if (c.method === "Scoop" && /^scoop install\b/.test(cmd)) return { update: `scoop update ${bare}`, uninstall: `scoop uninstall ${bare}` };
+  if (c.method === "Chocolatey") return { update: `choco upgrade ${bare}`, uninstall: `choco uninstall ${bare}` };
+  if (c.method === "RubyGems") return { update: `gem update ${bare}`, uninstall: `gem uninstall ${bare}` };
+  return null;
 }

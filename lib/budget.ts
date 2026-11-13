@@ -29,10 +29,12 @@ const EXPIRES_MS = ANSWER.deadlineMs + MINUTE;
 
 export type Pool = { answersPerDay: number; inProgress: number; dailyUsd: number };
 
-// Separate pools, so signed-out chat, if it's ever added, gets its own smaller allowance and can't use up the
-// signed-in users' budget.
+// Separate pools, so one group can't use up another's budget: free signed-in users, and GitManual Pro subscribers
+// (lib/pro.ts), whose "unlimited" is a fair-use ceiling no person asking by hand should reach, with a site-wide cap
+// of its own so a free day running out never pauses paying users.
 export const POOLS = {
-  user: { answersPerDay: 15, inProgress: 1, dailyUsd: 5 },
+  user: { answersPerDay: 10, inProgress: 1, dailyUsd: 5 },
+  pro: { answersPerDay: 150, inProgress: 1, dailyUsd: 25 },
 } satisfies Record<string, Pool>;
 
 export type PoolName = keyof typeof POOLS;
@@ -141,7 +143,9 @@ export async function reserve(opts: {
         throw new BudgetError("An answer is still being written. Wait for it to finish, then ask again.", "busy", 5);
       if (Number(rows[0].answers) >= limits.answersPerDay)
         throw new BudgetError(
-          `You've used your ${limits.answersPerDay} answers for today. They come back at midnight UTC; the manual and Ask Claude / ChatGPT still work.`,
+          pool === "pro"
+            ? `You've reached today's fair-use limit of ${limits.answersPerDay} answers. It resets at midnight UTC.`
+            : `You've used your ${limits.answersPerDay} answers for today. They come back at midnight UTC; the manual and Ask Claude / ChatGPT still work.`,
           "answers",
           untilMidnight(now),
         );
@@ -191,7 +195,7 @@ export async function release(key: string): Promise<boolean> {
   }
 }
 
-// What the chat box shows: "12 of 15 answers left today". Null when the database can't say.
+// What the chat box shows: "8 of 10 answers left today". Null when the database can't say.
 export async function allowance(
   pool: PoolName,
   account: string,
@@ -220,8 +224,8 @@ export type ChatStats = {
   limits: { answersPerDay: number; dailyUsd: number };
 };
 
-// For the admin page (app/admin/chat): answers, people and spend per day, who used all their answers, and the
-// chats open right now. Spend counts unsettled reservations at their worst case, as the daily cap does.
+// For the admin page (app/admin/chat): answers, people and spend per day (free and Pro together), who used all their
+// free answers, and the chats open right now. Spend counts unsettled reservations at their worst case, as the daily cap does.
 export async function chatStats(days = 14, now = Date.now()): Promise<ChatStats> {
   const since = utcDay(now - (days - 1) * DAY);
   const { answersPerDay, dailyUsd } = POOLS.user;
@@ -230,7 +234,7 @@ export async function chatStats(days = 14, now = Date.now()): Promise<ChatStats>
       sql: `SELECT day, COUNT(*) AS answers, COUNT(DISTINCT account) AS people,
               SUM(CASE WHEN status = 'settled' THEN cost ELSE reserved END) AS spent,
               AVG(CASE WHEN status = 'settled' THEN cost END) AS avg
-            FROM chat_spend WHERE pool = 'user' AND day >= ? GROUP BY day ORDER BY day DESC`,
+            FROM chat_spend WHERE pool IN ('user', 'pro') AND day >= ? GROUP BY day ORDER BY day DESC`,
       args: [since],
     });
     const full = await c.execute({
@@ -244,7 +248,7 @@ export async function chatStats(days = 14, now = Date.now()): Promise<ChatStats>
     });
     const top = await c.execute({
       sql: `SELECT repo, COUNT(*) AS answers, COUNT(DISTINCT account) AS people FROM chat_spend
-            WHERE pool = 'user' AND day >= ? AND repo IS NOT NULL GROUP BY repo ORDER BY answers DESC LIMIT 20`,
+            WHERE pool IN ('user', 'pro') AND day >= ? AND repo IS NOT NULL GROUP BY repo ORDER BY answers DESC LIMIT 20`,
       args: [since],
     });
     const atLimit = full.rows.map((r) => ({ day: String(r.day), account: String(r.account), answers: Number(r.answers) }));

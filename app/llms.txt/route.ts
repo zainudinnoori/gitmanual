@@ -24,7 +24,7 @@ export function GET() {
 
 ## API keys
 
-- Optional. Without a key: 60 requests an hour, of which 10 new repos (read from GitHub for the first time) a day. With a free key (sign in with GitHub at ${SITE}/developers): 1,000 requests and 200 new repos an hour, private repos and usage stats. Over a limit: 429 with Retry-After.
+- Optional. Without a key: 60 requests an hour, of which 10 new repos (read from GitHub for the first time) a day. With a free key (sign in with GitHub at ${SITE}/developers): 250 requests and 50 new repos an hour, private repos and usage stats. Over a limit: 429 with Retry-After.
 - Send it as the header Authorization: Bearer gm_… on the JSON API, or in an MCP client's config ("headers": { "Authorization": "Bearer gm_…" }).
 
 ## Private repos

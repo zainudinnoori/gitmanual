@@ -30,6 +30,7 @@ export const viewport: Viewport = { themeColor: "#f2f3f5" };
 const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL || null;
 // Optional: the browser extension's store page, linked from the footer and the home page.
 const EXTENSION_URL = process.env.NEXT_CHROME_EXTENSION_URL || null;
+const PRO = process.env.PRO_ENABLED === "on" && Boolean(process.env.STRIPE_SECRET_KEY);
 // Optional: a ShareText form for "Contact" in the footer (only https links are used).
 // Optional: the Product Hunt launch page, shown in a strip above the menu while it's set (only producthunt.com links).
 const LAUNCH_URL = /^https:\/\/(www\.)?producthunt\.com\/[^\s"]+$/.test(process.env.PRODUCT_HUNT_URL ?? "") ? process.env.PRODUCT_HUNT_URL! : null;
@@ -89,6 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/private">Private repos</Link>
               <Link href="/how-it-works">How it works</Link>
               <Link href="/developers">API &amp; MCP</Link>
+              {PRO && <Link href="/pro">GitManual Pro</Link>}
               {finds && <Link href="/finds">{finds}</Link>}
               {EXTENSION_URL && (
                 <a href={EXTENSION_URL} target="_blank" rel="noreferrer">

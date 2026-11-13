@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Analysis } from "@/lib/detect";
 import type { Guides } from "@/lib/guides";
@@ -10,9 +10,10 @@ import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
 import { compactCount } from "@/lib/format";
 // import { setupFlow } from "@/lib/flow"; — for the route diagram, see `flow` in Report
-import type { Arch, Asset, InstallKind, InstallOptions } from "@/lib/install";
+import { addonLinks, installChoices, venvFolder, withVenv, type Arch, type Asset, type InstallKind, type InstallOptions } from "@/lib/install";
 import { OS_LABEL, OS_LIST, OS_SLUG, type OS } from "@/lib/os";
 import { buildScript } from "@/lib/script";
+import { proUrl } from "@/lib/site";
 // import { FlowMap } from "./flow"; — the route diagram, off the page for now
 import { disconnect, fetchPrivate, PrivateAccess } from "./private";
 import { CarbonAd } from "./carbon";
@@ -246,7 +247,8 @@ export function ReportView({
     if (osPage) params.delete("os");
     else params.set("os", os);
     const path = osPage ? `/${result.meta.fullName}/${OS_SLUG[os]}` : window.location.pathname;
-    window.history.replaceState(null, "", `${path}?${params}`);
+    // The hash stays: #ask and #pdf open the chat and the PDF dialog when the page arrives with them.
+    window.history.replaceState(null, "", `${path}?${params}${window.location.hash}`);
   }, [result, os, mode, osPage]);
 
   async function generateGuide() {
@@ -452,7 +454,7 @@ function Report({
             ))}
           </div>
           <BeforeYouStart facts={beforeYouStart(result)} />
-          {!priv && <PdfSoon repo={meta.fullName} />}
+          {!priv && <DownloadManual repo={meta.fullName} os={os} />}
         </div>
         <div className="head-side">
           <dl className="spec">
@@ -596,7 +598,14 @@ function Report({
           </div>
 
           {mode === "install" ? (
-            <InstallPanel install={install} os={os} onSource={() => onMode("source")} />
+            <InstallPanel
+              install={install}
+              os={os}
+              onSource={() => onMode("source")}
+              repoName={meta.fullName.split("/")[1]}
+              python={a.pythonPackage}
+              addons={addonLinks(a.otherManifests, meta.htmlUrl, meta.branch)}
+            />
           ) : (
             <>
               <RepoScript meta={meta} guides={guides} os={os} />
@@ -870,12 +879,28 @@ function Report({
   );
 }
 
-function InstallPanel({ install, os, onSource }: { install: InstallOptions; os: OS; onSource: () => void }) {
+function InstallPanel({
+  install,
+  os,
+  onSource,
+  repoName,
+  python,
+  addons,
+}: {
+  install: InstallOptions;
+  os: OS;
+  onSource: () => void;
+  repoName: string;
+  python?: Analysis["pythonPackage"];
+  addons: Record<string, string>;
+}) {
   const { release } = install;
   const assets = release?.assets.filter((a) => a.os === os) ?? [];
   const recommended = assets.find((a) => a.recommended);
   const others = assets.filter((a) => a !== recommended);
   const commands = install.commands.filter((c) => c.os.includes(os));
+  const choices = installChoices(commands, { name: repoName }, python, { download: Boolean(recommended), addons });
+  const folder = venvFolder(repoName);
   const otherOs = OS_LIST.filter((o) => o !== os && install.platforms.includes(o));
   // Apps the project publishes on its own site rather than in GitHub releases.
   const page = !assets.length && install.downloadPage?.platforms.includes(os) ? install.downloadPage : null;
@@ -972,15 +997,45 @@ function InstallPanel({ install, os, onSource }: { install: InstallOptions; os: 
       )}
 
       {COMMAND_GROUPS.map((g) => {
-        const list = commands.filter((c) => c.kind === g.kind);
+        // Sorted and labelled (lib/install.ts installChoices): the one to use first, then smaller installs, optional
+        // add-ons. The commands themselves stay exactly as the README has them.
+        const list = choices.filter((c) => c.kind === g.kind);
         if (!list.length) return null;
+        const venv = list.some((c) => c.venv);
         return (
           <div className="panel" key={g.kind}>
             <h3>{g.title}</h3>
             {g.note && <p className="note">{g.note}</p>}
+            {list.filter((c) => c.role !== "library").length > 1 && (
+              <p className="note">Choose one way. Most people should use the recommended one; the rest are other options.</p>
+            )}
+            {venv && (
+              <div className="pm-cmd">
+                <span className="method method-step">First: a virtual environment</span>
+                <p className="note">
+                  Python&apos;s own advice: install into a fresh environment, in its own folder (<code>~/{folder}</code>), so it can&apos;t
+                  clash with other tools.
+                </p>
+                <CodeBlock text={withVenv("", os, folder).replace(/\n$/, "")} />
+              </div>
+            )}
             {list.map((c) => (
               <div className="pm-cmd" key={c.command}>
-                <span className="method">{c.method}</span>
+                <span className={`method method-${c.role}`}>{list.length > 1 || c.role !== "recommended" ? c.label : c.method}</span>
+                {c.needs.length > 0 && <span className="pm-needs">Needs {c.needs.join(", ")}</span>}
+                {c.note && (
+                  <p className="note">
+                    {c.note}
+                    {c.link && (
+                      <>
+                        {" "}
+                        <a href={c.link} target="_blank" rel="noreferrer">
+                          Its setup ↗
+                        </a>
+                      </>
+                    )}
+                  </p>
+                )}
                 <CodeBlock text={c.command} />
                 {c.script && <div className="warn">Pipes a remote script into your shell. Read it before running.</div>}
               </div>
@@ -1045,28 +1100,238 @@ function AssetRow({ asset, os, primary }: { asset: Asset; os: OS; primary?: bool
   );
 }
 
-// Demand test for the PDF manual (not built yet): a button under "Before you start" that says
-// it's coming and counts the press (app/api/interest), so we can see whether people want it before building it.
-// The answer replaces the button at the same height, so the page doesn't jump.
-function PdfSoon({ repo }: { repo: string }) {
-  const [pressed, setPressed] = useState(false);
-  if (pressed)
-    return (
-      <p className="pdf-soon pdf-note" role="status">
-        <strong>Coming soon.</strong> Thank you!
-      </p>
-    );
+// "Download PDF manual": a dialog that shows what the PDF holds and who it's for, lets you pick a system (and
+// remember it in this browser), then gives the right next step: the PDF or Markdown for Pro, sign in or Get Pro for
+// everyone else. While Pro is off on the site, the PDF says "coming soon". Every PDF press
+// by someone without Pro is counted (app/api/interest) for the demand numbers on /admin/chat. #pdf in the URL opens
+// it, which is how it comes back open after signing in.
+type ProStatus = { enabled: boolean; login?: string | null; pro?: boolean };
+// The PDF design is a private package (next.config.mjs); copies of gitmanual without it offer Markdown only.
+const PDF_DESIGN = process.env.NEXT_PUBLIC_PDF_DESIGN === "on";
+const SAVED_SYSTEM = "gitmanual-pdf-os";
+
+const PDF_INSIDE: { icon: string; title: string }[] = [
+  { icon: "M3 12h18M3 6h18M3 18h12", title: "The repo at a glance" },
+  { icon: "M20 6 9 17l-5-5", title: "The recommended install, start to finish" },
+  { icon: "M4 17l6-6-6-6M12 19h8", title: "Every other way, with what each needs" },
+  { icon: "M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4", title: "Settings, links and a version stamp" },
+];
+const PDF_FOR = ["Offline setup", "Onboarding", "Client handover", "Workshops"];
+
+function DownloadManual({ repo, os }: { repo: string; os: OS }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [system, setSystem] = useState<OS>(os);
+  const [remember, setRemember] = useState(false);
+  const [saved, setSaved] = useState<OS | null>(null);
+  const [changing, setChanging] = useState(false);
+  const [pro, setPro] = useState<ProStatus | null>(null);
+  const [soon, setSoon] = useState(false);
+
+  const open = () => {
+    if (dialog.current && !dialog.current.open) dialog.current.showModal();
+    if (!pro)
+      fetch("/api/pro", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((j: ProStatus) => setPro(j))
+        .catch(() => setPro({ enabled: false }));
+  };
+
+  useEffect(() => {
+    let stored: OS | null = null;
+    try {
+      stored = localStorage.getItem(SAVED_SYSTEM) as OS | null;
+    } catch {}
+    if (stored && OS_LIST.includes(stored)) {
+      setSaved(stored);
+      setSystem(stored);
+      setRemember(true);
+    } else setSystem(os);
+  }, [os]);
+
+  // Back from signing in (the sign-in link returns to #pdf): open again where they left off.
+  useEffect(() => {
+    if (window.location.hash === "#pdf") open();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+  }, []);
+
+  const pick = (o: OS) => {
+    setSystem(o);
+    if (remember) save(true, o);
+  };
+  const save = (on: boolean, o = system) => {
+    setRemember(on);
+    try {
+      if (on) localStorage.setItem(SAVED_SYSTEM, o);
+      else localStorage.removeItem(SAVED_SYSTEM);
+    } catch {}
+    setSaved(on ? o : null);
+  };
+
+  const url = (format: "pdf" | "md") => `/api/download?${new URLSearchParams({ repo, os: system, format })}`;
+  const back = `/${repo}/${OS_SLUG[os]}#pdf`;
+  const countPdf = () =>
+    fetch("/api/interest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ feature: "pdf", repo }), keepalive: true }).catch(() => {});
+  const name = repo.split("/")[1];
+
   return (
-    <button
-      type="button"
-      className="btn pdf-soon"
-      onClick={() => {
-        setPressed(true);
-        fetch("/api/interest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ feature: "pdf", repo }) }).catch(() => {});
-      }}
-    >
-      <DownloadIcon /> Download PDF manual
-    </button>
+    <>
+      <button type="button" className="btn dl-toggle" onClick={open} aria-haspopup="dialog">
+        <DownloadIcon /> Download PDF manual
+      </button>
+      <dialog
+        ref={dialog}
+        className="contact pdf-dialog"
+        aria-labelledby="pdf-h"
+        onClick={(e) => e.target === e.currentTarget && dialog.current?.close()}
+        onClose={() => window.location.hash === "#pdf" && history.replaceState(null, "", window.location.pathname + window.location.search)}
+      >
+        <div className="contact-box">
+          <div className="contact-head">
+            <div>
+              <h2 id="pdf-h">Your setup manual for {name}</h2>
+              <p>A printable PDF of this page, made for one system. Also as Markdown.</p>
+            </div>
+            <button type="button" className="contact-close" onClick={() => dialog.current?.close()} aria-label="Close">
+              ×
+            </button>
+          </div>
+
+          <div className="pdf-body">
+            <div className="pdf-preview" aria-hidden="true">
+              <div className="pdf-sheet pdf-sheet-3">
+                <span>3</span>
+                <i />
+                <i />
+                <i className="pdf-code" />
+              </div>
+              <div className="pdf-sheet pdf-sheet-2">
+                <span>2</span>
+                <b>Install it</b>
+                <i className="pdf-tag" />
+                <i className="pdf-code" />
+                <i />
+                <i className="pdf-code" />
+              </div>
+              <div className="pdf-sheet pdf-sheet-1">
+                <span>1</span>
+                <em>
+                  <small>{repo.split("/")[0]}/</small>
+                  {name}
+                </em>
+                <i />
+                <i className="pdf-short" />
+                <div className="pdf-grid">
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div className="pdf-qr" />
+              </div>
+            </div>
+
+            <div className="pdf-side">
+              <h3 className="pdf-label">What&apos;s inside</h3>
+              <ul className="pdf-inside">
+                {PDF_INSIDE.map((x) => (
+                  <li key={x.title}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d={x.icon} />
+                    </svg>
+                    <span>{x.title}</span>
+                  </li>
+                ))}
+              </ul>
+              <h3 className="pdf-label pdf-for-label">Handy for</h3>
+              <ul className="pdf-for">
+                {PDF_FOR.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="pdf-foot">
+            <div className="pdf-system">
+              {saved && !changing ? (
+                <p>
+                  For <strong>{OS_LABEL[system]}</strong>, your saved system.{" "}
+                  <button type="button" className="link" onClick={() => setChanging(true)}>
+                    Change
+                  </button>
+                </p>
+              ) : (
+                <>
+                  <div className="dl-systems" role="radiogroup" aria-label="System">
+                    {OS_LIST.map((o) => (
+                      <button key={o} type="button" role="radio" aria-checked={system === o} className={system === o ? "on" : ""} onClick={() => pick(o)}>
+                        {OS_LABEL[o]}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="pdf-remember">
+                    <input type="checkbox" checked={remember} onChange={(e) => save(e.target.checked)} /> Remember my system
+                  </label>
+                </>
+              )}
+            </div>
+            <div className="pdf-actions">
+              {!pro ? (
+                <button type="button" className="btn btn-go" disabled>
+                  <span className="spinner" />
+                </button>
+              ) : !pro.enabled ? (
+                <button
+                  type="button"
+                  className="btn btn-go"
+                  disabled={soon}
+                  onClick={() => {
+                    setSoon(true);
+                    countPdf();
+                  }}
+                >
+                  <DownloadIcon /> {soon ? "Coming soon. Thank you!" : "Download PDF"}
+                </button>
+              ) : pro.pro && !PDF_DESIGN ? null : pro.pro ? (
+                <a className="btn btn-go" href={url("pdf")}>
+                  <DownloadIcon /> Download PDF
+                </a>
+              ) : pro.login ? (
+                <a className="btn btn-go" href={proUrl(`${back}`)} onClick={() => countPdf()}>
+                  Get Pro to download <span className="dl-pro">Pro</span>
+                </a>
+              ) : (
+                <a className="btn btn-go" href={`/api/github/connect?signin=1&back=${encodeURIComponent(back)}`} onClick={() => countPdf()}>
+                  <GitHubMark /> Sign in to download
+                </a>
+              )}
+              {pro?.enabled && pro.pro && (
+                <a className="btn" href={url("md")} download>
+                  <DownloadIcon /> Markdown
+                </a>
+              )}
+            </div>
+            <p className="pdf-note">
+              {pro?.enabled && !pro.pro
+                ? pro.login
+                  ? `Signed in as @${pro.login}. Manuals as PDF or Markdown come with GitManual Pro.`
+                  : "Manuals as PDF or Markdown come with GitManual Pro. Sign in with GitHub, then get Pro."
+                : pro?.pro
+                  ? "PDF to print or share; Markdown to keep with your notes or project. Made from the repo's own files, not tested by gitmanual."
+                  : "Made from the repo's own files. Not tested by gitmanual: read every command before you run it."}
+            </p>
+          </div>
+        </div>
+      </dialog>
+    </>
+  );
+}
+
+function GitHubMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+    </svg>
   );
 }
 

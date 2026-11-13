@@ -5,6 +5,7 @@ import { DocPage } from "../doc";
 
 const AI_GUIDES = Boolean(process.env.ANTHROPIC_API_KEY);
 const CHAT = AI_GUIDES && process.env.CHAT_ENABLED === "on";
+const PRO = process.env.PRO_ENABLED === "on" && Boolean(process.env.STRIPE_SECRET_KEY);
 
 export const metadata: Metadata = {
   title: "Privacy",
@@ -19,7 +20,7 @@ export default function Privacy() {
       eyebrow="Privacy"
       title="Privacy policy"
       lead="Short version: no passwords or profiles, no tracking cookies from gitmanual, and nothing that identifies you is stored unless you sign in with GitHub. Some pages show one ad from Carbon."
-      updated="11 November 2026"
+      updated="12 November 2026"
     >
       <h2>What gitmanual stores</h2>
       <ul>
@@ -28,8 +29,8 @@ export default function Privacy() {
           them instantly.
         </li>
         <li>
-          <strong>Counts.</strong> How often each repo&apos;s manual is opened, and &ldquo;Did you get it running?&rdquo; answers: the repo,
-          the system (macOS, Windows or Linux) and yes or no. Nothing about who answered.
+          <strong>Counts.</strong> How often each repo&apos;s manual is opened and downloaded, and &ldquo;Did you get it running?&rdquo;
+          answers: the repo, the day, the system (macOS, Windows or Linux) and yes or no. Nothing about who answered or downloaded.
         </li>
         <li>
           <strong>Rate-limit counters.</strong> To stop abuse, the number of new repos, AI guides and votes requested in a short window is
@@ -65,10 +66,26 @@ export default function Privacy() {
         ask through the contact form.
       </p>
 
+      {PRO && (
+        <>
+          <h2>GitManual Pro</h2>
+          <p>
+            If you subscribe to Pro, the payment is made with Stripe, through its Link service, which is the seller: it takes your card,
+            email and billing address, works out any tax and sends your receipts, under Link&apos;s and Stripe&apos;s privacy policies.
+            gitmanual never sees your card. Alongside your GitHub sign-in (above), gitmanual keeps Stripe&apos;s customer and subscription
+            numbers for you, the plan (monthly or yearly), its status and when the paid period ends, so it knows you have Pro. Your GitHub
+            username and account number are sent to Stripe with the subscription, so the two can be matched. This record is kept while you
+            subscribe and afterwards for billing and tax questions; ask through the contact form to have it deleted once the subscription
+            has ended.
+          </p>
+        </>
+      )}
+
       <h2>What stays in your browser</h2>
       <p>
-        gitmanual sets no cookies unless you connect GitHub for a private repo (above). After you answer &ldquo;Did you get it running?&rdquo;, your browser&apos;s local storage remembers your
-        answer for that repo, so you aren&apos;t asked twice. It never leaves your device, and clearing your browser&apos;s site data removes
+        gitmanual sets no cookies unless you sign in with GitHub or connect it for a private repo (above). After you answer &ldquo;Did you get it running?&rdquo;, your browser&apos;s local storage remembers your
+        answer for that repo, so you aren&apos;t asked twice. If you tick &ldquo;Remember my system&rdquo; when downloading a manual, it
+        remembers that system too. It never leaves your device, and clearing your browser&apos;s site data removes
         it.
       </p>
 
@@ -84,6 +101,12 @@ export default function Privacy() {
           page. Your browser loads it from Carbon, which receives your IP address and browser type, under Carbon&apos;s privacy policy.
           Manual pages of private repos never load it.
         </li>
+        {PRO && (
+          <li>
+            <strong>Stripe</strong> (with Link, its seller for digital purchases) handles Pro payments, receipts and refunds. Its checkout
+            page and billing portal are on stripe.com and link.com, and load only when you open them.
+          </li>
+        )}
         <li>
           <strong>Turso</strong> hosts the database that holds what&apos;s listed above.
         </li>

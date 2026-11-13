@@ -1211,8 +1211,150 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 }
 .endpoint .doc-table tbody th { width: 34%; }
 
-/* "Download PDF manual" demand test, under "Before you start" (app/report.tsx PdfSoon) */
-.pdf-soon { min-height: 40px; margin: 14px 0 0; border-radius: 10px; }
-button.pdf-soon { gap: 9px; }
-p.pdf-soon { display: inline-flex; }
-.pdf-note { display: flex; align-items: center; flex-wrap: wrap; gap: 0 5px; padding: 8px 14px; border: 1.5px dashed var(--ink); background: var(--sheet); font-size: var(--fs-meta); line-height: 1.4; }
+/* GitManual Pro (app/pro) */
+.pro { padding-top: 56px; padding-bottom: 72px; }
+.pro-head { max-width: 720px; margin-bottom: 36px; }
+.pro-thanks { margin: 0 0 20px; padding: 12px 16px; border: 1.5px solid var(--ink); border-radius: 12px; background: var(--yes); font-weight: 600; box-shadow: var(--hard); max-width: 760px; }
+.pro-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-items: start; }
+.pro-card { position: relative; display: grid; gap: 14px; padding: 24px 24px 22px; background: var(--sheet); border: 1.5px solid var(--line-strong); border-radius: 18px; }
+.pro-card h2 { margin: 0; font: 800 var(--fs-h2) var(--display); letter-spacing: -0.02em; }
+.pro-card ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: var(--fs-small); }
+.pro-card-pro { border-color: var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+.pro-card ul.pro-feats { list-style: none; padding: 0; gap: 12px; }
+.pro-feats li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; }
+.pro-feat-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: var(--paper); color: var(--pencil); border: 1.5px solid var(--line); }
+.pro-feats-pro .pro-feat-icon { background: var(--sheet); color: var(--wrench-2); border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.pro-feats strong { display: block; font-size: var(--fs-small); line-height: 1.3; }
+.pro-feats small { display: block; font-size: var(--fs-meta); line-height: 1.4; color: var(--pencil); }
+/* Team: planned, not built. A dashed outline says "not yet" without looking broken. */
+.pro-card-team { border-style: dashed; border-color: var(--ink); background: color-mix(in srgb, var(--sky) 14%, var(--sheet)); }
+.pro-card-team .pro-feat-icon { background: var(--sheet); color: var(--ink); border-color: var(--line-strong); }
+.pro-badge.pro-badge-soon { background: var(--sky); }
+.pro-joined { margin: 0; padding: 12px 14px; border: 1.5px solid var(--ink); border-radius: 12px; background: var(--yes); font-weight: 600; font-size: var(--fs-small); }
+/* "See what you get": real PDF pages, fanned out like a printed handout. */
+.pro-preview { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 48px; align-items: center; margin-top: 72px; padding: 40px; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 22px; box-shadow: 5px 5px 0 var(--ink); }
+.pro-preview-text h2 { margin: 0; font: 800 clamp(26px, 3vw, 36px)/1.05 var(--display); letter-spacing: -0.03em; }
+.pro-preview-text p { margin: 12px 0 0; color: var(--pencil); max-width: 44ch; }
+.pro-preview-text p.eyebrow { margin: 0 0 10px; }
+.pro-preview-text strong { color: var(--ink); font-family: var(--mono); font-size: 0.9em; }
+.pro-preview-text ol { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 10px; }
+.pro-preview-text li { display: flex; align-items: center; gap: 12px; font-weight: 600; }
+.pro-preview-text li span { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 1.5px solid var(--ink); border-radius: 50%; background: var(--wrench); font: 600 12px/1 var(--mono); }
+/* Sketched pages (US Letter, 1:1.29): the shape of the PDF, not its content. */
+.pro-preview-pages { position: relative; aspect-ratio: 1 / 0.76; }
+.pro-page { position: absolute; width: 50%; aspect-ratio: 1 / 1.29; display: flex; flex-direction: column; gap: 3.2%; padding: 7% 7%; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--sheet); transition: transform 0.2s var(--ease); }
+.pro-page-1 { left: 0; top: 5%; rotate: -4deg; z-index: 3; box-shadow: 5px 5px 0 var(--ink); }
+.pro-page-2 { left: 25%; top: 1%; rotate: 1deg; z-index: 2; box-shadow: 3px 3px 0 var(--ink); }
+.pro-page-3 { left: 49%; top: 6%; rotate: 5deg; z-index: 1; box-shadow: 3px 3px 0 var(--ink); }
+.pro-preview-pages:hover .pro-page-1 { transform: translateY(-6px); }
+.pro-page i { display: block; flex: none; border-radius: 3px; background: var(--line); }
+.sk-brand { display: flex; align-items: center; gap: 6%; padding-bottom: 4%; border-bottom: 1px solid var(--line); }
+.sk-brand .sk-logo { width: 9%; aspect-ratio: 1; border-radius: 2px; background: var(--wrench); border: 1px solid var(--ink); }
+.pro-page .sk-line { height: 0; padding-top: 2.4%; }
+.sk-w30 { width: 30%; } .sk-w50 { width: 50%; } .sk-w60 { width: 60%; } .sk-w70 { width: 70%; } .sk-w80 { width: 80%; } .sk-w90 { width: 90%; }
+.pro-page .sk-title { width: 72%; height: 0; padding-top: 7%; background: var(--ink); margin-top: 3%; }
+.sk-chips { display: flex; gap: 3%; }
+.pro-page .sk-chip { width: 16%; height: 0; padding-top: 4%; background: var(--paper); border: 1px solid var(--line); }
+.pro-page .sk-chip.sk-dark { background: var(--ink); border-color: var(--ink); }
+.sk-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4% 5%; padding: 4% 0; border-block: 1.5px solid var(--ink); }
+.pro-page .sk-facts i { height: 0; padding-top: 34%; }
+.sk-systems { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4%; }
+.pro-page .sk-systems i { height: 0; padding-top: 38%; background: var(--sheet); border: 1px solid var(--line); border-radius: 4px; }
+.pro-page .sk-systems i.sk-on { background: color-mix(in srgb, var(--yes) 25%, var(--sheet)); border: 1.5px solid var(--ink); }
+.sk-foot { margin-top: auto; display: flex; align-items: center; gap: 6%; padding-top: 4%; border-top: 1px solid var(--line); }
+.pro-page .sk-qr { width: 13%; aspect-ratio: 1; border-radius: 0; background: repeating-conic-gradient(var(--ink) 0 25%, var(--sheet) 0 50%) 0 0 / 34% 34%; border: 1px solid var(--ink); }
+.pro-page .sk-head { width: 55%; height: 0; padding-top: 5.5%; background: var(--ink); margin-bottom: 2%; box-shadow: 0 6px 0 -4.5px var(--ink); }
+.pro-page .sk-head.sk-small { width: 45%; margin-top: 4%; }
+.pro-page .sk-sub { width: 32%; height: 0; padding-top: 3.2%; background: var(--line-strong); margin-top: 2%; }
+.pro-page .sk-tag { width: 34%; height: 0; padding-top: 4.2%; }
+.pro-page .sk-orange { background: var(--wrench); }
+.pro-page .sk-blue { background: color-mix(in srgb, var(--sky) 70%, var(--sheet)); }
+.pro-page .sk-yellow { background: color-mix(in srgb, var(--maybe) 55%, var(--sheet)); }
+.pro-page .sk-code { height: 0; padding-top: 9%; background: var(--ink); border-radius: 4px; }
+.pro-page .sk-code.sk-tall { padding-top: 17%; }
+.pro-badge { position: absolute; top: -14px; right: 20px; rotate: 4deg; border: 1.5px solid var(--ink); border-radius: 999px; padding: 4px 12px; background: var(--wrench); font: 700 var(--fs-meta) var(--display); box-shadow: 2px 2px 0 var(--ink); }
+.pro-price { margin: 0; color: var(--pencil); font-size: var(--fs-small); }
+.pro-price strong { color: var(--ink); font: 800 40px/1 var(--display); letter-spacing: -0.03em; margin-right: 2px; }
+.pro-price span { white-space: nowrap; }
+.pro-toggle { display: inline-flex; justify-self: start; padding: 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--paper); }
+.pro-toggle button { border: 0; background: none; border-radius: 999px; padding: 6px 14px; font: var(--ui); font-size: var(--fs-meta); cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; }
+.pro-toggle button.on { background: var(--ink); color: var(--sheet); }
+.pro-toggle small { font: 600 var(--fs-label) var(--mono); color: var(--wrench-2); }
+.pro-toggle button.on small { color: var(--maybe); }
+.pro-btn { justify-self: stretch; min-height: 50px; font-size: var(--fs-body); border-radius: 12px; }
+.pro-foot { margin: 0; color: var(--pencil); font-size: var(--fs-meta); }
+.pro-have { display: grid; gap: 10px; justify-items: start; }
+.pro-have p { margin: 0; font-size: var(--fs-small); }
+.pro-faq { max-width: 720px; margin-top: 56px; }
+.pro-faq h2 { font: 800 var(--fs-h2) var(--display); letter-spacing: -0.02em; margin: 0 0 12px; }
+.pro-faq dl { margin: 0; border-top: 1px solid var(--line); }
+.pro-faq dt { font-weight: 700; padding-top: 14px; }
+.pro-faq dd { margin: 4px 0 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); color: var(--pencil); font-size: var(--fs-small); }
+.chat-pro { color: var(--wrench-2); font-weight: 700; }
+@media (max-width: 1020px) {
+  .pro-plans { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pro-preview { grid-template-columns: 1fr; gap: 28px; padding: 28px; }
+}
+@media (max-width: 760px) {
+  .pro { padding-top: 32px; }
+  .pro-plans { grid-template-columns: 1fr; }
+  .pro-card-pro { order: -1; }
+  .pro-preview { margin-top: 48px; padding: 22px; }
+}
+
+/* "Download PDF manual" under "Before you start", and its dialog (app/report.tsx DownloadManual) */
+.dl-toggle { margin-top: 14px; min-height: 40px; border-radius: 10px; gap: 9px; }
+.dl-systems { display: inline-flex; padding: 3px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--paper); }
+.dl-systems button { border: 0; background: none; border-radius: 999px; padding: 5px 12px; font: var(--ui); font-size: var(--fs-meta); cursor: pointer; }
+.dl-systems button.on { background: var(--ink); color: var(--sheet); }
+.dl-pro { font: 700 var(--fs-label)/1 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 6px; border-radius: 999px; background: var(--ink); color: var(--sheet); }
+.pdf-dialog { width: min(760px, calc(100vw - 32px)); }
+.pdf-dialog .contact-box { overflow-y: auto; }
+.pdf-body { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 28px; padding: 22px 22px 6px; }
+.pdf-label { margin: 0 0 8px; font: 600 var(--fs-label) var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--pencil); }
+.pdf-side .pdf-label + * { margin-bottom: 18px; }
+.pdf-inside { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.pdf-inside li { display: grid; grid-template-columns: 16px 1fr; gap: 10px; align-items: center; font-weight: 600; font-size: var(--fs-small); line-height: 1.35; }
+.pdf-inside svg { color: var(--wrench-2); }
+.pdf-for { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pdf-for li { font-size: var(--fs-meta); padding: 3px 10px; border: 1.5px solid var(--line-strong); border-radius: 999px; }
+/* The page mock-up: three sheets fanned out, drawn in the PDF's own look. */
+.pdf-preview { position: relative; height: 250px; }
+.pdf-sheet { position: absolute; width: 160px; height: 207px; padding: 14px 13px; display: flex; flex-direction: column; gap: 6px; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 6px; }
+.pdf-sheet span { position: absolute; top: 8px; right: 9px; font: 600 9px var(--mono); color: var(--pencil); }
+.pdf-sheet i { display: block; height: 5px; border-radius: 3px; background: var(--line); }
+.pdf-sheet i.pdf-short { width: 60%; }
+.pdf-sheet i.pdf-code { height: 22px; border-radius: 4px; background: var(--ink); }
+.pdf-sheet i.pdf-tag { width: 46%; height: 8px; background: var(--wrench); }
+.pdf-sheet b { font: 800 12px/1 var(--display); }
+.pdf-sheet em { font: 800 14px/1.1 var(--display); font-style: normal; letter-spacing: -0.02em; overflow-wrap: anywhere; margin-top: 4px; }
+.pdf-sheet em small { display: block; font-size: 10px; color: var(--pencil); letter-spacing: 0; }
+.pdf-sheet-2 i.pdf-code, .pdf-sheet-3 i.pdf-code { background: var(--line-strong); }
+.pdf-sheet-1 { left: 0; top: 52px; box-shadow: 4px 4px 0 var(--ink); rotate: -3deg; }
+.pdf-sheet-2 { left: 28px; top: 26px; rotate: 2deg; }
+.pdf-sheet-3 { left: 50px; top: 2px; rotate: 6deg; background: var(--paper); }
+.pdf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 6px 0; border-block: 1.5px solid var(--ink); margin-top: 2px; }
+.pdf-grid i { height: 12px; }
+.pdf-qr { margin-top: auto; width: 26px; height: 26px; background: repeating-conic-gradient(var(--ink) 0 25%, var(--sheet) 0 50%) 0 0 / 7px 7px; border: 1.5px solid var(--ink); }
+.pdf-foot { display: grid; gap: 12px; padding: 16px 22px 20px; margin-top: 10px; border-top: 1.5px dashed var(--line-strong); }
+.pdf-system { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pdf-system p { margin: 0; font-size: var(--fs-small); }
+.pdf-remember { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-meta); color: var(--pencil); cursor: pointer; }
+.pdf-remember input { accent-color: var(--wrench-2); width: 15px; height: 15px; }
+.pdf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pdf-actions .btn { min-height: 44px; gap: 8px; }
+.pdf-actions .btn-go { flex: 1 1 220px; }
+.pdf-note { margin: 0; color: var(--pencil); font-size: var(--fs-meta); }
+@media (max-width: 640px) {
+  .pdf-body { grid-template-columns: 1fr; padding-top: 16px; }
+  .pdf-preview, .pdf-for-label, .pdf-for { display: none; }
+  .pdf-side .pdf-inside { margin-bottom: 4px; }
+}
+
+/* Install choices (app/report.tsx InstallPanel, lib/install.ts installChoices) */
+.method-recommended { background: var(--wrench); color: var(--ink); }
+.method-alternative { background: var(--sky); }
+.method-optional { background: var(--maybe); }
+.method-library, .method-step { background: var(--paper); border-color: var(--line-strong); color: var(--pencil); }
+.pm-needs { margin-left: 8px; font: 500 var(--fs-label) var(--mono); color: var(--pencil); }
+.pm-cmd > .note { margin: 6px 0 0; }

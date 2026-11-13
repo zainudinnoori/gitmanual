@@ -1,6 +1,6 @@
 import { analyze, presentPaths, selectFiles, type Analysis } from "./detect";
 import { CACHE_MS, countView, getCached, repoKey, saveRepo } from "./db";
-import { getFiles, getLatestRelease, getRepoMeta, getTree, GitHubError, type RepoMeta, type RepoRef } from "./github";
+import { getFiles, getHeadSha, getLatestRelease, getRepoMeta, getTree, GitHubError, type RepoMeta, type RepoRef } from "./github";
 import { findDocsLink, findDownloadPage, findSetupDocs, findSetupScripts, type Guides, type SetupDoc } from "./guides";
 import { announceRepo } from "./indexnow";
 import { parseRelease, readmeInstallCommands, type InstallOptions } from "./install";
@@ -12,7 +12,8 @@ const VERSION = 12;
 
 export type RepoData = {
   version: number;
-  meta: RepoMeta & { branch: string; fileCount: number; treeTruncated: boolean };
+  // commit: the branch's commit when it was read (missing on copies read before it was recorded), for the PDF's version stamp.
+  meta: RepoMeta & { branch: string; fileCount: number; treeTruncated: boolean; commit?: string };
   analysis: Analysis;
   install: InstallOptions;
   guides: Guides;
@@ -67,7 +68,12 @@ export async function loadPrivate(ref: RepoRef, token: string): Promise<{ data: 
 async function analyzeRepo(ref: RepoRef, token?: string): Promise<RepoData> {
   const meta = await getRepoMeta(ref, token);
   const branch = ref.ref ?? meta.defaultBranch;
-  const [{ entries, truncated }, rawRelease] = await Promise.all([getTree(ref, branch, token), getLatestRelease(ref, token)]);
+  const [{ entries, truncated }, rawRelease, commit] = await Promise.all([
+    getTree(ref, branch, token),
+    getLatestRelease(ref, token),
+    // A private repo is read with the visitor's token; this lookup uses the site's, so it's skipped (and best effort).
+    token ? undefined : getHeadSha(ref, branch).catch(() => undefined),
+  ]);
   const docs = findSetupDocs(entries);
   const docEntry = docs[0] && entries.find((e) => e.path === docs[0].path);
   const files = await getFiles(ref, branch, [...selectFiles(entries), ...(docEntry ? [docEntry] : [])], token);
@@ -113,7 +119,7 @@ async function analyzeRepo(ref: RepoRef, token?: string): Promise<RepoData> {
     devcontainer: entries.some((e) => e.path === ".devcontainer/devcontainer.json" || e.path === ".devcontainer.json"),
   };
 
-  return { version: VERSION, meta: { ...meta, branch, fileCount: entries.length, treeTruncated: truncated }, analysis, install, guides, files };
+  return { version: VERSION, meta: { ...meta, branch, fileCount: entries.length, treeTruncated: truncated, ...(commit && { commit }) }, analysis, install, guides, files };
 }
 
 // A CONTRIBUTING file only counts as a setup guide when it actually has a setup section.

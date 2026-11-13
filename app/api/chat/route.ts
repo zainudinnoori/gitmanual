@@ -9,6 +9,8 @@ import { getHeadSha, getRepoFile, getRepoMeta, GitHubError, listPaths, parseRepo
 import { analyzeGate } from "@/lib/limit";
 import { OS_LIST, type OS } from "@/lib/os";
 import { loadRepo } from "@/lib/pipeline";
+import { proFor } from "@/lib/pro";
+import { PRO_ENABLED } from "@/lib/stripe";
 import { viewer } from "@/lib/viewer";
 
 // Chat about one public repo, for people signed in with GitHub. The browser sends a question and a conversation id;
@@ -28,13 +30,18 @@ const chatModel = (): ChatModel => {
 
 const BUDGET_STATUS = { busy: 409, answers: 429, site: 429, unavailable: 503 } as const;
 
-// For the chat box: whether chat is on here, whether this visitor is signed in, and how many answers they have left.
+// For the chat box: whether chat is on here, whether this visitor is signed in, has Pro (lib/pro.ts), and how many
+// answers they have left. `proOffer` says whether /pro is open, so the box can point free users to it.
 export async function GET() {
   if (process.env.CHAT_ENABLED !== "on" || !process.env.ANTHROPIC_API_KEY) return NextResponse.json({ enabled: false }, { headers: NO_STORE });
   const { user, settle: settleCookies } = await viewer();
-  const left = user ? await allowance("user", String(user.id)) : null;
+  const { pro } = await proFor(user?.id);
+  const left = user ? await allowance(pro ? "pro" : "user", String(user.id)) : null;
   return settleCookies(
-    NextResponse.json({ enabled: true, signedIn: Boolean(user), login: user?.login ?? null, allowance: left }, { headers: NO_STORE }),
+    NextResponse.json(
+      { enabled: true, signedIn: Boolean(user), login: user?.login ?? null, pro, proOffer: PRO_ENABLED(), allowance: left },
+      { headers: NO_STORE },
+    ),
   );
 }
 
@@ -91,12 +98,17 @@ export async function POST(req: Request) {
   }
 
   // Paid for before Claude is called. The browser makes one requestId per question, so a resend isn't charged twice.
+  // Pro subscribers answer from their own pool, with a fair-use ceiling instead of the free daily limit.
   const model = chatModel();
+  const pool = (await proFor(user.id)).pro ? "pro" : "user";
   let reservation;
   try {
-    reservation = await reserve({ pool: "user", account, requestId: body.requestId, model, repo: convo.repo });
+    reservation = await reserve({ pool, account, requestId: body.requestId, model, repo: convo.repo });
   } catch (e) {
-    if (e instanceof BudgetError) return fail(e.message, BUDGET_STATUS[e.reason], { reason: e.reason }, { "Retry-After": String(e.retryAfter) });
+    if (e instanceof BudgetError) {
+      const upgrade = pool === "user" && e.reason === "answers" && PRO_ENABLED();
+      return fail(e.message, BUDGET_STATUS[e.reason], { reason: e.reason, ...(upgrade && { upgrade: true }) }, { "Retry-After": String(e.retryAfter) });
+    }
     throw e;
   }
   if (reservation.duplicate) return fail("This question is already being answered.", 409, { reason: "duplicate" });
@@ -155,8 +167,8 @@ export async function POST(req: Request) {
         // full worst case rather than recorded as less than it may have been.
         if (progress.started === 0) await release(key);
         else if (finished) await settle(key, model, progress.usages);
-        const left = await allowance("user", account);
-        if (left) send({ type: "allowance", ...left });
+        const left = await allowance(pool, account);
+        if (left) send({ type: "allowance", ...left, pro: pool === "pro" });
         if (open) controller.close();
       }
     },

@@ -23,7 +23,14 @@ export type Analysis = {
   needsDevice: boolean;
   difficulty: { label: "Easy" | "Moderate" | "Involved"; score: number };
   otherManifests: string[];
+  // The project's own Python package, at the root or in a subfolder (monorepos like packages/markitdown): its
+  // supported Python versions and optional extras, so "pip install name[extra]" can be explained. Missing on copies
+  // analyzed before it was added.
+  pythonPackage?: PythonPackage | null;
 };
+
+// scripts: the commands it installs ([project.scripts]), so a manual can say how to check it works.
+export type PythonPackage = { name: string; requiresPython: string | null; extras: string[]; path: string; scripts?: string[] };
 
 // Files whose presence alone tells us something; we don't download them.
 const PRESENCE_ONLY = new Set([
@@ -124,6 +131,10 @@ export function selectFiles(entries: TreeEntry[]): TreeEntry[] {
   const picked: TreeEntry[] = [];
   let workflows = 0;
   let nestedEnv = 0;
+  // A Python package kept in a subfolder (packages/name/pyproject.toml) when there's none at the root: read for its
+  // Python versions and extras only.
+  const rootPy = entries.some((e) => e.path === "pyproject.toml");
+  let nestedPy = 0;
   const priority = (p: string) => (/test|ci|build|check|lint/i.test(p.split("/").pop()!) ? 0 : 1);
   const ordered = [...entries].sort((a, b) => priority(a.path) - priority(b.path));
   for (const e of ordered) {
@@ -133,6 +144,7 @@ export function selectFiles(entries: TreeEntry[]): TreeEntry[] {
       picked.push(e);
       workflows++;
     } else if (ENV_EXAMPLE.test(e.path) && (depth === 1 || (depth <= 3 && nestedEnv++ < 5))) picked.push(e);
+    else if (!rootPy && depth <= 3 && /\/pyproject\.toml$/.test(e.path) && !/(^|\/)(tests?|examples?|docs)\//.test(e.path) && nestedPy++ < 4) picked.push(e);
   }
   return picked;
 }
@@ -251,6 +263,29 @@ function pythonDeps(files: Record<string, string>): string[] {
   for (const m of py.matchAll(/["']([A-Za-z][A-Za-z0-9_.\-]*)(?:\[[^\]]*\])?\s*(?:[<>=~!;,]|["'])/g)) deps.push(m[1]);
   for (const m of py.matchAll(/^([A-Za-z0-9_.\-]+)\s*=\s*["{]/gm)) deps.push(m[1]);
   return deps;
+}
+
+// The [project] table of a pyproject.toml: its name, requires-python and the names of its optional extras.
+function pyProject(text: string, path: string): PythonPackage | null {
+  const project = text.match(/^\[project\]\s*\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1];
+  const name = project?.match(/^name\s*=\s*["']([^"']+)["']/m)?.[1];
+  if (!name) return null;
+  const requiresPython = project?.match(/^requires-python\s*=\s*["']([^"']+)["']/m)?.[1] ?? null;
+  const optional = text.match(/^\[project\.optional-dependencies\]\s*\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1] ?? "";
+  const extras = [...optional.matchAll(/^["']?([A-Za-z0-9][\w.-]*)["']?\s*=/gm)].map((m) => m[1]);
+  const scriptTable = text.match(/^\[project\.scripts\]\s*\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1] ?? "";
+  const scripts = [...scriptTable.matchAll(/^["']?([A-Za-z0-9][\w.-]*)["']?\s*=/gm)].map((m) => m[1]);
+  return { name, requiresPython, extras, path, scripts };
+}
+
+// The repo's own package: the root one, else a subfolder's whose name matches the repo, else the first found.
+function pythonPackageOf(files: Record<string, string>, repoName: string): PythonPackage | null {
+  const found = Object.entries(files)
+    .filter(([p]) => /(^|\/)pyproject\.toml$/.test(p))
+    .map(([p, t]) => pyProject(t, p))
+    .filter((x): x is PythonPackage => Boolean(x));
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return found.find((x) => x.path === "pyproject.toml") ?? found.find((x) => norm(x.name) === norm(repoName)) ?? found[0] ?? null;
 }
 
 function dedupe<T>(items: T[], key: (t: T) => string): T[] {
@@ -629,7 +664,14 @@ export function analyze(
     hints.push(`Dockerfile available${base ? ` (base image: ${base})` : ""}.`);
     if (stacks.length === 0) {
       stacks.push("Docker");
-      runCmds.push(`docker build -t ${repo.repo.toLowerCase()} .`, `docker run --rm -it ${repo.repo.toLowerCase()}`);
+      // The README's own build and run, when it has a pair that go together (its run usually shows how to give the
+      // container its input, like "< file.pdf > output.md"); otherwise a plain build and an interactive run.
+      const lines = [...readmeAll.matchAll(/^[ \t]*(?:\$\s*)?(docker (?:build|run)\b[^\n`]*)/gm)].map((m) => m[1].trim().replace(/\s*\\$/, ""));
+      const build = lines.find((l) => /^docker build\b.*\s(-t|--tag)\s+\S+.*\s\.$|^docker build\b.*\s\.\s.*(-t|--tag)\s+\S+/.test(l));
+      const image = build?.match(/(?:-t|--tag)\s+([^\s:]+)/)?.[1];
+      const run = image && lines.find((l) => /^docker run\b/.test(l) && l.split(/\s+/).some((w) => w.split(":")[0] === image));
+      if (build && run && build.length <= 160 && run.length <= 200) runCmds.push(build, run);
+      else runCmds.push(`docker build -t ${repo.repo.toLowerCase()} .`, `docker run --rm -it ${repo.repo.toLowerCase()}`);
     }
   }
   if (files[".devcontainer/devcontainer.json"] || files[".devcontainer.json"]) {
@@ -668,7 +710,10 @@ export function analyze(
   // Our clone step already covers cloning, so drop it from the README's commands.
   const readmeCmds = (readme?.commands ?? []).filter((c) => !/^git clone\b/.test(c) && !/^cd \S+$/.test(c));
   const runtimeNames = new Set(runtimes.map((r) => r.name));
-  const tools = toolsFor(readme?.commands ?? []).filter(
+  // Built and run in Docker (no language stack of its own here): the container brings Python or Node, so the
+  // README's pip or npm lines don't make them prerequisites; Docker is the one thing to install.
+  const dockerOnly = stacks.length === 1 && stacks[0] === "Docker";
+  const tools = (dockerOnly ? toolsFor([...(readme?.commands ?? []), "docker build ."]).filter((t) => t.name === "Docker") : toolsFor(readme?.commands ?? [])).filter(
     (t) => !(t.name === "Node.js" && runtimeNames.has("Node.js")) && !(t.name === "Python 3" && runtimeNames.has("Python")),
   );
   const shellScripts = allPaths.filter((p) => /\.sh$/.test(p) && !p.includes("node_modules"));
@@ -756,7 +801,19 @@ export function analyze(
     if (installCmds.length) steps.push({ title: "Install dependencies", commands: adapt(installCmds) });
     if (dbCmds.length) steps.push({ title: "Set up the database / app", commands: adapt(dbCmds) });
     if (runCmds.length) {
-      steps.push({ title: "Run it", commands: adapt(runCmds), note: runCmds.length > 1 ? "Run each command in its own terminal." : undefined });
+      // A build followed by a run is one sequence in one terminal; separate terminals are for things that run side by
+      // side (a server and a worker).
+      const sequence = /^docker build\b/.test(runCmds[0] ?? "");
+      const dockerNote = os === "linux" ? "The Docker service must be running." : "Docker Desktop must be open and running.";
+      const cmds = adapt(runCmds).map((c) =>
+        // PowerShell has no "<" input redirect; cmd.exe does, so a README's "docker run -i image < file" goes through it.
+        os === "windows" && /^docker run\b.*\s<\s/.test(c) ? `cmd /c "${c.replace(/~(?=[\\/])/g, "%USERPROFILE%")}"` : c,
+      );
+      steps.push({
+        title: sequence ? "Build and run it with Docker" : "Run it",
+        commands: cmds,
+        note: sequence ? dockerNote : runCmds.length > 1 ? "Run each command in its own terminal." : undefined,
+      });
     }
     if (testCmds.length) steps.push({ title: "Run the tests", commands: adapt(testCmds) });
     if (useReadmeSteps) {
@@ -811,5 +868,6 @@ export function analyze(
     needsDevice,
     difficulty: { label, score },
     otherManifests,
+    pythonPackage: pythonPackageOf(files, repo.repo),
   };
 }

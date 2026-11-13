@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import { commandRisks, type Citations } from "@/lib/checks";
 import { OS_LABEL, type OS } from "@/lib/os";
+import { proUrl } from "@/lib/site";
 import { CopyButton } from "./ui";
 
 // "Ask about this repo": chat for people signed in with GitHub, answered from the repo's own files
@@ -14,7 +15,14 @@ import { CopyButton } from "./ui";
 // screens (the page narrows rather than being covered), as a sheet from the bottom on phones. Closing it keeps the
 // conversation; #ask in the URL opens it, which is how it comes back open after signing in.
 
-type Status = { enabled: boolean; signedIn?: boolean; login?: string | null; allowance?: { used: number; limit: number } | null };
+type Status = {
+  enabled: boolean;
+  signedIn?: boolean;
+  login?: string | null;
+  pro?: boolean; // GitManual Pro: no daily limit to show
+  proOffer?: boolean; // /pro is open, so running out can point there
+  allowance?: { used: number; limit: number } | null;
+};
 
 type Answer = {
   role: "assistant";
@@ -24,11 +32,12 @@ type Answer = {
   checked: boolean; // the answer has finished: copy buttons and warnings show
   citations?: Citations;
   error?: string;
+  upgrade?: boolean; // the free answers ran out: offer Pro
 };
 type Turn = { role: "user"; text: string } | Answer;
 
 const SAVED_QUESTION = "gitmanual-chat-question:";
-const DAILY = 15; // lib/budget.ts, user pool
+const DAILY = 10; // lib/budget.ts, user pool
 
 // The chat on screen is kept in this browser for as long as the server keeps the conversation (CHAT.conversationMs
 // in lib/chat.ts), so a refresh or a later visit picks it up. It's only for showing: what Claude sees always comes
@@ -142,13 +151,13 @@ export function Chat({ repo, os }: { repo: string; os: OS }) {
         body: JSON.stringify({ conversationId: conversation?.id, repo, os, question: q, requestId: crypto.randomUUID() }),
       });
       if (!res.ok || !res.body) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string; signIn?: boolean; ended?: boolean };
+        const j = (await res.json().catch(() => ({}))) as { error?: string; signIn?: boolean; ended?: boolean; upgrade?: boolean };
         if (j.signIn) setStatus((s) => s && { ...s, signedIn: false });
         if (j.ended) {
           setEnded(true);
           setConversation(null);
         }
-        update((a) => ({ ...a, error: j.error ?? "Couldn't answer right now. Try again later.", checked: true }));
+        update((a) => ({ ...a, error: j.error ?? "Couldn't answer right now. Try again later.", upgrade: j.upgrade, checked: true }));
         return;
       }
       const reader = res.body.getReader();
@@ -177,7 +186,7 @@ export function Chat({ repo, os }: { repo: string; os: OS }) {
     else if (e.type === "notice") update((a) => ({ ...a, notices: [...a.notices, e.message] }));
     else if (e.type === "checks") update((a) => ({ ...a, citations: e.citations, checked: true }));
     else if (e.type === "error") update((a) => ({ ...a, error: e.message }));
-    else if (e.type === "allowance") setStatus((s) => s && { ...s, allowance: { used: e.used, limit: e.limit } });
+    else if (e.type === "allowance") setStatus((s) => s && { ...s, pro: Boolean(e.pro), allowance: { used: e.used, limit: e.limit } });
   }
 
   const left = status.allowance ? status.allowance.limit - status.allowance.used : null;
@@ -255,7 +264,17 @@ export function Chat({ repo, os }: { repo: string; os: OS }) {
                   {n}
                 </p>
               ))}
-              {t.error && <p className="chat-error">{t.error}</p>}
+              {t.error && (
+                <p className="chat-error">
+                  {t.error}
+                  {t.upgrade && (
+                    <>
+                      {" "}
+                      <a href={proUrl(`${back.split("#")[0]}#ask`)}>Get Pro for unlimited answers</a>.
+                    </>
+                  )}
+                </p>
+              )}
               {t.citations && <CitationNote citations={t.citations} fileUrl={fileUrl} />}
             </div>
           ),
@@ -265,7 +284,21 @@ export function Chat({ repo, os }: { repo: string; os: OS }) {
       {ended ? (
         <p className="note">This chat has ended. Start a new one to keep asking.</p>
       ) : left === 0 ? (
-        <p className="note">You&apos;ve used today&apos;s answers. They come back at midnight UTC; the manual still works.</p>
+        <p className="note">
+          {status.pro ? (
+            "You've reached today's fair-use limit. It resets at midnight UTC."
+          ) : (
+            <>
+              You&apos;ve used today&apos;s answers. They come back at midnight UTC; the manual still works.
+              {status.proOffer && (
+                <>
+                  {" "}
+                  <a href={proUrl(`${back.split("#")[0]}#ask`)}>Get Pro</a> for unlimited answers.
+                </>
+              )}
+            </>
+          )}
+        </p>
       ) : (
         <form
           className="chat-form"
@@ -308,10 +341,23 @@ export function Chat({ repo, os }: { repo: string; os: OS }) {
       {!signedIn && (
         <p className="chat-left">Free with GitHub sign-in · {DAILY} answers a day · we see your username, not your repos</p>
       )}
-      {left !== null && left > 0 && (
+      {status.pro ? (
         <p className="chat-left">
-          {left} of {status.allowance!.limit} answers left today
+          <span className="chat-pro">Pro</span> · unlimited answers
         </p>
+      ) : (
+        left !== null &&
+        left > 0 && (
+          <p className="chat-left">
+            {left} of {status.allowance!.limit} answers left today
+            {status.proOffer && left <= 3 && (
+              <>
+                {" "}
+                · <a href={proUrl(`${back.split("#")[0]}#ask`)}>Go unlimited</a>
+              </>
+            )}
+          </p>
+        )
       )}
     </>,
   );

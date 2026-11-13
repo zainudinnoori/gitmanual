@@ -16,13 +16,14 @@ export const metadata: Metadata = {
   alternates: { canonical: "/developers" },
 };
 
-// Keep in step with lib/limit.ts (apiAnon, apiKey) and lib/apikeys.ts.
+// Keep in step with lib/limit.ts (apiAnon, apiKey, apiPro) and lib/apikeys.ts. The Pro column shows while Pro is on.
+const PRO = process.env.PRO_ENABLED === "on" && Boolean(process.env.STRIPE_SECRET_KEY);
 const ACCESS = [
-  ["Requests (any endpoint or MCP tool)", "60 an hour", "1,000 an hour"],
-  ["…of which new repos (read from GitHub)", "10 a day", "200 an hour"],
-  ["Private repos (with your GitHub token)", "No", "Yes"],
-  ["See your usage", "No", "Yes"],
-];
+  ["Requests (any endpoint or MCP tool)", "60 an hour", "250 an hour", "5,000 an hour"],
+  ["…of which new repos (read from GitHub)", "10 a day", "50 an hour", "1,000 an hour"],
+  ["Private repos (with your GitHub token)", "No", "Yes", "Yes"],
+  ["See your usage", "No", "Yes", "Yes"],
+].map((row) => (PRO ? row : row.slice(0, 3)));
 
 const NAV: { group: string; items: [id: string, label: string, method?: string][] }[] = [
   {
@@ -225,10 +226,16 @@ export default function Developers() {
 
         <section id="limits" className="api-section">
           <h2>Limits</h2>
-          <Table head={["", "No key", "Free key"]} rows={ACCESS} />
+          <Table head={PRO ? ["", "No key", "Free key", "Pro key"] : ["", "No key", "Free key"]} rows={ACCESS} />
           <p>
             A new repo is one gitmanual hasn&apos;t read from GitHub before; it counts toward both limits. Over a limit, you get{" "}
-            <code>429</code> with a <code>Retry-After</code> header in seconds. Need more? <Link href="/contact">Get in touch</Link>.
+            <code>429</code> with a <code>Retry-After</code> header in seconds.{" "}
+            {PRO && (
+              <>
+                A key gets the Pro limits while its owner has <Link href="/pro">GitManual Pro</Link>; nothing to change in your code.{" "}
+              </>
+            )}
+            Need more? <Link href="/contact">Get in touch</Link>.
           </p>
         </section>
 

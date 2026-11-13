@@ -3,6 +3,8 @@ import Link from "next/link";
 import { REPO_URL, SITE_HOST } from "@/lib/site";
 import { DocPage } from "../doc";
 
+const PRO = process.env.PRO_ENABLED === "on" && Boolean(process.env.STRIPE_SECRET_KEY);
+
 export const metadata: Metadata = {
   title: "Terms",
   description: "The terms for using gitmanual: a free service, provided as is. Read commands before you run them.",
@@ -11,12 +13,45 @@ export const metadata: Metadata = {
 
 export default function Terms() {
   return (
-    <DocPage eyebrow="Terms" title="Terms of use" lead="Plain terms for a free tool. By using the site you agree to them." updated="6 November 2026">
+    <DocPage eyebrow="Terms" title="Terms of use" lead={PRO ? "Plain terms for a free tool with an optional paid plan. By using the site you agree to them." : "Plain terms for a free tool. By using the site you agree to them."}
+      updated={PRO ? "12 November 2026" : "6 November 2026"}>
       <h2>The service</h2>
       <p>
-        {SITE_HOST} (&ldquo;gitmanual&rdquo;) is free to use, with no accounts. It writes setup manuals for public GitHub repositories from
+        {SITE_HOST} (&ldquo;gitmanual&rdquo;) is free to use{PRO && ", with an optional paid plan (below)"}. Signing in with GitHub is needed only for chat, an API key or private repos. It writes setup manuals for public GitHub repositories from
         those repositories&apos; own files. It may change, pause or stop at any time.
       </p>
+
+      {PRO && (
+        <>
+          <h2>GitManual Pro</h2>
+          <ul>
+            <li>
+              <strong>What it is:</strong> a monthly or yearly subscription, tied to your GitHub account, that removes the daily limit on
+              GitManual AI Agent answers, on the site and in the browser extension, and lets you download manuals as PDF or Markdown. A fair-use ceiling applies (see the{" "}
+              <Link href="/pro">Pro page</Link>), and new Pro features may be added.
+            </li>
+            <li>
+              <strong>Who sells it:</strong> payments are processed by Stripe&apos;s Link, the seller of record, under its own terms. Prices
+              are shown before you pay; tax is added where it applies.
+            </li>
+            <li>
+              <strong>Renewal and cancelling:</strong> it renews automatically until you cancel, which you can do any time from the Pro
+              page or link.com. You keep Pro until the end of the period you&apos;ve paid for.
+            </li>
+            <li>
+              <strong>Refunds:</strong> ask through the <Link href="/contact">contact page</Link> within 14 days of a payment for a full
+              refund of it. Your local law may give you more.
+            </li>
+            <li>
+              <strong>Changes:</strong> a price change never applies to a period you&apos;ve already paid for. If gitmanual ever stops
+              offering Pro, the unused part of your period is refunded.
+            </li>
+            <li>
+              <strong>AI answers can be wrong:</strong> Pro doesn&apos;t change that. Check commands before you run them (below).
+            </li>
+          </ul>
+        </>
+      )}
 
       <h2>Commands are yours to check</h2>
       <p>
@@ -39,7 +74,7 @@ export default function Terms() {
         <li>use the site to attack, overload or misrepresent anyone, including the projects it describes;</li>
         <li>present gitmanual&apos;s manuals as official documentation of a project.</li>
       </ul>
-      <p>The API and MCP server are free for reasonable use under the same limits.</p>
+      <p>The API and MCP server are free for reasonable use under the same limits.{PRO && " Pro is for one person; don't share an account or resell answers."}</p>
 
       <h2>Other people&apos;s work</h2>
       <p>

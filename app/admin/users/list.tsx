@@ -33,6 +33,7 @@ export function UsersAdmin() {
   const now = Date.now();
   const newThisWeek = users.filter((u) => now - u.firstSeen < WEEK).length;
   const activeThisWeek = users.filter((u) => now - u.lastSeen < WEEK).length;
+  const pro = users.filter((u) => u.pro && ["active", "trialing", "past_due"].includes(u.pro.status)).length;
   const q = filter.trim().toLowerCase();
   const shown = q ? users.filter((u) => u.login.toLowerCase().includes(q) || u.repos.some((r) => r.includes(q))) : users;
 
@@ -40,7 +41,7 @@ export function UsersAdmin() {
     <>
       <p>
         <strong>{users.length.toLocaleString()}</strong> {users.length === 1 ? "user" : "users"}: {newThisWeek} new and {activeThisWeek} active in
-        the last 7 days. Answers and repos are from the last 14 days. <a href="/admin/chat">Chat stats</a> ·{" "}
+        the last 7 days; {pro} on Pro. Answers and repos are from the last 14 days. <a href="/admin/chat">Chat stats</a> ·{" "}
         <a href="/admin/keys">API keys</a>
       </p>
       <p>
@@ -64,6 +65,7 @@ export function UsersAdmin() {
               <th scope="col">Answers</th>
               <th scope="col">Repos asked about</th>
               <th scope="col">API key</th>
+              <th scope="col">Pro</th>
             </tr>
           </thead>
           <tbody>
@@ -89,6 +91,7 @@ export function UsersAdmin() {
                     : "–"}
                 </td>
                 <td>{u.apiKey ? "Yes" : "–"}</td>
+                <td>{u.pro ? `${u.pro.plan === "year" ? "Yearly" : "Monthly"}, ${u.pro.status === "active" ? `to ${date(u.pro.periodEnd)}` : u.pro.status}` : "–"}</td>
               </tr>
             ))}
           </tbody>

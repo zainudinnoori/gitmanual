@@ -25,6 +25,10 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "gitmanual-pdf": [
+        "./node_modules/gitmanual-pdf/src/index.tsx",
+        "./lib/pdf-missing.ts"
       ]
     }
   },

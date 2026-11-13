@@ -3,7 +3,7 @@
 // from the content script on that tab; nothing is read from other sites. Answers are built as DOM nodes from text,
 // never as HTML, so nothing an answer contains can run here.
 const SITE = "https://gitmanual.com";
-const DAILY = 15; // lib/budget.ts, user pool
+const DAILY = 10; // lib/budget.ts, user pool
 const CONVERSATION_MS = 60 * 60 * 1000; // CHAT.conversationMs in lib/chat.ts
 const OS_LABEL = { mac: "macOS", windows: "Windows", linux: "Linux" };
 
@@ -11,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 const log = $("log");
 const foot = $("foot");
 
-let status = null; // { enabled, signedIn, login, allowance }
+let status = null; // { enabled, signedIn, login, pro, proOffer, allowance }
 let repo = null;
 let busy = false;
 let question = "";
@@ -129,6 +129,7 @@ async function ask() {
         c.conversation = null;
       }
       answer.error = j.error || "Couldn't answer right now. Try again later.";
+      answer.upgrade = Boolean(j.upgrade);
       return;
     }
     const reader = res.body.getReader();
@@ -161,8 +162,12 @@ function handle(e, c, a) {
   else if (e.type === "notice") a.notices.push(e.message);
   else if (e.type === "checks") Object.assign(a, { citations: e.citations, risks: e.risks ?? [], checked: true });
   else if (e.type === "error") a.error = e.message;
-  else if (e.type === "allowance") status = { ...status, allowance: { used: e.used, limit: e.limit } };
+  else if (e.type === "allowance") status = { ...status, pro: Boolean(e.pro), allowance: { used: e.used, limit: e.limit } };
 }
+
+// GitManual Pro opens on the site, in a new tab.
+const proLink = (text) =>
+  el("a", { href: `${SITE}/pro${repo ? `?back=${encodeURIComponent(`/${repo}#ask`)}` : ""}`, target: "_blank", rel: "noopener" }, text);
 
 function signIn() {
   chrome.tabs.create({ url: `${SITE}/api/github/connect?signin=1&back=${encodeURIComponent(repo ? `/${repo}` : "/")}` });
@@ -182,10 +187,14 @@ function render() {
   $("os").value = os;
   // Answers left today, shared with the site: the server counts them per GitHub account.
   const left = status?.signedIn && status.allowance ? status.allowance.limit - status.allowance.used : null;
-  $("left").hidden = left === null;
-  $("left").textContent = left === null ? "" : `${left}/${status.allowance.limit} left today`;
-  $("left").title = "Answers left today, on gitmanual.com and here together. They come back at midnight UTC.";
-  $("left").classList.toggle("low", left !== null && left <= 3);
+  const pro = Boolean(status?.signedIn && status.pro);
+  $("left").hidden = left === null && !pro;
+  $("left").textContent = pro ? "Pro" : left === null ? "" : `${left}/${status.allowance.limit} left today`;
+  $("left").title = pro
+    ? "GitManual Pro: unlimited answers"
+    : "Answers left today, on gitmanual.com and here together. They come back at midnight UTC.";
+  $("left").classList.toggle("low", !pro && left !== null && left <= 3);
+  $("left").classList.toggle("pro", pro);
   $("new-chat").hidden = !(repo && status?.signedIn && chat().turns.length);
   $("new-chat").disabled = busy;
   renderLog();
@@ -248,7 +257,7 @@ function answerView(a, c) {
   if (!a.text && !a.error && !a.checked) box.append(el("p", { className: "reading" }, el("span", { className: "spinner" }), "Reading the repo…"));
   if (a.text) box.append(markdown(a.text, a));
   for (const n of a.notices) box.append(el("p", { className: "notice" }, n));
-  if (a.error) box.append(el("p", { className: "error" }, a.error));
+  if (a.error) box.append(el("p", { className: "error" }, a.error, ...(a.upgrade ? [" ", proLink("Get Pro for unlimited answers"), "."] : [])));
   if (a.citations) {
     const note = citationNote(a.citations, c);
     if (note) box.append(note);
@@ -388,7 +397,17 @@ function renderFoot() {
   const left = status.allowance ? status.allowance.limit - status.allowance.used : null;
 
   if (status.signedIn && c.ended) foot.append(el("p", { className: "note" }, "This chat has ended. Start a new one to keep asking."));
-  else if (status.signedIn && left === 0) foot.append(el("p", { className: "note" }, "You've used today's answers. They come back at midnight UTC; the manual still works."));
+  else if (status.signedIn && left === 0)
+    foot.append(
+      el(
+        "p",
+        { className: "note" },
+        status.pro
+          ? "You've reached today's fair-use limit. It resets at midnight UTC."
+          : "You've used today's answers. They come back at midnight UTC; the manual still works.",
+        ...(!status.pro && status.proOffer ? [" ", proLink("Get Pro"), " for unlimited answers."] : []),
+      ),
+    );
   else {
     const textarea = el("textarea", {
       value: question,

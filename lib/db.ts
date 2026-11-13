@@ -94,6 +94,16 @@ const SCHEMA = `
     last_seen INTEGER NOT NULL,     -- the last sign-in or chat answer
     sign_ins INTEGER NOT NULL DEFAULT 0 -- 0 for API key owners from before sign-ins were recorded
   );
+  CREATE TABLE IF NOT EXISTS subscriptions (
+    github_id INTEGER PRIMARY KEY,  -- who has (or had) GitManual Pro; one subscription per GitHub account
+    customer TEXT NOT NULL,         -- Stripe customer id
+    subscription TEXT NOT NULL UNIQUE, -- Stripe subscription id
+    status TEXT NOT NULL,           -- Stripe's: active, trialing, past_due, canceled, ...
+    plan TEXT,                      -- month | year
+    period_end INTEGER NOT NULL,    -- ms; paid up until then
+    cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS interest (
     feature TEXT NOT NULL,          -- a feature not built yet, e.g. "pdf", whose button only says "coming soon"
     day TEXT NOT NULL,              -- UTC date, YYYY-MM-DD
@@ -766,6 +776,7 @@ export type UserRow = {
   answers: number; // chat answers in the last 14 days
   repos: string[]; // the repos those answers were about, most asked first
   apiKey: boolean;
+  pro: { status: string; plan: string | null; periodEnd: number } | null; // their GitManual Pro subscription, if they ever had one
 };
 
 // For /admin/users: everyone who signed in, newest first, with their recent chat use and whether they have an API key.
@@ -774,12 +785,13 @@ export async function listUsers(now = Date.now()): Promise<UserRow[]> {
     const since = new Date(now - 13 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const { rows } = await c.execute({
       sql: `SELECT u.github_id, u.login, u.first_seen, u.last_seen, u.sign_ins,
-              (SELECT COUNT(*) FROM chat_spend s WHERE s.pool = 'user' AND s.account = CAST(u.github_id AS TEXT) AND s.day >= ?) AS answers,
+              (SELECT COUNT(*) FROM chat_spend s WHERE s.pool IN ('user', 'pro') AND s.account = CAST(u.github_id AS TEXT) AND s.day >= ?) AS answers,
               (SELECT GROUP_CONCAT(repo, ' ') FROM (SELECT repo, COUNT(*) AS n FROM chat_spend s
-                 WHERE s.pool = 'user' AND s.account = CAST(u.github_id AS TEXT) AND s.day >= ? AND repo IS NOT NULL
+                 WHERE s.pool IN ('user', 'pro') AND s.account = CAST(u.github_id AS TEXT) AND s.day >= ? AND repo IS NOT NULL
                  GROUP BY repo ORDER BY n DESC LIMIT 5)) AS repos,
-              EXISTS (SELECT 1 FROM api_keys k WHERE k.github_id = u.github_id) AS api_key
-            FROM users u ORDER BY u.first_seen DESC LIMIT 1000`,
+              EXISTS (SELECT 1 FROM api_keys k WHERE k.github_id = u.github_id) AS api_key,
+              p.status AS pro_status, p.plan AS pro_plan, p.period_end AS pro_end
+            FROM users u LEFT JOIN subscriptions p ON p.github_id = u.github_id ORDER BY u.first_seen DESC LIMIT 1000`,
       args: [since, since],
     });
     return rows.map((r) => ({
@@ -791,7 +803,60 @@ export async function listUsers(now = Date.now()): Promise<UserRow[]> {
       answers: Number(r.answers),
       repos: r.repos ? String(r.repos).split(" ") : [],
       apiKey: Boolean(Number(r.api_key)),
+      pro: r.pro_status ? { status: String(r.pro_status), plan: r.pro_plan ? String(r.pro_plan) : null, periodEnd: Number(r.pro_end) } : null,
     }));
+  });
+}
+
+// GitManual Pro (lib/stripe.ts). Written only from Stripe's webhooks, read on every chat answer and on /pro.
+export type SubscriptionRow = {
+  githubId: number;
+  customer: string;
+  subscription: string;
+  status: string;
+  plan: "month" | "year" | null;
+  periodEnd: number;
+  cancelAtPeriodEnd: boolean;
+};
+
+const toSubscription = (r: Record<string, unknown>): SubscriptionRow => ({
+  githubId: Number(r.github_id),
+  customer: String(r.customer),
+  subscription: String(r.subscription),
+  status: String(r.status),
+  plan: r.plan === "month" || r.plan === "year" ? r.plan : null,
+  periodEnd: Number(r.period_end),
+  cancelAtPeriodEnd: Boolean(Number(r.cancel_at_period_end)),
+});
+
+// One row per GitHub account. A newer subscription replaces an older, ended one; an event for an old subscription
+// never overwrites a newer one that's still running.
+export async function saveSubscription(s: SubscriptionRow, now = Date.now()): Promise<void> {
+  await strictly((c) =>
+    c.execute({
+      sql: `INSERT INTO subscriptions (github_id, customer, subscription, status, plan, period_end, cancel_at_period_end, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (github_id) DO UPDATE SET customer = excluded.customer, subscription = excluded.subscription, status = excluded.status,
+          plan = excluded.plan, period_end = excluded.period_end, cancel_at_period_end = excluded.cancel_at_period_end, updated_at = excluded.updated_at
+        WHERE subscriptions.subscription = excluded.subscription
+          OR subscriptions.status NOT IN ('active', 'trialing', 'past_due')
+          OR excluded.status IN ('active', 'trialing', 'past_due')`,
+      args: [s.githubId, s.customer, s.subscription, s.status, s.plan, s.periodEnd, s.cancelAtPeriodEnd ? 1 : 0, now],
+    }),
+  );
+}
+
+export async function subscriptionFor(githubId: number): Promise<SubscriptionRow | null> {
+  return strictly(async (c) => {
+    const { rows } = await c.execute({ sql: "SELECT * FROM subscriptions WHERE github_id = ?", args: [githubId] });
+    return rows.length ? toSubscription(rows[0]) : null;
+  });
+}
+
+export async function githubIdForSubscription(subscription: string): Promise<number | null> {
+  return strictly(async (c) => {
+    const { rows } = await c.execute({ sql: "SELECT github_id FROM subscriptions WHERE subscription = ?", args: [subscription] });
+    return rows.length ? Number(rows[0].github_id) : null;
   });
 }
 

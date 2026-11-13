@@ -31,6 +31,7 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--paper); bo
 .repo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12.5px var(--mono); }
 .count { flex: none; margin-left: auto; padding: 2px 7px; border: 1.5px solid var(--line-strong); border-radius: 999px; background: var(--sheet); color: var(--pencil); font: 600 11px var(--mono); white-space: nowrap; }
 .count.low { border-color: var(--ink); background: var(--maybe); color: var(--ink); }
+.count.pro { border-color: var(--ink); background: var(--wrench); color: var(--ink); }
 .count[hidden] { display: none; }
 .repo-bar select { flex: none; font: 500 12px var(--mono); padding: 3px 6px; border: 1.5px solid var(--line-strong); border-radius: 8px; background: var(--sheet); }
 

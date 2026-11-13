@@ -33,6 +33,9 @@
     "check:scripts": "node --env-file-if-exists=.env.local --import tsx scripts/check-setup-scripts.ts",
     "setup-script": "node --env-file-if-exists=.env.local --import tsx scripts/print-setup-script.ts",
     "extension:zip": "cd extension && rm -f ../gitmanual-extension.zip && zip -qr ../gitmanual-extension.zip manifest.json background.js content.js content.css sidepanel.html sidepanel.css sidepanel.js icons",
+    "pdf:link": "npm install --no-save --install-links ../gitmanual-pdf",
+    "pdf:install": "if [ -n \"$GH_TOKEN\" ]; then npm install --no-save \"git+https://${GH_TOKEN}@github.com/zainudinnoori/gitmanual-pdf.git#v1.0.0\"; else echo 'GH_TOKEN not set: building without the PDF design'; fi",
+    "stripe:setup": "node --env-file-if-exists=.env.local --import tsx scripts/stripe-setup.ts",
     "chat:eval": "node --env-file-if-exists=.env.local --import tsx scripts/chat-eval.ts",
     "accuracy:sample": "node --import tsx scripts/make-accuracy-sample.ts"
   },
@@ -46,6 +49,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
+    "stripe": "^23.1.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

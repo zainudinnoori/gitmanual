@@ -136,7 +136,7 @@ To turn on Connect GitHub, create a GitHub App at [github.com/settings/apps/new]
 
 Then generate a client secret and set `GITHUB_APP_SLUG` (from `github.com/apps/<slug>`), `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` and `SESSION_SECRET` (`openssl rand -hex 32`).
 
-The JSON API and the MCP server open private repos too, with a free gitmanual API key (`Authorization: Bearer gm_…`, made at `/developers`) and your own read-only token as `X-GitHub-Token`. Public repos ignore the token; private answers are never saved or cached. Without a key, the API and MCP server answer 60 requests an hour (10 new repos a day); a free key raises that to 1,000 requests and 200 new repos an hour. Besides manuals, the API has `/api/v1/search` (the shelf, with filters), `/api/v1/lists` and `/api/v1/lists/{slug}`, and `/api/v1/alternatives` (similar repos that run on a system); the MCP server has a tool for each. Full docs: [`/developers`](https://gitmanual.com/developers).
+The JSON API and the MCP server open private repos too, with a free gitmanual API key (`Authorization: Bearer gm_…`, made at `/developers`) and your own read-only token as `X-GitHub-Token`. Public repos ignore the token; private answers are never saved or cached. Without a key, the API and MCP server answer 60 requests an hour (10 new repos a day); a free key raises that to 250 requests and 50 new repos an hour. Besides manuals, the API has `/api/v1/search` (the shelf, with filters), `/api/v1/lists` and `/api/v1/lists/{slug}`, and `/api/v1/alternatives` (similar repos that run on a system); the MCP server has a tool for each. Full docs: [`/developers`](https://gitmanual.com/developers).
 
 ```bash
 curl -H "Authorization: Bearer $GITMANUAL_KEY" -H "X-GitHub-Token: $GITHUB_TOKEN" \
@@ -186,3 +186,7 @@ Wrong steps for a repo? That's the most useful bug report there is. [Open an iss
 ## License
 
 [MIT](LICENSE). The repos gitmanual describes keep their own licenses; it only reads their public files.
+
+The PDF manual design (a GitManual Pro feature) is not part of this repo: it lives in a separate private package,
+`gitmanual-pdf`, with its own licence. Without it, everything here builds and runs as usual; PDF downloads show as
+unavailable and Markdown downloads still work.

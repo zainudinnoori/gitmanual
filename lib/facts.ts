@@ -4,7 +4,7 @@ import type { RepoMeta } from "./github";
 import type { InstallOptions } from "./install";
 
 // "Before you start": the questions people search right after a project's name (is it free, does it cost money
-// to run, is it still maintained, can I trust it), answered from what the manual already read. Each answer says
+// to run, is it still maintained, how widely used is it), answered from what the manual already read. Each answer says
 // what it's based on, and none of them claims more than the files show.
 
 export type Tone = "yes" | "maybe" | "no";
@@ -15,7 +15,7 @@ const ASKED: Record<Fact["id"], (name: string) => string> = {
   free: (n) => `Is ${n} free?`,
   ai: (n) => `Does ${n} use paid AI services?`,
   maintained: (n) => `Is ${n} still maintained?`,
-  trust: (n) => `Can I trust ${n}?`,
+  trust: (n) => `How widely used is ${n}?`,
 };
 // Repos named for what they are ("httpie/cli", "home-assistant/core") are asked about by their owner's name.
 const GENERIC = /^(cli|app|apps|core|server|client|web|api|desktop|sdk|docs|main|frontend|backend|monorepo|platform|engine|ui|mobile|android|ios|website|site)$/i;
@@ -84,8 +84,11 @@ type Input = {
   install: Pick<InstallOptions, "release">;
 };
 
-export function beforeYouStart(d: Input): Fact[] {
+// `dated`: real dates ("on 12 November 2026") instead of "3 days ago", for copies that are kept, like the PDF.
+export function beforeYouStart(d: Input, opts: { dated?: boolean } = {}): Fact[] {
   const { meta, analysis, install } = d;
+  const when = (iso: string) =>
+    opts.dated ? `on ${new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}` : ago(iso).text;
   const lic = license(meta.license); // GitHub's "NOASSERTION" means a license it couldn't name
   const vars = analysis.envVars.filter((v) => !DEV_FILE.test(v.source));
   const ai = named(vars, AI);
@@ -104,8 +107,9 @@ export function beforeYouStart(d: Input): Fact[] {
 
   // Is it still maintained? The later of the last push and the latest release.
   const release = install.release?.publishedAt;
-  const last = ago(release && Date.parse(release) > Date.parse(meta.pushedAt) ? release : meta.pushedAt);
-  const releaseText = install.release ? ` Latest release ${install.release.tag}, ${ago(install.release.publishedAt).text}.` : "";
+  const lastIso = release && Date.parse(release) > Date.parse(meta.pushedAt) ? release : meta.pushedAt;
+  const last = { ...ago(lastIso), text: when(lastIso) };
+  const releaseText = install.release ? ` Latest release ${install.release.tag}, ${when(install.release.publishedAt)}.` : "";
   facts.push(
     meta.archived
       ? { id: "maintained", q: "Still maintained?", a: "No, archived", why: "The owners archived it: no more fixes or updates.", tone: "no" }
@@ -116,24 +120,24 @@ export function beforeYouStart(d: Input): Fact[] {
           : { id: "maintained", q: "Still maintained?", a: "Looks inactive", why: `Last change ${last.text}. Fixes may not come.${releaseText}`, tone: "no" },
   );
 
-  // Can I trust it? Track record only: no one can promise code is safe, so this never says "safe". A private repo is
+  // How widely used is it? Track record only: popularity isn't a security check, so this never says "safe". A private repo is
   // the visitor's own (or their team's), and has no public track record to go on.
   if (meta.private) return facts;
   const age = meta.createdAt ? ago(meta.createdAt) : null;
   const by = meta.ownerType === "Organization" ? "an organization" : null;
   const record = [
     `${compactCount(meta.stars)} stars`,
-    ...(age ? [`${age.days < 365 ? `${Math.max(1, Math.round(age.days / 30))} months` : `${Math.floor(age.days / 365)} years`} old`] : []),
+    ...(age ? [`${age.days < 365 ? `${Math.max(1, Math.round(age.days / 30))} months` : `${Math.floor(age.days / 365)} ${Math.floor(age.days / 365) === 1 ? "year" : "years"}`} old`] : []),
     ...(by ? [`by ${by}`] : []),
   ].join(", ");
   const known = meta.stars >= 1000 && (!age || age.days >= 365);
   const fresh = meta.stars < 100 || (age !== null && age.days < 90);
   facts.push(
     known
-      ? { id: "trust", q: "Can I trust it?", a: "Widely used", why: `${record}. As with any download, get it from the official repo.`, tone: "yes" }
+      ? { id: "trust", q: "How widely used?", a: "Widely used", why: `${record}. As with any download, get it from the official repo.`, tone: "yes" }
       : fresh
-        ? { id: "trust", q: "Can I trust it?", a: "New, little track record", why: `${record}. Look at the code and the owner before running it.`, tone: "maybe" }
-        : { id: "trust", q: "Can I trust it?", a: "Some track record", why: `${record}. Get it from the official repo and read what it installs.`, tone: "yes" },
+        ? { id: "trust", q: "How widely used?", a: "New, little track record", why: `${record}. Look at the code and the owner before running it.`, tone: "maybe" }
+        : { id: "trust", q: "How widely used?", a: "Some track record", why: `${record}. Get it from the official repo and read what it installs.`, tone: "yes" },
   );
   return facts;
 }

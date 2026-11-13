@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "gitmanual: setup manual for any GitHub repo",
   "short_name": "gitmanual",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Setup manuals for GitHub repos, and GitManual AI Agent in the side panel to answer setup questions from the repo's own files.",
   "homepage_url": "https://gitmanual.com",
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },

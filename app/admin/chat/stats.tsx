@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { ChatStats } from "@/lib/budget";
 import type { InterestStats } from "@/lib/db";
 
-type Stats = ChatStats & { logins: Record<string, string | null>; pdfInterest: InterestStats };
+type Stats = ChatStats & { logins: Record<string, string | null>; pdfInterest: InterestStats; downloads: { md: number; pdf: number }; teamWaitlist: number };
 
 const usd = (n: number, digits = 2) => `$${n.toFixed(digits)}`;
 const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
@@ -50,8 +50,13 @@ export function ChatAdmin() {
 
       <h2>Demand: PDF manual</h2>
       <p>
-        The &ldquo;Download PDF&rdquo; button on manuals only says &ldquo;coming soon&rdquo;; each visitor counts once per repo a day. Last
-        30 days: <strong>{stats.pdfInterest.total.toLocaleString()}</strong>
+        Downloads in the last 30 days (each visitor once per repo a day): <strong>{stats.downloads.md.toLocaleString()}</strong> Markdown,{" "}
+        <strong>{stats.downloads.pdf.toLocaleString()}</strong> PDF (Pro). Team plan waitlist:{" "}
+        <strong>{stats.teamWaitlist.toLocaleString()}</strong> (each visitor once a day).
+      </p>
+      <p>
+        Presses of &ldquo;PDF&rdquo; by people without Pro (it says &ldquo;coming soon&rdquo; while Pro is off, and leads to /pro once it&apos;s
+        on); each visitor counts once per repo a day. Last 30 days: <strong>{stats.pdfInterest.total.toLocaleString()}</strong>
         {stats.pdfInterest.days.length > 0 && <> ({stats.pdfInterest.days.slice(0, 7).map((d) => `${day(d.day)}: ${d.clicks}`).join(", ")})</>}.
         {stats.pdfInterest.repos.length > 0 && (
           <>

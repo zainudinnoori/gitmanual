@@ -2,13 +2,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { keyByHash, useKey } from "./db";
 import { GitHubError } from "./github";
 import { limit, visitor } from "./limit";
+import { isPro } from "./pro";
 
 // API keys for the JSON API and the MCP server. Anyone can use both without one: 60 requests an hour, 10 of them
-// new repos a day. A free key, made by signing in with GitHub on /developers, raises that to 1,000 requests and
-// 200 new repos an hour, and opens private repos. Keys are stored only as a hash; the owner sees theirs once.
+// new repos a day. A free key, made by signing in with GitHub on /developers, raises that to 250 requests and
+// 50 new repos an hour, and opens private repos. A key whose owner has GitManual Pro gets 5,000 requests and 1,000
+// new repos an hour. Keys are stored only as a hash; the owner sees theirs once.
 //   Authorization: Bearer gm_…
 
-export type Caller = { kind: "anon"; who: string } | { kind: "key"; githubId: number; login: string };
+export type Caller = { kind: "anon"; who: string } | { kind: "key"; githubId: number; login: string; pro?: boolean };
 
 export class KeyError extends GitHubError {} // 401 (wrong key, or a key needed) and 403 (blocked)
 
@@ -37,13 +39,16 @@ export async function apiCaller(headers: Headers): Promise<Caller> {
   if (found === "error") return anon(); // database down: still serve, at the anonymous limit
   if (!found) throw new KeyError(`That API key isn't valid. Make a new one at ${DEVELOPERS}.`, 401);
   if (found.blocked) throw new KeyError("This API key has been turned off. Get in touch through gitmanual.com/contact.", 403);
-  await limit("apiKeyCalls", String(found.githubId));
+  // Pro is checked on each request, so the higher limits start and stop with the subscription.
+  const pro = await isPro(found.githubId);
+  await limit(pro ? "apiProCalls" : "apiKeyCalls", String(found.githubId));
   await useKey(hash);
-  return { kind: "key", githubId: found.githubId, login: found.login };
+  return { kind: "key", githubId: found.githubId, login: found.login, pro };
 }
 
 // For loadRepo's gate: counts a new repo against the key, or the anonymous visitor.
-export const apiGate = (c: Caller) => () => (c.kind === "key" ? limit("apiKey", String(c.githubId)) : limit("apiAnon", c.who));
+export const apiGate = (c: Caller) => () =>
+  c.kind === "key" ? limit(c.pro ? "apiPro" : "apiKey", String(c.githubId)) : limit("apiAnon", c.who);
 
 export function needKeyForPrivate(c: Caller) {
   if (c.kind === "anon") throw new KeyError(`Private repos need a free gitmanual API key as well as your GitHub token. Get one at ${DEVELOPERS}.`, 401);
