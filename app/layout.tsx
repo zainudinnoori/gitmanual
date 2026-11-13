@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { AD_FREE_COOKIE } from "@/lib/site";
 import { ContactButton, LaunchBanner, Logo, NavLinks } from "./ui";
 import "./globals.css";
 
@@ -49,11 +50,15 @@ async function repoStars(): Promise<number | null> {
   }
 }
 
+const NO_ADS_FLAG = `try{if(/(^|; )${AD_FREE_COOKIE}=/.test(document.cookie))document.documentElement.setAttribute("data-noads","")}catch(e){}`;
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const repo = REPO_URL?.replace(/\/$/, "") ?? null;
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
+    // data-noads is set before the page paints, for Pro (app/carbon.tsx), so the ad's space never shows.
+    <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: NO_ADS_FLAG }} />
         <a className="skip" href="#main">
           Skip to content
         </a>

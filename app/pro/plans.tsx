@@ -33,6 +33,7 @@ const ICONS = {
   users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   brand: "M12 2l9 4.5v11L12 22l-9-4.5v-11zM3 6.5l9 4.5 9-4.5M12 11v11",
   lock: "M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4",
+  noads: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM4.93 4.93l14.14 14.14",
   folder: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z",
 } as const;
 
@@ -172,6 +173,9 @@ export function Plans({ prices: saved, free, contact }: { prices: Prices; free: 
             </Feature>
             <Feature icon="file" title="Download any manual">
               A designed PDF to print or share, or Markdown
+            </Feature>
+            <Feature icon="noads" title="No ads">
+              Every page, on any browser you sign in on
             </Feature>
             <Feature icon="plug" title="20× the API and MCP limits">
               5,000 requests an hour with your API key, not 250

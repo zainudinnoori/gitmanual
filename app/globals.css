@@ -76,6 +76,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 .ad-placeholder span { font-weight: 600; color: var(--ink); }
 .ad-head { max-width: none; }
 .ad[hidden] { display: none; }
+html[data-noads] .ad { display: none; } /* Pro: no ads, and no space kept for one */
 /* When no ad shows: a support card on the same dotted sheet as the hero's diagram, with the box hopping in. */
 .ad-fallback {
   position: relative; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 10px; padding: 26px;

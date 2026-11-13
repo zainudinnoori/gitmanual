@@ -86,7 +86,13 @@ export default function Privacy() {
         gitmanual sets no cookies unless you sign in with GitHub or connect it for a private repo (above). After you answer &ldquo;Did you get it running?&rdquo;, your browser&apos;s local storage remembers your
         answer for that repo, so you aren&apos;t asked twice. If you tick &ldquo;Remember my system&rdquo; when downloading a manual, it
         remembers that system too. It never leaves your device, and clearing your browser&apos;s site data removes
-        it.
+        it.{PRO && (
+          <>
+            {" "}
+            With Pro, a cookie that says only &ldquo;no ads&rdquo; (no name or account) tells your browser not to load the ad, until your
+            paid time ends or you sign out; your browser checks with gitmanual once a day that you still have Pro.
+          </>
+        )}
       </p>
 
       <h2>Outside services</h2>
@@ -99,7 +105,7 @@ export default function Privacy() {
         <li>
           <strong>Carbon</strong> (carbonads.net) shows one ad on manual pages of public repos, the shelf, the lists and the API
           page. Your browser loads it from Carbon, which receives your IP address and browser type, under Carbon&apos;s privacy policy.
-          Manual pages of private repos never load it.
+          Manual pages of private repos never load it{PRO ? ", and Pro accounts never see it" : ""}.
         </li>
         {PRO && (
           <li>

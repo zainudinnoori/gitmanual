@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { REPO_URL } from "@/lib/site";
+import { AD_FREE_COOKIE, REPO_URL } from "@/lib/site";
 import { Logo, OPEN_CONTACT } from "./ui";
 
 // One Carbon ad (cover format) where it's placed: manual pages of public repos, the shelf, lists and /developers.
@@ -11,6 +11,9 @@ import { Logo, OPEN_CONTACT } from "./ui";
 // (add ?ad=blocked to the address to see the fallback on every page this tab opens, ?ad=on to go back). Carbon's tag goes inside a sized box so the ad doesn't shift
 // the page, and is loaded again on each new page, since moving between pages here doesn't reload the browser.
 // When the ad can't show (an ad blocker stopped the script, or no ad came back), the box asks for a sponsor instead.
+// Pro accounts see no ad at all: lib/adfree.ts sets a cookie, the layout marks the page before it paints (the CSS
+// hides .ad), and the script isn't loaded. Once a day the browser asks /api/pro again, which renews the cookie
+// after a renewal or removes it once Pro ends; a browser that had Pro before asks too, to pick it back up.
 
 const valid = (v: string | undefined) => (v && /^[\w-]+$/.test(v) ? v : null);
 const SERVE = valid(process.env.NEXT_PUBLIC_CARBON_SERVE);
@@ -20,6 +23,36 @@ const LIVE = !DEV && SERVE && PLACEMENT;
 const OWNER = REPO_URL?.match(/github\.com\/([\w-]+)\//)?.[1] ?? null;
 const WAIT = 4000; // ms for the ad to appear once the script has loaded
 const PREVIEW_KEY = "gitmanual-ad-preview";
+const CHECKED_KEY = "gitmanual-pro-checked"; // when /api/pro was last asked, and whether it said Pro
+const DAY = 24 * 60 * 60 * 1000;
+
+const adFree = () => {
+  try {
+    return new RegExp(`(^|; )${AD_FREE_COOKIE}=`).test(document.cookie);
+  } catch {
+    return false;
+  }
+};
+
+// For someone who has (or had) Pro in this browser: ask again at most once a day. Everyone else never asks.
+function recheckPro() {
+  let last: { at: number; pro: boolean } | null = null;
+  try {
+    last = JSON.parse(localStorage.getItem(CHECKED_KEY) ?? "null");
+  } catch {}
+  if (!adFree() && !last?.pro) return;
+  if (last && Date.now() - last.at < DAY) return;
+  fetch("/api/pro", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j: { pro?: boolean } | null) => {
+      if (!j) return;
+      try {
+        localStorage.setItem(CHECKED_KEY, JSON.stringify({ at: Date.now(), pro: Boolean(j.pro) }));
+      } catch {}
+      if (j.pro) document.documentElement.setAttribute("data-noads", "");
+    })
+    .catch(() => {});
+}
 
 // Read when this file first loads, before a page (the manual) can tidy the address; kept for the tab's later pages.
 if (DEV && typeof window !== "undefined") {
@@ -36,6 +69,8 @@ export function CarbonAd({ className }: { className?: string }) {
   const [blocked, setBlocked] = useState(false);
   useEffect(() => {
     setBlocked(false);
+    recheckPro();
+    if (adFree()) return;
     if (DEV) {
       try {
         if (sessionStorage.getItem(PREVIEW_KEY) === "blocked") setBlocked(true);

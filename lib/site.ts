@@ -11,3 +11,6 @@ export const sitePath = (path: string | null | undefined) => (path && /^\/(?!\/)
 
 // "Get Pro" from a page: /pro remembers it and, once the person has Pro, takes them back there.
 export const proUrl = (back?: string | null) => (sitePath(back) ? `/pro?back=${encodeURIComponent(back!)}` : "/pro");
+
+// Set for Pro accounts so the browser hides ads (lib/adfree.ts writes it, app/carbon.tsx and the layout read it).
+export const AD_FREE_COOKIE = "gm_noads";

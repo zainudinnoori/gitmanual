@@ -194,6 +194,20 @@ test("back from checkout: only the account that paid gets Pro from the session",
   assert.equal(j.prices.year, 4800);
 });
 
+test("no ads: /api/pro tells the browser while Pro lasts, and stops once it doesn't", async () => {
+  const noAds = async (cookie?: string) => {
+    const res = await proRoute.GET(new Request("http://localhost/api/pro", { headers: cookie ? { cookie } : {} }));
+    return res.headers.getSetCookie().find((c) => c.startsWith("gm_noads=")) ?? null;
+  };
+  signedIn = { id: 20, login: "kim" }; // has Pro (above)
+  assert.match((await noAds("gm_github=x"))!, /^gm_noads=1;/);
+  signedIn = { id: 21, login: "eve" };
+  assert.match((await noAds("gm_github=x"))!, /^gm_noads=;/);
+  signedIn = null;
+  assert.match((await noAds())!, /^gm_noads=;/); // signed out
+  assert.equal(await noAds("gm_github=x"), null); // signed in but GitHub didn't answer: left as it was
+});
+
 test("chat: Pro answers come from the Pro pool; a free account at its limit is offered Pro", async () => {
   signedIn = { id: 20, login: "kim" };
   let j = await (await chat.GET()).json();
