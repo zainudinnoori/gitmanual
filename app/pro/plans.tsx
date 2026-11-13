@@ -14,6 +14,7 @@ type Status = {
   login: string | null;
   pro: boolean;
   subscription: { status: string; plan: Plan | null; periodEnd: number; cancelAtPeriodEnd: boolean } | null;
+  prices?: Prices; // live from Stripe, for when the saved page was made before the prices existed
 };
 
 const money = (cents: number, currency: string) =>
@@ -51,7 +52,7 @@ function Feature({ icon, title, children }: { icon: keyof typeof ICONS; title: s
   );
 }
 
-export function Plans({ prices, free, contact }: { prices: Prices; free: number; contact: boolean }) {
+export function Plans({ prices: saved, free, contact }: { prices: Prices; free: number; contact: boolean }) {
   const [plan, setPlan] = useState<Plan>("month"); // monthly first: the smaller number to start from
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
@@ -98,6 +99,9 @@ export function Plans({ prices, free, contact }: { prices: Prices; free: number;
 
   const here = back ? `/pro?back=${encodeURIComponent(back)}` : "/pro";
   const signIn = `/api/github/connect?signin=1&back=${encodeURIComponent(here)}`;
+  // The page is saved for 10 minutes with the prices it was built with; if those were missing, the live ones from
+  // /api/pro fill in, so the card never waits on the next rebuild.
+  const prices = saved ?? status?.prices ?? null;
   const saving = prices ? Math.round((1 - prices.year / (prices.month * 12)) * 100) : 0;
   const sub = status?.subscription;
 
