@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Analytics } from "@vercel/analytics/next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
@@ -95,8 +96,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Link href="/developers">API &amp; MCP</Link>
               {PRO && <Link href="/pro">GitManual Pro</Link>}
               {EXTENSION_URL && (
-                <a href={EXTENSION_URL} target="_blank" rel="noreferrer">
-                  Chrome extension&nbsp;↗
+                // Google's own badge, unchanged except for size (its branding rules), linked to the store page.
+                <a className="footer-badge" href={EXTENSION_URL} target="_blank" rel="noreferrer">
+                  <Image src="/chrome-web-store-badge.png" alt="Available in the Chrome Web Store" width={170} height={48} />
                 </a>
               )}
             </nav>

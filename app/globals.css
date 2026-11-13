@@ -551,6 +551,8 @@ details[open].panel > summary h3::after { content: " −"; }
 .footer-col h2 { margin: 0 0 4px; font: 600 var(--fs-label) var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink); }
 .footer-col a { color: var(--pencil); text-decoration: none; }
 .footer-col a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.footer-badge { display: block; margin-top: 6px; line-height: 0; border-radius: 8px; }
+.footer-badge img { display: block; height: auto; max-width: 100%; }
 .footer-col a:focus-visible, .footer-brand .wordmark:focus-visible { outline: 2px solid var(--wrench); outline-offset: 2px; border-radius: 3px; }
 .footer-legal { display: flex; gap: 16px; flex-wrap: wrap; }
 .footer-legal a { color: var(--pencil); text-decoration: none; }
