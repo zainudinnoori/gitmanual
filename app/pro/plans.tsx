@@ -34,6 +34,7 @@ const ICONS = {
   brand: "M12 2l9 4.5v11L12 22l-9-4.5v-11zM3 6.5l9 4.5 9-4.5M12 11v11",
   lock: "M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4",
   noads: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM4.93 4.93l14.14 14.14",
+  gift: "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z",
   folder: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z",
 } as const;
 
@@ -132,18 +133,21 @@ export function Plans({ prices: saved, free, contact }: { prices: Prices; free: 
           <p className="pro-price">
             <strong>$0</strong>
           </p>
+          <p className="pro-foot">{status?.login && !status.pro ? "Your plan now" : "No account or card needed"}</p>
           <ul className="pro-feats">
             <Feature icon="book" title="Every setup manual">
-              Steps, scripts and lists for any public repo
+              Step-by-step install instructions for any public GitHub project
             </Feature>
-            <Feature icon="chat" title={`${free} AI answers a day`}>
-              And 1 new written guide, with GitHub sign-in
+            <Feature icon="chat" title={`${free} questions a day to the AI helper`}>
+              Stuck on a step? Ask about it right on the manual
             </Feature>
-            <Feature icon="plug" title="Extension, API and MCP">
-              Use it from GitHub, your code or your AI agent
+            <Feature icon="sparkle" title="1 AI-written guide a day">
+              A full walkthrough for your computer, once you sign in with GitHub
+            </Feature>
+            <Feature icon="plug" title="Browser extension and API">
+              Open a manual from any GitHub page, or use gitmanual from your own code
             </Feature>
           </ul>
-          <p className="pro-foot">{status?.login && !status.pro ? "Your plan now" : "No card needed"}</p>
         </section>
 
         <section className="pro-card pro-card-pro" aria-labelledby="plan-pro">
@@ -167,27 +171,6 @@ export function Plans({ prices: saved, free, contact }: { prices: Prices; free: 
           ) : (
             <p className="pro-price">Prices are loading. Refresh in a moment.</p>
           )}
-          <ul className="pro-feats pro-feats-pro">
-            <Feature icon="infinity" title="Unlimited AI answers">
-              On the site and in the extension, plus 20 written guides a day
-            </Feature>
-            <Feature icon="file" title="Download any manual">
-              A designed PDF to print or share, or Markdown
-            </Feature>
-            <Feature icon="noads" title="No ads">
-              Every page, on any browser you sign in on
-            </Feature>
-            <Feature icon="plug" title="20× the API and MCP limits">
-              5,000 requests an hour with your API key, not 250
-            </Feature>
-            <Feature icon="sparkle" title="New Pro features first">
-              As they arrive, at no extra cost
-            </Feature>
-            <Feature icon="heart" title="Keeps gitmanual free">
-              Your plan pays for everyone else&apos;s manuals
-            </Feature>
-          </ul>
-
           {!status ? (
             <p className="pro-foot">Checking…</p>
           ) : status.pro && sub ? (
@@ -216,6 +199,30 @@ export function Plans({ prices: saved, free, contact }: { prices: Prices; free: 
             </p>
           )}
           {status && !status.pro && <p className="pro-foot">Cancel any time. Tax added at checkout where it applies.</p>}
+          <p className="pro-feats-lead">Everything in Free, plus:</p>
+          <ul className="pro-feats pro-feats-pro">
+            <Feature icon="infinity" title="Ask the AI helper as much as you need">
+              No daily limit, on the site and in the browser extension
+            </Feature>
+            <Feature icon="sparkle" title="20 AI-written guides a day">
+              Instead of 1, each one made for your computer
+            </Feature>
+            <Feature icon="file" title="Download any manual">
+              A ready-to-print PDF to keep or share with others, or a Markdown file
+            </Feature>
+            <Feature icon="noads" title="No ads">
+              On every page, in any browser where you sign in
+            </Feature>
+            <Feature icon="plug" title="Bigger limits for developers">
+              5,000 API requests an hour instead of 250, for your code and AI tools
+            </Feature>
+            <Feature icon="gift" title="New Pro features included">
+              You get them as they arrive, at no extra cost
+            </Feature>
+            <Feature icon="heart" title="Keeps gitmanual free">
+              Your plan pays for everyone else&apos;s manuals
+            </Feature>
+          </ul>
         </section>
 
         <TeamCard contact={contact} />
@@ -247,20 +254,6 @@ function TeamCard({ contact }: { contact: boolean }) {
       <span className="pro-badge pro-badge-soon">Coming soon</span>
       <h2 id="plan-team">Team</h2>
       <p className="pro-price">For teams that onboard people onto the same repos.</p>
-      <ul className="pro-feats">
-        <Feature icon="users" title="Pro for every seat">
-          One bill for the whole team
-        </Feature>
-        <Feature icon="brand" title="Your logo on the PDFs">
-          Setup guides in your own style
-        </Feature>
-        <Feature icon="lock" title="Chat about private repos">
-          Answers from your own code
-        </Feature>
-        <Feature icon="folder" title="Shared manuals">
-          The repos your team uses, in one place
-        </Feature>
-      </ul>
       {joined ? (
         <p className="pro-joined" role="status">
           You&apos;re on the list. Thank you!
@@ -270,6 +263,20 @@ function TeamCard({ contact }: { contact: boolean }) {
           Join the waitlist
         </button>
       )}
+      <ul className="pro-feats">
+        <Feature icon="users" title="Pro for everyone on the team">
+          One bill instead of one plan each
+        </Feature>
+        <Feature icon="brand" title="Your logo on the PDFs">
+          Setup guides that look like your company's own
+        </Feature>
+        <Feature icon="lock" title="Ask the AI about private repos">
+          Answers based on your team's own code
+        </Feature>
+        <Feature icon="folder" title="Shared manuals">
+          The repos your team uses, all in one place
+        </Feature>
+      </ul>
       <p className="pro-foot">
         No email needed: it tells us to build it.
         {contact && (

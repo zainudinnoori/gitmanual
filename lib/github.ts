@@ -221,6 +221,23 @@ export async function getLatestRelease({ owner, repo }: RepoRef, token?: string)
   );
 }
 
+// The people who've committed the most to a public repo, most first, without bots. GitHub counts commits on the
+// default branch only, and refuses repos whose history is too big to count (it answers 403); that, an empty repo
+// (204) or a missing one comes back as no one, so the page simply leaves the list out.
+export type Contributor = { login: string; avatar: string; url: string; commits: number };
+export async function getContributors({ owner, repo }: RepoRef, max = 10): Promise<Contributor[]> {
+  const res = await fetchRetry(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=${Math.min(100, max + 8)}`, {
+    headers: headers(),
+    cache: "no-store",
+  });
+  if (!res.ok || res.status === 204) return [];
+  const list = (await res.json().catch(() => [])) as { login?: string; type?: string; avatar_url?: string; html_url?: string; contributions?: number }[];
+  return (Array.isArray(list) ? list : [])
+    .filter((c) => c.login && c.type !== "Bot" && !/\[bot\]$|-bot$/i.test(c.login))
+    .slice(0, max)
+    .map((c) => ({ login: c.login!, avatar: c.avatar_url ?? "", url: c.html_url ?? `https://github.com/${c.login}`, commits: c.contributions ?? 0 }));
+}
+
 // Words that mark giveaway, cracking and jailbreak repos (the usual bait in star-farmed, often malicious repos),
 // and adult or gambling content, which doesn't belong on a public shelf.
 const BAIT = /\b(free|crack(ed)?|keygen|cheat|hack(ed)?|uncensored|jailbreak|bypass|unlimited|zero ?cost|giveaway|airdrop|exploit|spoofer|injector|unlock(er)?|nsfw|porn|nude|hentai|adult|casino|betting|gambl\w*)\b|zerocost/i;

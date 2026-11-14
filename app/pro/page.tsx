@@ -28,8 +28,8 @@ export default async function ProPage() {
         <p className="eyebrow">GitManual Pro</p>
         <h1 className="display-md">Ask as much as the setup needs.</h1>
         <p className="lead">
-          The free plan gives you {POOLS.user.answersPerDay} answers a day from GitManual AI Agent. Pro takes the daily limit away, on
-          gitmanual.com and in the browser extension.
+          Free lets you ask the AI helper {POOLS.user.answersPerDay} questions a day. Pro removes that limit, lets you download any
+          manual as a PDF, and hides the ads.
         </p>
       </header>
 
