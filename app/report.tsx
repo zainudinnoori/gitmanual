@@ -795,6 +795,25 @@ function Report({
             )}
           </div>
 
+          {(a.hints.length > 0 || a.otherManifests.length > 0) && (
+            <div className="side-card">
+              <h3>Good to know</h3>
+              <ul className="hints">
+                {a.hints.map((h) => (
+                  <li key={h}>
+                    <ReactMarkdown components={inline}>{h}</ReactMarkdown>
+                  </li>
+                ))}
+                {a.otherManifests.length > 0 && (
+                  <li>
+                    Nested projects: <code>{a.otherManifests.slice(0, 4).join(", ")}</code>
+                    {a.otherManifests.length > 4 ? ` and ${a.otherManifests.length - 4} more` : ""}
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
           {!priv && <Contributors fullName={meta.fullName} htmlUrl={meta.htmlUrl} />}
 
           {!priv && (
@@ -822,25 +841,6 @@ function Report({
                 </div>
               )}
               <BadgeCard fullName={meta.fullName} />
-            </div>
-          )}
-
-          {(a.hints.length > 0 || a.otherManifests.length > 0) && (
-            <div className="side-card">
-              <h3>Good to know</h3>
-              <ul className="hints">
-                {a.hints.map((h) => (
-                  <li key={h}>
-                    <ReactMarkdown components={inline}>{h}</ReactMarkdown>
-                  </li>
-                ))}
-                {a.otherManifests.length > 0 && (
-                  <li>
-                    Nested projects: <code>{a.otherManifests.slice(0, 4).join(", ")}</code>
-                    {a.otherManifests.length > 4 ? ` and ${a.otherManifests.length - 4} more` : ""}
-                  </li>
-                )}
-              </ul>
             </div>
           )}
 
