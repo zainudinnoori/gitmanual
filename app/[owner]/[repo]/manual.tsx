@@ -21,6 +21,11 @@ export type Props = {
 };
 
 // The system a per-system page is for; null on the main manual. Anything else under /owner/repo/ isn't a page.
+// GitHub usernames are letters, digits and dashes, never starting with a dash, so anything else (/.well-known/…,
+// which scanners and browsers ask for) is a plain 404 rather than a manual page for a repo that can't exist.
+const GITHUB_OWNER = /^[a-z\d][a-z\d-]{0,38}$/i;
+const realOwner = (owner: string) => GITHUB_OWNER.test(owner) || notFound();
+
 async function osPageOf(params: Props["params"]): Promise<OS | null> {
   const { os } = await params;
   if (os === undefined) return null;
@@ -84,6 +89,7 @@ function osSummary(d: ReportData, os: OS): string {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { owner, repo } = await params;
+  realOwner(owner);
   const osPage = await osPageOf(params);
   const { ref, os: qOs } = await searchParams;
   const r = await getRepo(owner, repo, ref);
@@ -110,6 +116,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 // The manual page itself; on a per-system page (osPage) it opens on that system rather than the visitor's.
 export async function RepoManual({ params, searchParams }: Props) {
   const { owner, repo } = await params;
+  realOwner(owner);
   const osPage = await osPageOf(params);
   const { ref, os, mode } = await searchParams;
   const r = await getRepo(owner, repo, ref);
