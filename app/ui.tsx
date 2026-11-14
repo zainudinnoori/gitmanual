@@ -7,6 +7,7 @@ import { compactCount } from "@/lib/format";
 import { parseRepoUrl } from "@/lib/github";
 import type { Arch } from "@/lib/install";
 import type { OS } from "@/lib/os";
+import { AD_FREE_COOKIE } from "@/lib/site";
 
 export function detectOS(): OS {
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
@@ -152,8 +153,16 @@ const NAV = [
 // Every menu item looks the same; the current page is outlined. The product's pages come first; the browser
 // extension (a puzzle-piece mark) sits with the GitHub link after a divider, as the ways to take gitmanual with you.
 // The GitHub link only shows once the project's own repo is set (NEXT_PUBLIC_REPO_URL).
-export function NavLinks({ repo, stars, extension }: { repo: string | null; stars: number | null; extension: string | null }) {
+// "Pro" comes last of the pages, as quiet as the rest (only while Pro is on). For someone with Pro in this browser
+// (the no-ads cookie, lib/adfree.ts) it reads "Pro ✓" and leads to their plan, which is on the same page.
+export function NavLinks({ repo, stars, extension, pro }: { repo: string | null; stars: number | null; extension: string | null; pro: boolean }) {
   const path = usePathname();
+  const [havePro, setHavePro] = useState(false);
+  useEffect(() => {
+    try {
+      setHavePro(new RegExp(`(^|; )${AD_FREE_COOKIE}=`).test(document.cookie));
+    } catch {}
+  }, [path]);
   return (
     <>
       {path !== "/" && <NavSearch />}
@@ -170,6 +179,21 @@ export function NavLinks({ repo, stars, extension }: { repo: string | null; star
             )}
           </Link>
         ))}
+        {pro && (
+          <Link
+            href="/pro"
+            className={havePro ? "nav-pro nav-pro-have" : "nav-pro"}
+            aria-current={path === "/pro" ? "page" : undefined}
+            aria-label={havePro ? "GitManual Pro: your plan" : "GitManual Pro"}
+          >
+            Pro
+            {havePro && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            )}
+          </Link>
+        )}
         {extension && (
           <a className="nav-ext" href={extension} target="_blank" rel="noreferrer" aria-label="Get the gitmanual browser extension" title="Get the browser extension">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

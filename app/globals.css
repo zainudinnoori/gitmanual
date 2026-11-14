@@ -107,6 +107,10 @@ html[data-noads] .ad { display: none; } /* Pro: no ads, and no space kept for on
 .nav-links a { font: var(--ui); font-size: var(--fs-body); white-space: nowrap; text-decoration: none; color: var(--pencil); padding: 8px 13px; border-radius: 10px; }
 .nav-links a:hover { color: var(--ink); background: var(--sheet); }
 .nav-short { display: none; }
+.nav-links a.nav-pro { display: inline-flex; align-items: center; gap: 4px; }
+.nav-links a.nav-pro::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--wrench); margin-left: 2px; } /* a small orange dot, the one hint it's the paid plan */
+.nav-links a.nav-pro-have::after { content: none; }
+.nav-links a.nav-pro-have svg { color: var(--wrench-2); }
 .nav-links a.nav-ext { position: relative; margin-left: 13px; display: inline-flex; align-items: center; padding-inline: 9px; }
 .nav-links a.nav-ext:hover { color: var(--wrench-2); }
 .nav-links a.nav-ext::before { content: ""; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 1.5px; background: var(--line-strong); }
@@ -520,6 +524,12 @@ details[open].panel > summary h3::after { content: " −"; }
 .side-card h3 { font: 700 var(--fs-body) var(--display); display: inline; }
 .side-card > h3 { display: block; margin-bottom: 6px; }
 .side-card summary { cursor: pointer; }
+.contrib-strip { list-style: none; margin: 4px 0 8px; padding: 0 0 0 6px; display: flex; flex-wrap: wrap; row-gap: 6px; }
+.contrib-strip li { margin-left: -6px; }
+.contrib-strip a { display: block; border-radius: 50%; transition: transform 0.15s var(--ease); }
+.contrib-strip a:hover, .contrib-strip a:focus-visible { transform: translateY(-3px); position: relative; z-index: 1; }
+.contrib-strip img { display: block; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--sheet); background: var(--line); }
+.contributors .note { margin: 0; }
 .side-sub { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line-strong); }
 .side-sub h4 { font: 700 var(--fs-small) var(--display); margin: 0 0 8px; }
 .side-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 12px 0 0; }
@@ -1077,6 +1087,14 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
   .nav-inner { flex-wrap: wrap; height: auto; padding-block: 10px 6px; row-gap: 4px; }
   .nav-links { justify-content: space-between; width: calc(100% + 18px); margin-inline: -9px; }
   .fb-tabs a { padding-inline: 6px; gap: 5px; }
+  .nav-links a { padding-inline: 6px; }
+  .nav-links a.nav-pro { gap: 3px; }
+  .nav-links a.nav-pro::after { width: 5px; height: 5px; margin-left: 0; }
+  .nav-links a.nav-ext { display: none; } /* phones can't install it; the room goes to Pro */
+}
+@media (max-width: 340px) {
+  .nav-links a { padding-inline: 5px; }
+  .nav-links a.nav-pro::after { content: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1286,6 +1304,7 @@ button.fb-media { width: 100%; padding: 0; border: 0; border-block: 1.5px solid 
 .pro-toggle small { font: 600 var(--fs-label) var(--mono); color: var(--wrench-2); }
 .pro-toggle button.on small { color: var(--maybe); }
 .pro-btn { justify-self: stretch; min-height: 50px; font-size: var(--fs-body); border-radius: 12px; }
+.pro-feats-lead { margin: 4px 0 -4px; font: 600 var(--fs-label) var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink); }
 .pro-foot { margin: 0; color: var(--pencil); font-size: var(--fs-meta); }
 .pro-have { display: grid; gap: 10px; justify-items: start; }
 .pro-have p { margin: 0; font-size: var(--fs-small); }

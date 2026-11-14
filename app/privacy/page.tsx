@@ -118,8 +118,9 @@ export default function Privacy() {
         </li>
         <li>
           <strong>GitHub</strong>: gitmanual&apos;s servers read public repositories from GitHub, and private ones only with the
-          access you give (above). Your browser doesn&apos;t contact GitHub
-          unless you follow a link there.
+          access you give (above). On manual pages of public repos, your browser loads the top contributors&apos; profile pictures
+          from GitHub (avatars.githubusercontent.com), which sees your IP address and browser type; otherwise it contacts GitHub
+          only when you follow a link there.
         </li>
         <li>
           <strong>Facebook</strong>: on the Finds page, pressing play on a Reel loads Facebook&apos;s video player, which follows

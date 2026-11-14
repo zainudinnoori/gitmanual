@@ -70,7 +70,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <Logo />
               gitmanual
             </Link>
-            <NavLinks repo={REPO_URL} stars={await repoStars()} extension={EXTENSION_URL} />
+            <NavLinks repo={REPO_URL} stars={await repoStars()} extension={EXTENSION_URL} pro={PRO} />
           </div>
         </header>
         <main id="main">{children}</main>

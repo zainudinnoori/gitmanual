@@ -5,6 +5,7 @@ import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Analysis } from "@/lib/detect";
 import type { Guides } from "@/lib/guides";
 import type { Alternative } from "@/lib/db";
+import type { Contributor } from "@/lib/github";
 import { beforeYouStart, type Fact } from "@/lib/facts";
 import type { Pick } from "@/lib/picks";
 import { fitCheck, freshness, setupTime } from "@/lib/fit";
@@ -793,6 +794,8 @@ function Report({
               </details>
             )}
           </div>
+
+          {!priv && <Contributors fullName={meta.fullName} htmlUrl={meta.htmlUrl} />}
 
           {!priv && (
             <div className="side-card">
@@ -1670,6 +1673,47 @@ function BadgeCard({ fullName }: { fullName: string }) {
       <img className="badge-preview" src={`/${fullName}/badge.svg`} alt="Setup manual badge" height={20} />
       <code className="badge-code">{markdown}</code>
       <CopyButton text={markdown} className="btn btn-sm" label="Copy the badge Markdown" />
+    </div>
+  );
+}
+
+// The people behind the repo: who has committed the most (app/api/contributors, kept for a day). Loaded after the
+// page, since it's extra; the card stays out when GitHub has no list (empty repos, or ones too big for it to count).
+function Contributors({ fullName, htmlUrl }: { fullName: string; htmlUrl: string }) {
+  const [people, setPeople] = useState<Contributor[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    setPeople(null);
+    fetch(`/api/contributors?repo=${encodeURIComponent(fullName)}`)
+      .then((r) => (r.ok ? r.json() : { contributors: [] }))
+      .then((j: { contributors?: Contributor[] }) => live && setPeople(j.contributors ?? []))
+      .catch(() => live && setPeople([]));
+    return () => {
+      live = false;
+    };
+  }, [fullName]);
+  if (!people?.length) return null;
+  const top = people.slice(0, 3).map((p) => `@${p.login}`);
+  const names = top.length > 1 ? `${top.slice(0, -1).join(", ")} and ${top[top.length - 1]}` : top[0];
+  return (
+    <div className="side-card contributors">
+      <h3>Top contributors</h3>
+      <ul className="contrib-strip">
+        {people.map((p) => (
+          <li key={p.login}>
+            <a href={p.url} target="_blank" rel="noreferrer" title={`@${p.login} · ${p.commits.toLocaleString()} commit${p.commits === 1 ? "" : "s"}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- GitHub's own avatar, already the right size */}
+              <img src={`${p.avatar}${p.avatar.includes("?") ? "&" : "?"}s=64`} alt={`@${p.login}`} width={32} height={32} loading="lazy" />
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p className="note">
+        Most commits: {names}.{" "}
+        <a href={`${htmlUrl}/graphs/contributors`} target="_blank" rel="noreferrer">
+          See everyone&nbsp;↗
+        </a>
+      </p>
     </div>
   );
 }
